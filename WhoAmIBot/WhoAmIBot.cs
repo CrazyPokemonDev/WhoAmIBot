@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace WhoAmIBot
 {
-    public class Class1
+    public class WhoAmIBot
     {
+
     }
 }
