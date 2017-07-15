@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using FlomBotFactory;
 
 namespace WhoAmIBot
 {
-    public class WhoAmIBot
+    public class WhoAmIBot : FlomBot
     {
 
     }
