@@ -79,6 +79,15 @@ namespace WhoAmIBotSpace
         }
         #endregion
 
+        #region Language
+        #region Get string
+        private string GetString(string key, string langCode = "en-US")
+        {
+            return ExecuteSql($"SELECT 'value' FROM '{langCode}' WHERE 'key'='{key}'", raw: true);
+        }
+        #endregion
+        #endregion
+
         #region Command Methods
         #region Read Commands
         private void ReadCommands()
@@ -93,7 +102,17 @@ namespace WhoAmIBotSpace
             string commandText;
             if (msg.ReplyToMessage != null) commandText = msg.ReplyToMessage.Text;
             else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
-            string response = "";
+            string response = ExecuteSql(commandText);
+            if (!string.IsNullOrEmpty(response)) client.SendTextMessageAsync(msg.Chat.Id, response);
+        }
+        #endregion
+        #endregion
+
+        #region SQLite
+        #region Execute SQLite Query
+        private string ExecuteSql(string commandText, bool raw = false)
+        {
+            string r = "";
             using (var trans = sqliteConn.BeginTransaction())
             {
                 using (var comm = new SQLiteCommand(commandText, sqliteConn, trans))
@@ -102,34 +121,36 @@ namespace WhoAmIBotSpace
                     {
                         using (var reader = comm.ExecuteReader())
                         {
-                            if (reader.RecordsAffected >= 0) client.SendTextMessageAsync(
-                                msg.Chat.Id, $"_{reader.RecordsAffected} records affected_", parseMode: ParseMode.Markdown);
-                            for (int i = 0; i < reader.FieldCount; i++)
+                            if (!raw)
                             {
-                                response += $"{reader.GetName(i)} ({reader.GetFieldType(i).Name})";
-                                if (i < reader.FieldCount - 1) response += " - ";
+                                if (reader.RecordsAffected >= 0) r += $"_{reader.RecordsAffected} records affected_\n";
+                                for (int i = 0; i < reader.FieldCount; i++)
+                                {
+                                    r += $"{reader.GetName(i)} ({reader.GetFieldType(i).Name})";
+                                    if (i < reader.FieldCount - 1) r += " - ";
+                                }
+                                r += "\n\n";
                             }
-                            response += "\n\n";
                             while (reader.HasRows)
                             {
                                 if (!reader.Read()) break;
                                 for (int i = 0; i < reader.FieldCount; i++)
                                 {
-                                    response += reader.GetValue(i);
-                                    if (i < reader.FieldCount - 1) response += " - ";
+                                    r += reader.GetValue(i);
+                                    if (i < reader.FieldCount - 1) r += " - ";
                                 }
-                                response += "\n";
                             }
                         }
                     }
                     catch (SQLiteException x)
                     {
-                        client.SendTextMessageAsync(msg.Chat.Id, x.Message);
+                        r = x.Message;
                     }
                 }
                 trans.Commit();
-                if (!string.IsNullOrEmpty(response)) client.SendTextMessageAsync(msg.Chat.Id, response);
             }
+
+            return r;
         }
         #endregion
         #endregion
