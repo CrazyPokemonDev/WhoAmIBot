@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
-using System.Reflection;
 using Telegram.Bot.Types;
 using UpdateEventArgs = Telegram.Bot.Args.UpdateEventArgs;
 using File = System.IO.File;
@@ -35,6 +34,7 @@ namespace WhoAmIBotSpace
             sqliteConn = new SQLiteConnection(connectionString);
             sqliteConn.Open();
             ReadCommands();
+            ClearGames();
         }
 
         /*public WhoAmIBot()
@@ -83,7 +83,7 @@ namespace WhoAmIBotSpace
         #region Get string
         private string GetString(string key, string langCode = "en-US")
         {
-            return ExecuteSql($"SELECT 'value' FROM '{langCode}' WHERE 'key'='{key}'", raw: true);
+            return ExecuteSql($"SELECT value FROM '{langCode}' WHERE key='{key}'", raw: true).Trim();
         }
         #endregion
         #endregion
@@ -93,6 +93,7 @@ namespace WhoAmIBotSpace
         private void ReadCommands()
         {
             commands.Add("/sql", new Action<Message>(SQL_Command));
+            commands.Add("/startgame", new Action<Message>(Startgame_Command));
         }
         #endregion
 
@@ -104,6 +105,18 @@ namespace WhoAmIBotSpace
             else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
             string response = ExecuteSql(commandText);
             if (!string.IsNullOrEmpty(response)) client.SendTextMessageAsync(msg.Chat.Id, response);
+        }
+        #endregion
+        #region /startgame
+        private void Startgame_Command(Message msg)
+        {
+            if (msg.Chat.Type != ChatType.Group && msg.Chat.Type != ChatType.Supergroup)
+            {
+                client.SendTextMessageAsync(msg.Chat.Id, GetString("NotInPrivate"));
+                return;
+            }
+            ExecuteSql($"INSERT INTO Games (groupId) VALUES({msg.Chat.Id})");
+
         }
         #endregion
         #endregion
@@ -151,6 +164,13 @@ namespace WhoAmIBotSpace
             }
 
             return r;
+        }
+        #endregion
+
+        #region Clear Games
+        private void ClearGames()
+        {
+            ExecuteSql("DELETE FROM Games");
         }
         #endregion
         #endregion
