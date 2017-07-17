@@ -78,6 +78,7 @@
     <Compile Include="Classes\Player.cs" />
     <Compile Include="Classes\User.cs" />
     <Compile Include="Helpers\Extensions.cs" />
+    <Compile Include="Helpers\Todo.cs" />
     <Compile Include="WhoAmIBot.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

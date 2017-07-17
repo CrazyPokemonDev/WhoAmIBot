@@ -14,6 +14,7 @@ using WhoAmIBotSpace.Helpers;
 using Newtonsoft.Json;
 using Telegram.Bot;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace WhoAmIBotSpace
 {
@@ -200,6 +201,9 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, "NotEnoughPlayers");
                 return;
             }
+            ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
+            Thread t = new Thread(pts);
+            t.Start();
             StartGameFlow(g);
         }
         #endregion
@@ -279,10 +283,12 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #region Start game flow
-        private void StartGameFlow(Game game)
+        private void StartGameFlow(object gameObject)
         {
+            if (!(gameObject is Game)) return;
+            Game game = (Game)gameObject;
             SendLangMessage(game.GroupId, "GameFlowStarted");
-
+            
         }
         #endregion
         #endregion
