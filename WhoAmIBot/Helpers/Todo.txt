@@ -10,3 +10,6 @@
 - If yes, they win and the others continue
 - If no, it's the next player's turn.
 - A player can also GIVE UP instead of asking a question, meaning they lose and the others continue
+- Once only one player is left, the ranking will be shown.
+
+So far the theory. Now let's try to realize this.
