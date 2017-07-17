@@ -15,6 +15,7 @@ using Newtonsoft.Json;
 using Telegram.Bot;
 using System.Threading.Tasks;
 using System.Threading;
+using Telegram.Bot.Args;
 
 namespace WhoAmIBotSpace
 {
@@ -30,6 +31,7 @@ namespace WhoAmIBotSpace
         private const string connectionString = "Data Source=\"" + sqliteFilePath + "\";";
         private const string defaultLangCode = "en-US";
         private const int minPlayerCount = 2;
+        private const long testingGroupId = -1001070844778;
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
@@ -202,7 +204,7 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, "NotInGame");
                 return;
             }
-            if (g.Players.Count < minPlayerCount)
+            if (g.Players.Count < minPlayerCount && msg.Chat.Id != testingGroupId)
             {
                 SendLangMessage(msg.Chat.Id, "NotEnoughPlayers");
                 return;
@@ -210,8 +212,7 @@ namespace WhoAmIBotSpace
             ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
             Thread t = new Thread(pts);
             g.Thread = t;
-            t.Start();
-            StartGameFlow(g);
+            t.Start(g);
         }
         #endregion
         #region /join
@@ -283,8 +284,13 @@ namespace WhoAmIBotSpace
             if (game.Players.Exists(x => x.Id == player.Id))
             {
                 SendLangMessage(game.GroupId, "AlreadyInGame", player.Name);
+                return;
             }
-            if (!SendLangMessage(player.Id, "JoinedGamePM", game.GroupName)) SendLangMessage(game.GroupId, "PmMe", player.Name);
+            if (!SendLangMessage(player.Id, "JoinedGamePM", game.GroupName))
+            {
+                SendLangMessage(game.GroupId, "PmMe", player.Name);
+                return;
+            }
             game.Players.Add(player);
             SendLangMessage(game.GroupId, "PlayerJoinedGame", player.Name);
         }
@@ -301,26 +307,34 @@ namespace WhoAmIBotSpace
                 SendLangMessage(game.Players[i].Id, "ChooseRoleFor", game.Players[next].Name);
             }
             ManualResetEvent mre = new ManualResetEvent(false);
-            client.OnMessage += (sender, e) =>
+            EventHandler<MessageEventArgs> eHandler = (sender, e) =>
+               {
+                   if (!game.Players.Exists(x => x.Id == e.Message.From.Id)
+                   || e.Message.Type != MessageType.TextMessage || e.Message.Chat.Type != ChatType.Private) return;
+                   Player p = game.Players.Find(x => x.Id == e.Message.From.Id);
+                   int pIndex = game.Players.IndexOf(p);
+                   int nextIndex = (pIndex == game.Players.Count - 1) ? 0 : pIndex + 1;
+                   Player next = game.Players[nextIndex];
+                   if (game.RoleIdDict.ContainsKey(next.Id))
+                   {
+                       SendLangMessage(p.Id, "AlreadySentRole", next.Name);
+                   }
+                   else
+                   {
+                       game.RoleIdDict.Add(next.Id, e.Message.Text);
+                       SendLangMessage(p.Id, "SetRole", next.Name, e.Message.Text);
+                       if (game.DictFull()) mre.Set();
+                   }
+               };
+            try    //we don't wanna have that handler there if the thread is aborted, do we?
             {
-                if (!game.Players.Exists(x => x.Id == e.Message.From.Id) 
-                || e.Message.Type != MessageType.TextMessage) return;
-                Player p = game.Players.Find(x => x.Id == e.Message.From.Id);
-                int pIndex = game.Players.IndexOf(p);
-                int nextIndex = (pIndex == game.Players.Count - 1) ? 0 : pIndex + 1;
-                Player next = game.Players[nextIndex];
-                if (game.RoleIdDict.ContainsKey(next.Id))
-                {
-                    SendLangMessage(p.Id, "AlreadySentRole", next.Name);
-                }
-                else
-                {
-                    game.RoleIdDict.Add(next.Id, e.Message.Text);
-                    SendLangMessage(p.Id, "SetRole", next.Name, e.Message.Text);
-                    if (game.DictFull()) mre.Set();
-                }
-            };
-            mre.WaitOne();
+                client.OnMessage += eHandler;
+                mre.WaitOne();
+            }
+            finally
+            {
+                client.OnMessage -= eHandler;
+            }
             SendLangMessage(game.GroupId, "AllRolesSet");
 
         }
@@ -346,7 +360,7 @@ namespace WhoAmIBotSpace
                                 for (int i = 0; i < reader.FieldCount; i++)
                                 {
                                     r += $"{reader.GetName(i)} ({reader.GetFieldType(i).Name})";
-                                    if (i < reader.FieldCount - 1) r += " - ";
+                                    if (i < reader.FieldCount - 1) r += " | ";
                                 }
                                 r += "\n\n";
                             }
@@ -356,8 +370,9 @@ namespace WhoAmIBotSpace
                                 for (int i = 0; i < reader.FieldCount; i++)
                                 {
                                     r += reader.GetValue(i);
-                                    if (i < reader.FieldCount - 1) r += " - ";
+                                    if (i < reader.FieldCount - 1) r += " | ";
                                 }
+                                r += "\n";
                             }
                         }
                     }
@@ -387,7 +402,7 @@ namespace WhoAmIBotSpace
             foreach (var row in query.Split('\n'))
             {
                 if (string.IsNullOrWhiteSpace(query)) continue;
-                var split = row.Split('-');
+                var split = row.Split('|');
                 Groups.Add(new Group(Convert.ToInt64(split[0].Trim()), Convert.ToBoolean(split[2].Trim()))
                     { LangKey = split[1].Trim() });
             }
@@ -396,7 +411,7 @@ namespace WhoAmIBotSpace
             foreach (var row in query.Split('\n'))
             {
                 if (string.IsNullOrWhiteSpace(query)) continue;
-                var split = row.Split('-');
+                var split = row.Split('|');
                 Users.Add(new User(Convert.ToInt64(split[0].Trim()))
                 { LangKey = split[1].Trim() });
             }
