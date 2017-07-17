@@ -177,7 +177,13 @@ namespace WhoAmIBotSpace
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
+            if (!g.Players.Exists(x => x.Id == msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NotInGame");
+                return;
+            }
             ExecuteSql($"DELETE FROM Games WHERE Id={g.Id}");
+            g.Thread?.Abort();
             GamesRunning.Remove(g);
             SendLangMessage(msg.Chat.Id, "GameCancelled");
         }
@@ -203,6 +209,7 @@ namespace WhoAmIBotSpace
             }
             ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
             Thread t = new Thread(pts);
+            g.Thread = t;
             t.Start();
             StartGameFlow(g);
         }
@@ -216,7 +223,7 @@ namespace WhoAmIBotSpace
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
-            SendLangMessage(msg.Chat.Id, AddPlayer(g, new Player(msg.From.Id)), msg.From.FullName());
+            AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
         }
         #endregion
         #region /start
@@ -254,7 +261,7 @@ namespace WhoAmIBotSpace
             Game g = new Game(Convert.ToInt32(response), msg.Chat.Id, msg.Chat.Title);
             GamesRunning.Add(g);
             SendLangMessage(msg.Chat.Id, "GameStarted");
-            AddPlayer(g, new Player(msg.From.Id));
+            AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
         }
         #endregion
         #region /sql
@@ -271,15 +278,15 @@ namespace WhoAmIBotSpace
 
         #region Game Flow
         #region Add player
-        private string AddPlayer(Game game, Player player)
+        private void AddPlayer(Game game, Player player)
         {
             if (game.Players.Exists(x => x.Id == player.Id))
             {
-                return "AlreadyInGame";
+                SendLangMessage(game.GroupId, "AlreadyInGame", player.Name);
             }
-            if (!SendLangMessage(player.Id, "JoinedGamePM", game.GroupName)) return "PmMe";
+            if (!SendLangMessage(player.Id, "JoinedGamePM", game.GroupName)) SendLangMessage(game.GroupId, "PmMe", player.Name);
             game.Players.Add(player);
-            return "PlayerJoinedGame";
+            SendLangMessage(game.GroupId, "PlayerJoinedGame", player.Name);
         }
         #endregion
         #region Start game flow
@@ -288,7 +295,34 @@ namespace WhoAmIBotSpace
             if (!(gameObject is Game)) return;
             Game game = (Game)gameObject;
             SendLangMessage(game.GroupId, "GameFlowStarted");
-            
+            for (int i = 0; i < game.Players.Count; i++)
+            {
+                int next = (i == game.Players.Count - 1) ? 0 : i + 1;
+                SendLangMessage(game.Players[i].Id, "ChooseRoleFor", game.Players[next].Name);
+            }
+            ManualResetEvent mre = new ManualResetEvent(false);
+            client.OnMessage += (sender, e) =>
+            {
+                if (!game.Players.Exists(x => x.Id == e.Message.From.Id) 
+                || e.Message.Type != MessageType.TextMessage) return;
+                Player p = game.Players.Find(x => x.Id == e.Message.From.Id);
+                int pIndex = game.Players.IndexOf(p);
+                int nextIndex = (pIndex == game.Players.Count - 1) ? 0 : pIndex + 1;
+                Player next = game.Players[nextIndex];
+                if (game.RoleIdDict.ContainsKey(next.Id))
+                {
+                    SendLangMessage(p.Id, "AlreadySentRole", next.Name);
+                }
+                else
+                {
+                    game.RoleIdDict.Add(next.Id, e.Message.Text);
+                    SendLangMessage(p.Id, "SetRole", next.Name, e.Message.Text);
+                    if (game.DictFull()) mre.Set();
+                }
+            };
+            mre.WaitOne();
+            SendLangMessage(game.GroupId, "AllRolesSet");
+
         }
         #endregion
         #endregion

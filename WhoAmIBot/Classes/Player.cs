@@ -9,9 +9,11 @@ namespace WhoAmIBotSpace.Classes
     public class Player
     {
         public long Id { get; }
-        public Player(long id)
+        public string Name { get; }
+        public Player(long id, string name)
         {
             Id = id;
+            Name = name;
         }
     }
 }
