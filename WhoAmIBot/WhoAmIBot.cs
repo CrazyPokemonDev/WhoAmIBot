@@ -7,6 +7,13 @@ using Telegram.Bot.Types;
 using UpdateEventArgs = Telegram.Bot.Args.UpdateEventArgs;
 using File = System.IO.File;
 using Telegram.Bot.Types.Enums;
+using WhoAmIBotSpace.Classes;
+using Game = WhoAmIBotSpace.Classes.Game;
+using User = WhoAmIBotSpace.Classes.User;
+using WhoAmIBotSpace.Helpers;
+using Newtonsoft.Json;
+using Telegram.Bot;
+using System.Threading.Tasks;
 
 namespace WhoAmIBotSpace
 {
@@ -14,19 +21,24 @@ namespace WhoAmIBotSpace
     {
         #region Properties
         public override string Name => "Who am I bot";
+        public string Username { get; set; }
         #endregion
         #region Constants
         private const string baseFilePath = "C:\\Olfi01\\WhoAmIBot\\";
         private const string sqliteFilePath = baseFilePath + "db.sqlite";
         private const string connectionString = "Data Source=\"" + sqliteFilePath + "\";";
-        //TODO: Add default db file
-        private static readonly Dictionary<string, Action<Message>> commands = new Dictionary<string, Action<Message>>();
+        private const string defaultLangCode = "en-US";
+        private const int minPlayerCount = 2;
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
+        private Dictionary<string, Action<Message>> commands = new Dictionary<string, Action<Message>>();
+        private List<Game> GamesRunning = new List<Game>();
+        private List<Group> Groups = new List<Group>();
+        private List<User> Users = new List<User>();
         #endregion
 
-        #region Constructors
+        #region Constructors and FlomBot stuff
         public WhoAmIBot(string token) : base(token)
         {
             if (!Directory.Exists(baseFilePath)) Directory.CreateDirectory(baseFilePath);
@@ -35,14 +47,24 @@ namespace WhoAmIBotSpace
             sqliteConn.Open();
             ReadCommands();
             ClearGames();
+            ReadGroupsAndUsers();
         }
 
-        /*public WhoAmIBot()
+        public override bool StartBot()
         {
-            
-        }*/
+            try
+            {
+                var task = client.GetMeAsync();
+                task.Wait();
+                Username = task.Result.Username;
+            }
+            catch
+            {
+                return false;
+            }
+            return base.StartBot();
+        }
         #endregion
-        
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
@@ -58,7 +80,7 @@ namespace WhoAmIBotSpace
                     if (entity.Type == MessageEntityType.BotCommand)
                     {
                         string cmd = e.Update.Message.EntityValues[e.Update.Message.Entities.IndexOf(entity)];
-                        cmd = cmd.Contains("@") ? cmd.Remove(cmd.IndexOf('@')) : cmd;
+                        cmd = cmd.Contains("@" + Username) ? cmd.Remove(cmd.IndexOf('@')) : cmd;
                         if (commands.ContainsKey(cmd))
                         {
                             commands[cmd].Invoke(e.Update.Message);
@@ -81,30 +103,128 @@ namespace WhoAmIBotSpace
 
         #region Language
         #region Get string
-        private string GetString(string key, string langCode = "en-US")
+        private string GetString(string key, string langCode)
         {
-            return ExecuteSql($"SELECT value FROM '{langCode}' WHERE key='{key}'", raw: true).Trim();
+            string query = ExecuteSql($"SELECT value FROM '{langCode}' WHERE key='{key}'").Trim();
+            if (query.StartsWith("SQL logic error or missing database") || string.IsNullOrWhiteSpace(query))
+                query = ExecuteSql($"SELECT value FROM '{defaultLangCode}' WHERE key='{key}'").Trim();
+            return query;
+        }
+        #endregion
+        #region Lang code
+        private string LangCode(long id)
+        {
+            if (Groups.Exists(x => x.Id == id)) return Groups.Find(x => x.Id == id).LangKey;
+            else if (Users.Exists(x => x.Id == id)) return Users.Find(x => x.Id == id).LangKey;
+            else return defaultLangCode;
+        }
+        #endregion
+        #region Send Lang Message
+        private bool SendLangMessage(long chatid, string key)
+        {
+            try
+            {
+                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(chatid)));
+                task.Wait();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        
+        private bool SendLangMessage(long chatid, string key, params string[] par)
+        {
+            try
+            {
+                string toSend = GetString(key, LangCode(chatid));
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.SendTextMessageAsync(chatid, toSend);
+                task.Wait();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
         #endregion
         #endregion
-
         #region Command Methods
         #region Read Commands
         private void ReadCommands()
         {
             commands.Add("/sql", new Action<Message>(SQL_Command));
             commands.Add("/startgame", new Action<Message>(Startgame_Command));
+            commands.Add("/start", new Action<Message>(Start_Command));
+            commands.Add("/join", new Action<Message>(Join_Command));
+            commands.Add("/cancelgame", new Action<Message>(Cancelgame_Command));
+            commands.Add("/go", new Action<Message>(Go_Command));
         }
         #endregion
 
-        #region /sql
-        private void SQL_Command(Message msg)
+        #region /cancelgame
+        private void Cancelgame_Command(Message msg)
         {
-            string commandText;
-            if (msg.ReplyToMessage != null) commandText = msg.ReplyToMessage.Text;
-            else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
-            string response = ExecuteSql(commandText);
-            if (!string.IsNullOrEmpty(response)) client.SendTextMessageAsync(msg.Chat.Id, response);
+            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                return;
+            }
+            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
+            ExecuteSql($"DELETE FROM Games WHERE Id={g.Id}");
+            GamesRunning.Remove(g);
+            SendLangMessage(msg.Chat.Id, "GameCancelled");
+        }
+        #endregion
+        #region /go
+        private void Go_Command(Message msg)
+        {
+            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                return;
+            }
+            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
+            if (!g.Players.Exists(x => x.Id == msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NotInGame");
+                return;
+            }
+            if (g.Players.Count < minPlayerCount)
+            {
+                SendLangMessage(msg.Chat.Id, "NotEnoughPlayers");
+                return;
+            }
+            StartGameFlow(g);
+        }
+        #endregion
+        #region /join
+        private void Join_Command(Message msg)
+        {
+            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                return;
+            }
+            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
+            SendLangMessage(msg.Chat.Id, AddPlayer(g, new Player(msg.From.Id)), msg.From.FullName());
+        }
+        #endregion
+        #region /start
+        private void Start_Command(Message msg)
+        {
+            if (msg.Chat.Type != ChatType.Private) return;
+            if (!Users.Exists(x => x.Id == msg.From.Id))
+            {
+                ExecuteSql($"INSERT INTO Users(Id, LangKey) VALUES({msg.From.Id}, '{msg.From.LanguageCode}')");
+                Users.Add(new User(msg.From.Id) { LangKey = msg.From.LanguageCode });
+            }
+            SendLangMessage(msg.Chat.Id, "Welcome");
         }
         #endregion
         #region /startgame
@@ -112,10 +232,56 @@ namespace WhoAmIBotSpace
         {
             if (msg.Chat.Type != ChatType.Group && msg.Chat.Type != ChatType.Supergroup)
             {
-                client.SendTextMessageAsync(msg.Chat.Id, GetString("NotInPrivate"));
+                SendLangMessage(msg.Chat.Id, "NotInPrivate");
                 return;
             }
+            if (GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "GameRunning");
+                return;
+            }
+            if (!Groups.Exists(x => x.Id == msg.Chat.Id))
+            {
+                ExecuteSql($"INSERT INTO Groups (Id, LangKey, LangSet) VALUES({msg.Chat.Id}, '{defaultLangCode}', 0)");
+                Groups.Add(new Group(msg.Chat.Id));
+            }
             ExecuteSql($"INSERT INTO Games (groupId) VALUES({msg.Chat.Id})");
+            string response = ExecuteSql($"SELECT id FROM Games WHERE groupId={msg.Chat.Id}");
+            Game g = new Game(Convert.ToInt32(response), msg.Chat.Id, msg.Chat.Title);
+            GamesRunning.Add(g);
+            SendLangMessage(msg.Chat.Id, "GameStarted");
+            AddPlayer(g, new Player(msg.From.Id));
+        }
+        #endregion
+        #region /sql
+        private void SQL_Command(Message msg)
+        {
+            string commandText;
+            if (msg.ReplyToMessage != null) commandText = msg.ReplyToMessage.Text;
+            else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
+            string response = ExecuteSql(commandText, raw: false);
+            if (!string.IsNullOrEmpty(response)) client.SendTextMessageAsync(msg.Chat.Id, response);
+        }
+        #endregion
+        #endregion
+
+        #region Game Flow
+        #region Add player
+        private string AddPlayer(Game game, Player player)
+        {
+            if (game.Players.Exists(x => x.Id == player.Id))
+            {
+                return "AlreadyInGame";
+            }
+            if (!SendLangMessage(player.Id, "JoinedGamePM", game.GroupName)) return "PmMe";
+            game.Players.Add(player);
+            return "PlayerJoinedGame";
+        }
+        #endregion
+        #region Start game flow
+        private void StartGameFlow(Game game)
+        {
+            SendLangMessage(game.GroupId, "GameFlowStarted");
 
         }
         #endregion
@@ -123,7 +289,7 @@ namespace WhoAmIBotSpace
 
         #region SQLite
         #region Execute SQLite Query
-        private string ExecuteSql(string commandText, bool raw = false)
+        private string ExecuteSql(string commandText, bool raw = true)
         {
             string r = "";
             using (var trans = sqliteConn.BeginTransaction())
@@ -171,6 +337,29 @@ namespace WhoAmIBotSpace
         private void ClearGames()
         {
             ExecuteSql("DELETE FROM Games");
+        }
+        #endregion
+        #region Read Groups and Users
+        private void ReadGroupsAndUsers()
+        {
+            string query = ExecuteSql("SELECT Id, LangKey, LangSet FROM Groups");
+            query = query.Trim();
+            foreach (var row in query.Split('\n'))
+            {
+                if (string.IsNullOrWhiteSpace(query)) continue;
+                var split = row.Split('-');
+                Groups.Add(new Group(Convert.ToInt64(split[0].Trim()), Convert.ToBoolean(split[2].Trim()))
+                    { LangKey = split[1].Trim() });
+            }
+            query = ExecuteSql("SELECT Id, LangKey FROM Users");
+            query = query.Trim();
+            foreach (var row in query.Split('\n'))
+            {
+                if (string.IsNullOrWhiteSpace(query)) continue;
+                var split = row.Split('-');
+                Users.Add(new User(Convert.ToInt64(split[0].Trim()))
+                { LangKey = split[1].Trim() });
+            }
         }
         #endregion
         #endregion

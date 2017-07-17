@@ -7,7 +7,7 @@
     <ProjectGuid>{BC4059AA-80EE-4E63-BFA2-A340644AF78D}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>WhoAmIBot</RootNamespace>
+    <RootNamespace>WhoAmIBotSpace</RootNamespace>
     <AssemblyName>WhoAmIBot</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -73,6 +73,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\Game.cs" />
+    <Compile Include="Classes\Group.cs" />
+    <Compile Include="Classes\Player.cs" />
+    <Compile Include="Classes\User.cs" />
+    <Compile Include="Helpers\Extensions.cs" />
     <Compile Include="WhoAmIBot.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
