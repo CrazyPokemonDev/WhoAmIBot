@@ -569,6 +569,11 @@ namespace WhoAmIBotSpace
                     if (!game.TotalPlayers.Exists(x => x.Id == e.CallbackQuery.From.Id)
                     || (!e.CallbackQuery.Data.StartsWith("yes@") && !e.CallbackQuery.Data.StartsWith("no@") && !e.CallbackQuery.Data.StartsWith("idk@"))
                     || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
+                    if (e.CallbackQuery.From.Id == atTurn.Id)
+                    {
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "You cannot answer yourself!", showAlert: true);
+                        return;
+                    }
                     string answer = e.CallbackQuery.Data.Split('@')[0];
                     long groupId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
                     if (groupId != game.GroupId) return;
