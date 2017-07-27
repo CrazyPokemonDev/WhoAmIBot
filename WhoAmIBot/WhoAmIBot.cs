@@ -196,6 +196,48 @@ namespace WhoAmIBotSpace
                 return false;
             }
         }
+
+        private bool SendAndGetLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup, out Message message, params string[] par)
+        {
+            try
+            {
+                string toSend = GetString(key, LangCode(langFrom));
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+                message = task.Result;
+                return true;
+            }
+            catch
+            {
+                message = null;
+                return false;
+            }
+        }
+        #endregion
+        #region Edit Lang Message
+        private bool EditLangMessage(long chatid, long langFrom, int messageId, string key, 
+            IReplyMarkup markup, string appendStart, params string[] par)
+        {
+            try
+            {
+                string toSend = appendStart + GetString(key, LangCode(langFrom));
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.EditMessageTextAsync(chatid, messageId, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
         #endregion
         #endregion
         #region Command Methods
@@ -424,10 +466,11 @@ namespace WhoAmIBotSpace
                 Player atTurn = game.Players[turn];
                 SendLangMessage(game.GroupId, "PlayerTurn", null, atTurn.Name);
                 #region Ask Question
+                Message sentMessage = null;
                 EventHandler<MessageEventArgs> qHandler = (sender, e) =>
                 {
                     if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
-                    SendLangMessage(atTurn.Id, "QuestionReceived");
+                    EditLangMessage(atTurn.Id, game.GroupId, sentMessage.MessageId, "QuestionReceived", null, "");
                     string yes = GetString("Yes", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
                     SendLangMessage(game.GroupId, "QuestionAsked",
@@ -468,7 +511,7 @@ namespace WhoAmIBotSpace
                             #region Guess
                             guess = true;
                             mre.Set();
-                            SendLangMessage(e.CallbackQuery.From.Id, game.GroupId, "PleaseGuess");
+                            EditLangMessage(e.CallbackQuery.From.Id, game.GroupId, sentMessage.MessageId, "PleaseGuess", null, "");
                             #endregion
                             break;
                         case "giveup":
@@ -478,6 +521,7 @@ namespace WhoAmIBotSpace
                             SendLangMessage(game.GroupId, "GaveUp", null,
                                 p.Name,
                                 game.RoleIdDict[e.CallbackQuery.From.Id]);
+                            client.EditMessageReplyMarkupAsync(sentMessage.Chat.Id, sentMessage.MessageId);
                             game.Players.Remove(p);
                             mre.Set();
                             #endregion
@@ -487,8 +531,8 @@ namespace WhoAmIBotSpace
                 #endregion
                 string guess1 = GetString("Guess", LangCode(game.GroupId));
                 string giveUp1 = GetString("GiveUp", LangCode(game.GroupId));
-                SendLangMessage(atTurn.Id, game.GroupId, "AskQuestion",
-                    ReplyMarkupMaker.InlineGuessGiveUp(guess1, $"guess@{game.GroupId}", giveUp1, $"giveup@{game.GroupId}"));
+                SendAndGetLangMessage(atTurn.Id, game.GroupId, "AskQuestion",
+                    ReplyMarkupMaker.InlineGuessGiveUp(guess1, $"guess@{game.GroupId}", giveUp1, $"giveup@{game.GroupId}"), out sentMessage);
                 mre.Reset();
                 try
                 {
@@ -528,11 +572,10 @@ namespace WhoAmIBotSpace
                     if (groupId != game.GroupId) return;
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
-                    client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
                     switch (answer)
                     {
                         case "yes":
-                            SendLangMessage(game.GroupId, "AnsweredYes", null,
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredYes", null, cmsg.Text,
                             game.Players.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             if (guess)
                             {
@@ -541,7 +584,7 @@ namespace WhoAmIBotSpace
                             }
                             break;
                         case "no":
-                            SendLangMessage(game.GroupId, "AnsweredNo", null,
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredNo", null, cmsg.Text,
                             game.Players.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             turn++;
                             break;
