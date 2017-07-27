@@ -14,6 +14,7 @@ namespace WhoAmIBotSpace.Classes
         public long GroupId { get; }
         public string GroupName { get; }
         public List<Player> Players { get; } = new List<Player>();
+        public List<Player> TotalPlayers { get; set; } = new List<Player>();
         public GameState State { get; set; } = GameState.Joining;
         public Dictionary<long, string> RoleIdDict { get; } = new Dictionary<long, string>();
         public Thread Thread { get; set; }

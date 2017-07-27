@@ -412,6 +412,7 @@ namespace WhoAmIBotSpace
             #region Preparation phase
             SendLangMessage(game.GroupId, "GameFlowStarted");
             game.State = GameState.Running;
+            game.TotalPlayers = game.Players;
             for (int i = 0; i < game.Players.Count; i++)
             {
                 int next = (i == game.Players.Count - 1) ? 0 : i + 1;
@@ -497,7 +498,7 @@ namespace WhoAmIBotSpace
                 #region Callback Handler
                 EventHandler<CallbackQueryEventArgs> c1Handler = (sender, e) =>
                 {
-                    if (!game.Players.Exists(x => x.Id == e.CallbackQuery.From.Id)
+                    if (!game.TotalPlayers.Exists(x => x.Id == e.CallbackQuery.From.Id)
                     || (!e.CallbackQuery.Data.StartsWith("guess@") && !e.CallbackQuery.Data.StartsWith("giveup@"))
                     || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
                     string answer = e.CallbackQuery.Data.Split('@')[0];
@@ -565,7 +566,7 @@ namespace WhoAmIBotSpace
                 #region Answer Question
                 EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
                 {
-                    if (!game.Players.Exists(x => x.Id == e.CallbackQuery.From.Id)
+                    if (!game.TotalPlayers.Exists(x => x.Id == e.CallbackQuery.From.Id)
                     || (!e.CallbackQuery.Data.StartsWith("yes@") && !e.CallbackQuery.Data.StartsWith("no@") && !e.CallbackQuery.Data.StartsWith("idk@"))
                     || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
                     string answer = e.CallbackQuery.Data.Split('@')[0];
@@ -577,22 +578,22 @@ namespace WhoAmIBotSpace
                     {
                         case "yes":
                             EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredYes", null, cmsg.Text,
-                            game.Players.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
+                            game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             if (guess)
                             {
                                 game.Players.Remove(atTurn);
                                 game.TrySetWinner(atTurn);
                                 SendLangMessage(game.GroupId, "PlayerFinished", null, 
-                                    game.Players.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
+                                    atTurn.Name);
                             }
                             break;
                         case "idk":
                             EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredIdk", null, cmsg.Text,
-                            game.Players.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
+                            game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             break;
                         case "no":
                             EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredNo", null, cmsg.Text,
-                            game.Players.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
+                            game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             turn++;
                             break;
                     }
