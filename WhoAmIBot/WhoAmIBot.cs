@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
+using System.Net;
 
 namespace WhoAmIBotSpace
 {
@@ -109,14 +110,13 @@ namespace WhoAmIBotSpace
         #region Get string
         private string GetString(string key, string langCode)
         {
-            var par = new Dictionary<string, object>() { { "langCode", langCode }, { "key", key } };
-            string query = ExecuteSql($"SELECT value FROM @langCode WHERE key=@key", par).Trim();
+            var par = new Dictionary<string, object>() { { "key", key } };
+            string query = ExecuteSql($"SELECT value FROM '{langCode}' WHERE key=@key", par).Trim();
             if (query.StartsWith("SQL logic error or missing database") || string.IsNullOrWhiteSpace(query))
             {
-                par = new Dictionary<string, object>() { { "langCode", defaultLangCode }, { "key", key } };
-                query = ExecuteSql($"SELECT value FROM @langCode WHERE key=@key", par).Trim();
+                par = new Dictionary<string, object>() { { "key", key } };
+                query = ExecuteSql($"SELECT value FROM '{defaultLangCode}' WHERE key=@key", par).Trim();
             }
-
             return query;
         }
         #endregion
@@ -133,7 +133,8 @@ namespace WhoAmIBotSpace
         {
             try
             {
-                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(chatid)), replyMarkup: markup);
+                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(chatid)), 
+                    replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 return true;
             }
@@ -152,7 +153,7 @@ namespace WhoAmIBotSpace
                 {
                     toSend = toSend.Replace("{" + i + "}", par[i]);
                 }
-                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup);
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 return true;
             }
@@ -166,7 +167,8 @@ namespace WhoAmIBotSpace
         {
             try
             {
-                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(langFrom)), replyMarkup: markup);
+                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(langFrom)), 
+                    replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 return true;
             }
@@ -185,7 +187,7 @@ namespace WhoAmIBotSpace
                 {
                     toSend = toSend.Replace("{" + i + "}", par[i]);
                 }
-                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup);
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 return true;
             }
@@ -206,6 +208,7 @@ namespace WhoAmIBotSpace
             commands.Add("/join", new Action<Message>(Join_Command));
             commands.Add("/cancelgame", new Action<Message>(Cancelgame_Command));
             commands.Add("/go", new Action<Message>(Go_Command));
+            commands.Add("/setlang", new Action<Message>(Setlang_Command));
         }
         #endregion
 
@@ -265,6 +268,22 @@ namespace WhoAmIBotSpace
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
+        }
+        #endregion
+        #region /setlang
+        private void Setlang_Command(Message msg)
+        {
+            SendLangMessage(msg.Chat.Id, "NotImplemented");
+            switch (msg.Chat.Type)
+            {
+                case ChatType.Private:
+
+                    break;
+                case ChatType.Group:
+                case ChatType.Supergroup:
+
+                    break;
+            }
         }
         #endregion
         #region /start
@@ -413,7 +432,7 @@ namespace WhoAmIBotSpace
                     string no = GetString("No", LangCode(game.GroupId));
                     SendLangMessage(game.GroupId, "QuestionAsked",
                         ReplyMarkupMaker.InlineYesNo(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}"),
-                        atTurn.Name, e.Message.Text);
+                        $"<b>{WebUtility.HtmlEncode(atTurn.Name)}</b>", $"<i>{WebUtility.HtmlEncode(e.Message.Text)}</i>");
                     mre.Set();
                 };
                 bool guess = false;
@@ -450,7 +469,6 @@ namespace WhoAmIBotSpace
                             guess = true;
                             mre.Set();
                             SendLangMessage(e.CallbackQuery.From.Id, game.GroupId, "PleaseGuess");
-                            client.OnMessage += guessHandler;
                             #endregion
                             break;
                         case "giveup":
@@ -461,10 +479,10 @@ namespace WhoAmIBotSpace
                                 p.Name,
                                 game.RoleIdDict[e.CallbackQuery.From.Id]);
                             game.Players.Remove(p);
+                            mre.Set();
                             #endregion
                             break;
                     }
-                    mre.Set();
                 };
                 #endregion
                 string guess1 = GetString("Guess", LangCode(game.GroupId));
@@ -488,6 +506,7 @@ namespace WhoAmIBotSpace
                 {
                     try
                     {
+                        client.OnMessage += guessHandler;
                         mre.WaitOne();
                     }
                     finally
@@ -548,8 +567,8 @@ namespace WhoAmIBotSpace
             ExecuteSql("DELETE FROM Games WHERE Id=@id", par);
             long winnerId = game.Winner == null ? 0 : game.Winner.Id;
             string winnerName = game.Winner == null ? "Nobody" : game.Winner.Name;
-            par = new Dictionary<string, object>() { { "groupId", game.GroupId }, { "winnerId", winnerId }, { "winnerName", winnerName } };
-            ExecuteSql("INSERT INTO GamesFinished (groupId, winnerid, winnername) VALUES(@groupId, @winnerId, @winnerName)");
+            par = new Dictionary<string, object>() { { "groupid", game.GroupId }, { "winnerid", winnerId }, { "winnername", winnerName } };
+            client.SendTextMessageAsync(Flom, ExecuteSql("INSERT INTO GamesFinished (groupId, winnerid, winnername) VALUES(@groupid, @winnerid, @winnername)", par));
             SendLangMessage(game.GroupId, "GameFinished", null, winnerName);
             GamesRunning.Remove(game);
             #endregion
