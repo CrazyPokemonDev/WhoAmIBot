@@ -582,7 +582,7 @@ namespace WhoAmIBotSpace
                     switch (answer)
                     {
                         case "yes":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredYes", null, cmsg.Text,
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredYes", null, cmsg.Text + "\n",
                             game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             if (guess)
                             {
@@ -593,11 +593,11 @@ namespace WhoAmIBotSpace
                             }
                             break;
                         case "idk":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredIdk", null, cmsg.Text,
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredIdk", null, cmsg.Text + "\n",
                             game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             break;
                         case "no":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredNo", null, cmsg.Text,
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredNo", null, cmsg.Text + "\n",
                             game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             turn++;
                             break;
