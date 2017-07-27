@@ -472,9 +472,10 @@ namespace WhoAmIBotSpace
                     if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
                     EditLangMessage(atTurn.Id, game.GroupId, sentMessage.MessageId, "QuestionReceived", null, "");
                     string yes = GetString("Yes", LangCode(game.GroupId));
+                    string idk = GetString("Idk", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
                     SendLangMessage(game.GroupId, "QuestionAsked",
-                        ReplyMarkupMaker.InlineYesNo(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}"),
+                        ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}", idk, $"idk@{game.GroupId}"),
                         $"<b>{WebUtility.HtmlEncode(atTurn.Name)}</b>", $"<i>{WebUtility.HtmlEncode(e.Message.Text)}</i>");
                     mre.Set();
                 };
@@ -565,7 +566,7 @@ namespace WhoAmIBotSpace
                 EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
                 {
                     if (!game.Players.Exists(x => x.Id == e.CallbackQuery.From.Id)
-                    || (!e.CallbackQuery.Data.StartsWith("yes@") && !e.CallbackQuery.Data.StartsWith("no@"))
+                    || (!e.CallbackQuery.Data.StartsWith("yes@") && !e.CallbackQuery.Data.StartsWith("no@") && !e.CallbackQuery.Data.StartsWith("idk@"))
                     || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
                     string answer = e.CallbackQuery.Data.Split('@')[0];
                     long groupId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
@@ -582,6 +583,10 @@ namespace WhoAmIBotSpace
                                 game.Players.Remove(atTurn);
                                 game.TrySetWinner(atTurn);
                             }
+                            break;
+                        case "idk":
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredIdk", null, cmsg.Text,
+                            game.Players.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             break;
                         case "no":
                             EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredNo", null, cmsg.Text,

@@ -18,6 +18,16 @@ namespace WhoAmIBotSpace.Helpers
             return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row });
         }
 
+        public static IReplyMarkup InlineYesNoIdk(string yes, string yesCallback, string no, string noCallback, 
+            string idk, string idkCallback)
+        {
+            InlineKeyboardButton yesButton = new InlineKeyboardButton(yes, yesCallback);
+            InlineKeyboardButton idkButton = new InlineKeyboardButton(idk, idkCallback);
+            InlineKeyboardButton noButton = new InlineKeyboardButton(no, noCallback);
+            InlineKeyboardButton[] row = new InlineKeyboardButton[] { yesButton, idkButton, noButton };
+            return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row });
+        }
+
         public static IReplyMarkup InlineGuessGiveUp(string guess, string guessCallback, string giveUp, string giveUpCallback)
         {
             InlineKeyboardButton guessButton = new InlineKeyboardButton(guess, guessCallback);
