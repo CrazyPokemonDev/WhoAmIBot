@@ -78,27 +78,27 @@ namespace WhoAmIBotSpace
             try
             {
 #endif
-            if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
-            {
-                foreach (var entity in e.Update.Message.Entities)
+                if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
                 {
-                    if (entity.Type == MessageEntityType.BotCommand)
+                    foreach (var entity in e.Update.Message.Entities)
                     {
-                        string cmd = e.Update.Message.EntityValues[e.Update.Message.Entities.IndexOf(entity)];
-                        cmd = cmd.Contains("@" + Username) ? cmd.Remove(cmd.IndexOf('@')) : cmd;
-                        if (commands.ContainsKey(cmd))
+                        if (entity.Type == MessageEntityType.BotCommand)
                         {
-                            commands[cmd].Invoke(e.Update.Message);
+                            string cmd = e.Update.Message.EntityValues[e.Update.Message.Entities.IndexOf(entity)];
+                            cmd = cmd.Contains("@" + Username) ? cmd.Remove(cmd.IndexOf('@')) : cmd;
+                            if (commands.ContainsKey(cmd))
+                            {
+                                commands[cmd].Invoke(e.Update.Message);
+                            }
                         }
                     }
                 }
-            }
 #if DEBUG
 #else
             }
             catch (Exception x)
             {
-                client.SendTextMessageAsync(Flom, 
+                client.SendTextMessageAsync(Flom,
                     $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n" +
                     $"{x.InnerException?.Message}\n{x.InnerException?.StackTrace}");
             }
@@ -133,7 +133,7 @@ namespace WhoAmIBotSpace
         {
             try
             {
-                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(chatid)), 
+                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(chatid)),
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 return true;
@@ -167,7 +167,7 @@ namespace WhoAmIBotSpace
         {
             try
             {
-                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(langFrom)), 
+                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(langFrom)),
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 return true;
@@ -197,7 +197,8 @@ namespace WhoAmIBotSpace
             }
         }
 
-        private bool SendAndGetLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup, out Message message, params string[] par)
+        private bool SendAndGetLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup,
+            out Message message, out string text, params string[] par)
         {
             try
             {
@@ -209,17 +210,19 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 message = task.Result;
+                text = toSend;
                 return true;
             }
             catch
             {
                 message = null;
+                text = null;
                 return false;
             }
         }
         #endregion
         #region Edit Lang Message
-        private bool EditLangMessage(long chatid, long langFrom, int messageId, string key, 
+        private bool EditLangMessage(long chatid, long langFrom, int messageId, string key,
             IReplyMarkup markup, string appendStart, params string[] par)
         {
             try
@@ -412,7 +415,11 @@ namespace WhoAmIBotSpace
             #region Preparation phase
             SendLangMessage(game.GroupId, "GameFlowStarted");
             game.State = GameState.Running;
-            game.TotalPlayers = game.Players;
+            game.TotalPlayers = new List<Player>();
+            foreach (var p in game.Players)
+            {
+                game.TotalPlayers.Add(p);
+            }
             for (int i = 0; i < game.Players.Count; i++)
             {
                 int next = (i == game.Players.Count - 1) ? 0 : i + 1;
@@ -468,6 +475,7 @@ namespace WhoAmIBotSpace
                 SendLangMessage(game.GroupId, "PlayerTurn", null, atTurn.Name);
                 #region Ask Question
                 Message sentMessage = null;
+                string sentMessageText = "";
                 EventHandler<MessageEventArgs> qHandler = (sender, e) =>
                 {
                     if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
@@ -475,8 +483,9 @@ namespace WhoAmIBotSpace
                     string yes = GetString("Yes", LangCode(game.GroupId));
                     string idk = GetString("Idk", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
-                    SendLangMessage(game.GroupId, "QuestionAsked",
+                    SendAndGetLangMessage(game.GroupId, game.GroupId, "QuestionAsked",
                         ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}", idk, $"idk@{game.GroupId}"),
+                        out Message uselessM, out sentMessageText,
                         $"<b>{WebUtility.HtmlEncode(atTurn.Name)}</b>", $"<i>{WebUtility.HtmlEncode(e.Message.Text)}</i>");
                     mre.Set();
                 };
@@ -489,8 +498,9 @@ namespace WhoAmIBotSpace
                     SendLangMessage(atTurn.Id, "QuestionReceived");
                     string yes = GetString("Yes", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
-                    SendLangMessage(game.GroupId, "PlayerGuessed",
+                    SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerGuessed",
                         ReplyMarkupMaker.InlineYesNo(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}"),
+                        out Message uselessM, out sentMessageText,
                         atTurn.Name, e.Message.Text);
                     mre.Set();
                 };
@@ -534,7 +544,8 @@ namespace WhoAmIBotSpace
                 string guess1 = GetString("Guess", LangCode(game.GroupId));
                 string giveUp1 = GetString("GiveUp", LangCode(game.GroupId));
                 SendAndGetLangMessage(atTurn.Id, game.GroupId, "AskQuestion",
-                    ReplyMarkupMaker.InlineGuessGiveUp(guess1, $"guess@{game.GroupId}", giveUp1, $"giveup@{game.GroupId}"), out sentMessage);
+                    ReplyMarkupMaker.InlineGuessGiveUp(guess1, $"guess@{game.GroupId}", giveUp1, $"giveup@{game.GroupId}"),
+                    out sentMessage, out string useless);
                 mre.Reset();
                 try
                 {
@@ -582,22 +593,22 @@ namespace WhoAmIBotSpace
                     switch (answer)
                     {
                         case "yes":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredYes", null, cmsg.Text + "\n",
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredYes", null, sentMessageText + "\n",
                             game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             if (guess)
                             {
                                 game.Players.Remove(atTurn);
                                 game.TrySetWinner(atTurn);
-                                SendLangMessage(game.GroupId, "PlayerFinished", null, 
+                                SendLangMessage(game.GroupId, "PlayerFinished", null,
                                     atTurn.Name);
                             }
                             break;
                         case "idk":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredIdk", null, cmsg.Text + "\n",
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredIdk", null, sentMessageText + "\n",
                             game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             break;
                         case "no":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredNo", null, cmsg.Text + "\n",
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredNo", null, sentMessageText + "\n",
                             game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             turn++;
                             break;
