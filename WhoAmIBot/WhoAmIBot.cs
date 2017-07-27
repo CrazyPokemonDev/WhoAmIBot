@@ -109,9 +109,14 @@ namespace WhoAmIBotSpace
         #region Get string
         private string GetString(string key, string langCode)
         {
-            string query = ExecuteSql($"SELECT value FROM '{langCode}' WHERE key='{key}'").Trim();
+            var par = new Dictionary<string, object>() { { "langCode", langCode }, { "key", key } };
+            string query = ExecuteSql($"SELECT value FROM @langCode WHERE key=@key", par).Trim();
             if (query.StartsWith("SQL logic error or missing database") || string.IsNullOrWhiteSpace(query))
-                query = ExecuteSql($"SELECT value FROM '{defaultLangCode}' WHERE key='{key}'").Trim();
+            {
+                par = new Dictionary<string, object>() { { "langCode", defaultLangCode }, { "key", key } };
+                query = ExecuteSql($"SELECT value FROM @langCode WHERE key=@key", par).Trim();
+            }
+
             return query;
         }
         #endregion
@@ -218,7 +223,8 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, "NotInGame");
                 return;
             }
-            ExecuteSql($"DELETE FROM Games WHERE Id={g.Id}");
+            var par = new Dictionary<string, object>() { { "id", g.Id } };
+            ExecuteSql($"DELETE FROM Games WHERE Id=@id", par);
             g.Thread?.Abort();
             GamesRunning.Remove(g);
             SendLangMessage(msg.Chat.Id, "GameCancelled");
@@ -267,7 +273,8 @@ namespace WhoAmIBotSpace
             if (msg.Chat.Type != ChatType.Private) return;
             if (!Users.Exists(x => x.Id == msg.From.Id))
             {
-                ExecuteSql($"INSERT INTO Users(Id, LangKey) VALUES({msg.From.Id}, '{msg.From.LanguageCode}')");
+                var par = new Dictionary<string, object>() { { "id", msg.From.Id }, { "langCode", msg.From.LanguageCode } };
+                ExecuteSql("INSERT INTO Users(Id, LangKey) VALUES(@id, @langCode)", par);
                 Users.Add(new User(msg.From.Id) { LangKey = msg.From.LanguageCode });
             }
             SendLangMessage(msg.Chat.Id, "Welcome");
@@ -288,11 +295,13 @@ namespace WhoAmIBotSpace
             }
             if (!Groups.Exists(x => x.Id == msg.Chat.Id))
             {
-                ExecuteSql($"INSERT INTO Groups (Id, LangKey, LangSet) VALUES({msg.Chat.Id}, '{defaultLangCode}', 0)");
+                var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "langCode", defaultLangCode } };
+                ExecuteSql("INSERT INTO Groups (Id, LangKey, LangSet) VALUES(@id, @langCode, 0)", par);
                 Groups.Add(new Group(msg.Chat.Id));
             }
-            ExecuteSql($"INSERT INTO Games (groupId) VALUES({msg.Chat.Id})");
-            string response = ExecuteSql($"SELECT id FROM Games WHERE groupId={msg.Chat.Id}");
+            var par2 = new Dictionary<string, object>() { { "id", msg.Chat.Id } };
+            ExecuteSql($"INSERT INTO Games (groupId) VALUES(@id)", par2);
+            string response = ExecuteSql("SELECT id FROM Games WHERE groupId=@id", par2);
             Game g = new Game(Convert.ToInt32(response), msg.Chat.Id, msg.Chat.Title);
             GamesRunning.Add(g);
             SendLangMessage(msg.Chat.Id, "GameStarted");
@@ -535,10 +544,12 @@ namespace WhoAmIBotSpace
             }
             #endregion
             #region Finish game
-            ExecuteSql($"DELETE FROM Games WHERE Id={game.Id}");
+            var par = new Dictionary<string, object>() { { "id", game.Id } };
+            ExecuteSql("DELETE FROM Games WHERE Id=@id", par);
             long winnerId = game.Winner == null ? 0 : game.Winner.Id;
             string winnerName = game.Winner == null ? "Nobody" : game.Winner.Name;
-            ExecuteSql($"INSERT INTO GamesFinished (groupId, winnerid, winnername) VALUES({game.GroupId}, {winnerId}, {winnerName.Replace("'", "''")})");
+            par = new Dictionary<string, object>() { { "groupId", game.GroupId }, { "winnerId", winnerId }, { "winnerName", winnerName } };
+            ExecuteSql("INSERT INTO GamesFinished (groupId, winnerid, winnername) VALUES(@groupId, @winnerId, @winnerName)");
             SendLangMessage(game.GroupId, "GameFinished", null, winnerName);
             GamesRunning.Remove(game);
             #endregion
@@ -548,13 +559,20 @@ namespace WhoAmIBotSpace
 
         #region SQLite
         #region Execute SQLite Query
-        private string ExecuteSql(string commandText, bool raw = true)
+        private string ExecuteSql(string commandText, Dictionary<string, object> parameters = null, bool raw = true)
         {
             string r = "";
             using (var trans = sqliteConn.BeginTransaction())
             {
                 using (var comm = new SQLiteCommand(commandText, sqliteConn, trans))
                 {
+                    if (parameters != null)
+                    {
+                        foreach (var kvp in parameters)
+                        {
+                            comm.Parameters.Add(new SQLiteParameter(kvp.Key, kvp.Value));
+                        }
+                    }
                     try
                     {
                         using (var reader = comm.ExecuteReader())
