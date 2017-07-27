@@ -79,6 +79,7 @@
     <Compile Include="Classes\User.cs" />
     <Compile Include="Helpers\Extensions.cs" />
     <Content Include="Helpers\Todo.txt" />
+    <Compile Include="Helpers\ReplyMarkupMaker.cs" />
     <Compile Include="WhoAmIBot.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

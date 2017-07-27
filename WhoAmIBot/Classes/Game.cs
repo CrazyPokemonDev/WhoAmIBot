@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +17,7 @@ namespace WhoAmIBotSpace.Classes
         public GameState State { get; set; } = GameState.Joining;
         public Dictionary<long, string> RoleIdDict { get; } = new Dictionary<long, string>();
         public Thread Thread { get; set; }
+        public Player Winner { get; set; }
         public Game(int id, long groupId, string groupName)
         {
             Id = id;
@@ -30,6 +32,11 @@ namespace WhoAmIBotSpace.Classes
                 if (!RoleIdDict.ContainsKey(p.Id)) return false;
             }
             return true;
+        }
+
+        public void TrySetWinner(Player p)
+        {
+            if (Winner == null) Winner = p;
         }
     }
 
