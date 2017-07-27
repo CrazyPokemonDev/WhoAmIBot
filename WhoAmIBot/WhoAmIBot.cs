@@ -582,6 +582,8 @@ namespace WhoAmIBotSpace
                             {
                                 game.Players.Remove(atTurn);
                                 game.TrySetWinner(atTurn);
+                                SendLangMessage(game.GroupId, "PlayerFinished", null, 
+                                    game.Players.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
                             }
                             break;
                         case "idk":
