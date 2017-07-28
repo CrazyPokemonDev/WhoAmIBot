@@ -75,10 +75,11 @@
   <ItemGroup>
     <Compile Include="Classes\Game.cs" />
     <Compile Include="Classes\Group.cs" />
+    <Compile Include="Classes\LangFile.cs" />
     <Compile Include="Classes\Player.cs" />
+    <Compile Include="Classes\JString.cs" />
     <Compile Include="Classes\User.cs" />
     <Compile Include="Helpers\Extensions.cs" />
-    <Content Include="Helpers\Todo.txt" />
     <Compile Include="Helpers\ReplyMarkupMaker.cs" />
     <Compile Include="WhoAmIBot.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

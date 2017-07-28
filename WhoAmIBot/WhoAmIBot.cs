@@ -42,6 +42,7 @@ namespace WhoAmIBotSpace
         private List<Group> Groups = new List<Group>();
         private List<User> Users = new List<User>();
         private Dictionary<long, List<User>> Nextgame = new Dictionary<long, List<User>>();
+        private List<long> GlobalAdmins = new List<long>();
         #endregion
 
         #region Constructors and FlomBot stuff
@@ -99,6 +100,18 @@ namespace WhoAmIBotSpace
                                 commands[cmd].Invoke(e.Update.Message);
                             }
                         }
+                    }
+                    if (e.Update.Message.Text == "I hereby grant you permission." && e.Update.Message.From.Id == Flom)
+                    {
+                        var msg = e.Update.Message;
+                        if (msg.ReplyToMessage == null) return;
+                        GlobalAdmins.Add(msg.ReplyToMessage.From.Id);
+                        var par = new Dictionary<string, object>()
+                        {
+                            { "id", msg.ReplyToMessage.From.Id }
+                        };
+                        ExecuteSql("INSERT INTO GlobalAdmins VALUES(@id)", par);
+                        SendLangMessage(msg.Chat.Id, "PowerGranted");
                     }
                 }
 #if DEBUG
@@ -894,6 +907,12 @@ namespace WhoAmIBotSpace
                 if (row.Count == 0) continue;
                 Users.Add(new User(Convert.ToInt64(row[0].Trim()))
                 { LangKey = row[1].Trim() });
+            }
+            query = ExecuteSql("SELECT Id FROM GlobalAdmins");
+            foreach (var row in query)
+            {
+                if (row.Count == 0) continue;
+                GlobalAdmins.Add(Convert.ToInt64(row[0]));
             }
         }
         #endregion
