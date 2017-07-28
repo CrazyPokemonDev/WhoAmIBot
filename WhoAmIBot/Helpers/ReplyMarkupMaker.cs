@@ -45,6 +45,7 @@ namespace WhoAmIBotSpace.Helpers
                 string key = row[0];
                 string name = row[1];
                 l.Add(new InlineKeyboardButton(name, $"lang:{key}@{chatId}"));
+                bGrid.Add(l);
             }
             var aGrid = new List<InlineKeyboardButton[]>();
             foreach (var bRow in bGrid)

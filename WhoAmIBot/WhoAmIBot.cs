@@ -80,8 +80,13 @@ namespace WhoAmIBotSpace
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
+#if DEBUG
+            do
+            {
+#else
             try
             {
+#endif
                 if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
                 {
                     foreach (var entity in e.Update.Message.Entities)
@@ -94,7 +99,9 @@ namespace WhoAmIBotSpace
                             cmd = cmd.Contains("@" + Username.ToLower()) ? cmd.Remove(cmd.IndexOf("@" + Username.ToLower())) : cmd;
                             if (commands.ContainsKey(cmd))
                             {
-                                commands[cmd].Invoke(e.Update.Message);
+                                Thread t = new Thread(() => commands[cmd].Invoke(e.Update.Message));
+                                t.Start();
+                                //commands[cmd].Invoke(e.Update.Message);
                             }
                         }
                     }
@@ -111,17 +118,16 @@ namespace WhoAmIBotSpace
                         SendLangMessage(msg.Chat.Id, "PowerGranted");
                     }
                 }
-            }
+#if DEBUG
+            } while (false);
+#else
             catch (Exception x)
             {
-#if DEBUG
-                throw x;
-#else
                 client.SendTextMessageAsync(Flom,
                     $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n" +
                     $"{x.InnerException?.Message}\n{x.InnerException?.StackTrace}");
-#endif
             }
+#endif
         }
         #endregion
 
@@ -130,11 +136,23 @@ namespace WhoAmIBotSpace
         private string GetString(string key, string langCode)
         {
             var par = new Dictionary<string, object>() { { "key", key } };
-            string query = ExecuteSql($"SELECT value FROM '{langCode}' WHERE key=@key", par)[0][0];
-            if (query.StartsWith("SQL logic error or missing database") || string.IsNullOrWhiteSpace(query))
+            var q = ExecuteSql($"SELECT value FROM '{langCode}' WHERE key=@key", par);
+            string query = "";
+            if (q.Count < 1 || q[0].Count < 1|| q[0][0].StartsWith("SQL logic error or missing database"))
             {
-                par = new Dictionary<string, object>() { { "key", key } };
-                query = ExecuteSql($"SELECT value FROM '{defaultLangCode}' WHERE key=@key", par)[0][0];
+                q = ExecuteSql($"SELECT value FROM '{defaultLangCode}' WHERE key=@key", par);
+                if (q.Count < 1 || q[0].Count < 1)
+                {
+                    query = "String missing. Inform @Olfi01.";
+                }
+                else
+                {
+                    query = q[0][0];
+                }
+            }
+            else
+            {
+                query = q[0][0];
             }
             return query;
         }
@@ -339,7 +357,7 @@ namespace WhoAmIBotSpace
             ManualResetEvent mre = new ManualResetEvent(false);
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
-                if (!e.CallbackQuery.Data.StartsWith("lang:") || e.CallbackQuery.From.Id == msg.From.Id) return;
+                if (!e.CallbackQuery.Data.StartsWith("lang:") || e.CallbackQuery.From.Id != msg.From.Id) return;
                 var split = e.CallbackQuery.Data.Split(':', '@');
                 string key = split[1];
                 long groupId = Convert.ToInt64(split[2]);
@@ -349,18 +367,18 @@ namespace WhoAmIBotSpace
                 File.WriteAllText(path, JsonConvert.SerializeObject(lf, Formatting.Indented));
                 using (var str = File.OpenRead(path))
                 {
-                    client.SendDocumentAsync(msg.Chat.Id, new FileToSend(path, str)).Wait();
+                    client.SendDocumentAsync(msg.Chat.Id, new FileToSend(path, str), caption: null).Wait();
                 }
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 mre.Set();
             };
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
-                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT (key, name) FROM ExistingLanguages"), msg.Chat.Id),
+                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT key, name FROM ExistingLanguages"), msg.Chat.Id),
                 out Message sent, out var u);
             client.OnCallbackQuery += cHandler;
             mre.WaitOne();
-            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "OneMoment", null, "", out var u2, out u);
             client.OnCallbackQuery -= cHandler;
+            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "OneMoment", null, "", out var u2, out u);
 
         }
         #endregion
@@ -443,11 +461,20 @@ namespace WhoAmIBotSpace
             ManualResetEvent mre = new ManualResetEvent(false);
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
-                if (!e.CallbackQuery.Data.StartsWith("lang:") || e.CallbackQuery.From.Id == msg.From.Id) return;
+                if (!e.CallbackQuery.Data.StartsWith("lang:") || e.CallbackQuery.From.Id != msg.From.Id) return;
                 var split = e.CallbackQuery.Data.Split(':', '@');
                 string key = split[1];
                 long groupId = Convert.ToInt64(split[2]);
                 if (groupId != msg.Chat.Id) return;
+                if (msg.Chat.Type == ChatType.Supergroup || msg.Chat.Type == ChatType.Group)
+                {
+                    var task = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
+                    task.Wait();
+                    if (task.Result.Status != ChatMemberStatus.Administrator && task.Result.Status != ChatMemberStatus.Creator)
+                    {
+                        SendLangMessage(msg.Chat.Id, "AdminOnly");
+                    }
+                }
                 switch (msg.Chat.Type)
                 {
                     case ChatType.Private:
@@ -501,7 +528,7 @@ namespace WhoAmIBotSpace
                 mre.Set();
             };
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
-                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT (key, name) FROM ExistingLanguages"), msg.Chat.Id),
+                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT key, name FROM ExistingLanguages"), msg.Chat.Id),
                 out Message sent, out string useless);
             client.OnCallbackQuery += cHandler;
             mre.WaitOne();
@@ -594,7 +621,8 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, "NoGlobalAdmin");
                 return;
             }
-            var path = DateTime.Now.ToString() + ".temp";
+            var now = DateTime.Now;
+            var path = $"{now.Hour}-{now.Minute}-{now.Second}-{now.Millisecond}.temp";
             using (var str = File.OpenWrite(path))
             {
                 client.GetFileAsync(msg.ReplyToMessage.Document.FileId, str).Wait();
@@ -616,9 +644,10 @@ namespace WhoAmIBotSpace
                 EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
                 {
                     if (!GlobalAdmins.Contains(e.CallbackQuery.From.Id)
-                    || e.CallbackQuery.Message.MessageId != sent.MessageId
-                    || e.CallbackQuery.Message.Chat.Id != sent.Chat.Id) return;
+                    /*|| e.CallbackQuery.Message.MessageId != sent.MessageId
+                    || e.CallbackQuery.Message.Chat.Id != sent.Chat.Id*/) return;
                     if (e.CallbackQuery.Data == "yes") permit = true;
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     mre.Set();
                 };
                 var query = ExecuteSql("SELECT * FROM ExistingLanguages WHERE Key=@key", par);
@@ -629,7 +658,9 @@ namespace WhoAmIBotSpace
                     //create new language
                     SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "CreateLang",
                         ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name);
+                    client.OnCallbackQuery += cHandler;
                     mre.WaitOne();
+                    client.OnCallbackQuery -= cHandler;
                     if (permit)
                     {
                         ExecuteSql("INSERT INTO ExistingLanguages(Key, Name) VALUES(@key, @name)", par);
@@ -652,7 +683,9 @@ namespace WhoAmIBotSpace
                     SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "UpdateLang",
                         ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name,
                         query.Count.ToString(), lf.Strings.Count.ToString());
+                    client.OnCallbackQuery += cHandler;
                     mre.WaitOne();
+                    client.OnCallbackQuery -= cHandler;
                     if (permit)
                     {
                         foreach (var js in lf.Strings)
@@ -673,6 +706,7 @@ namespace WhoAmIBotSpace
                         }
                     }
                 }
+                EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "LangUploaded", null, "", out var u1, out var u2);
             }
             catch (Exception x)
             {
@@ -771,9 +805,10 @@ namespace WhoAmIBotSpace
                 // do players turns until everything is finished, then break;
                 if (turn >= game.Players.Count) turn = 0;
                 Player atTurn = game.Players[turn];
-                SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerTurn", null, out Message sentMessage, out string uselessS, atTurn.Name);
+                SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerTurn", null, out Message sentGroupMessage, out string uselessS, atTurn.Name);
                 #region Ask Question
                 string sentMessageText = "";
+                Message sentMessage = null;
                 EventHandler<MessageEventArgs> qHandler = (sender, e) =>
                 {
                     if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
@@ -782,9 +817,9 @@ namespace WhoAmIBotSpace
                     string yes = GetString("Yes", LangCode(game.GroupId));
                     string idk = GetString("Idk", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
-                    EditLangMessage(game.GroupId, game.GroupId, sentMessage.MessageId, "QuestionAsked",
+                    EditLangMessage(game.GroupId, game.GroupId, sentGroupMessage.MessageId, "QuestionAsked",
                         ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}", idk, $"idk@{game.GroupId}"), "",
-                        out sentMessage, out sentMessageText,
+                        out sentGroupMessage, out sentMessageText,
                         $"<b>{WebUtility.HtmlEncode(atTurn.Name)}</b>", $"<i>{WebUtility.HtmlEncode(e.Message.Text)}</i>");
                     mre.Set();
                 };
@@ -881,7 +916,7 @@ namespace WhoAmIBotSpace
                     if (!game.TotalPlayers.Exists(x => x.Id == e.CallbackQuery.From.Id)
                     || (!e.CallbackQuery.Data.StartsWith("yes@") && !e.CallbackQuery.Data.StartsWith("no@") && !e.CallbackQuery.Data.StartsWith("idk@"))
                     || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
-                    if (e.CallbackQuery.From.Id == atTurn.Id)
+                    if (e.CallbackQuery.From.Id == atTurn.Id && game.GroupId != testingGroupId)
                     {
                         client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "You cannot answer yourself!", showAlert: true);
                         return;
