@@ -35,5 +35,23 @@ namespace WhoAmIBotSpace.Helpers
             InlineKeyboardButton[] row = new InlineKeyboardButton[] { guessButton, giveUpButton };
             return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row });
         }
+
+        public static IReplyMarkup InlineChooseLanguage(List<List<string>> grid, long chatId)
+        {
+            List<List<InlineKeyboardButton>> bGrid = new List<List<InlineKeyboardButton>>();
+            foreach (var row in grid)
+            {
+                var l = new List<InlineKeyboardButton>();
+                string key = row[0];
+                string name = row[1];
+                l.Add(new InlineKeyboardButton(name, $"lang:{key}@{chatId}"));
+            }
+            var aGrid = new List<InlineKeyboardButton[]>();
+            foreach (var bRow in bGrid)
+            {
+                aGrid.Add(bRow.ToArray());
+            }
+            return new InlineKeyboardMarkup(aGrid.ToArray());
+        }
     }
 }
