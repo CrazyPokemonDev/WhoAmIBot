@@ -121,6 +121,7 @@ namespace WhoAmIBotSpace
 #if DEBUG
             } while (false);
 #else
+            }
             catch (Exception x)
             {
                 client.SendTextMessageAsync(Flom,
@@ -322,7 +323,7 @@ namespace WhoAmIBotSpace
             commands.Add("/cancelgame", new Action<Message>(Cancelgame_Command));
             commands.Add("/go", new Action<Message>(Go_Command));
             commands.Add("/setlang", new Action<Message>(Setlang_Command));
-            commands.Add("/setdb", new Action<Message>(Setdb_Command));
+            //commands.Add("/setdb", new Action<Message>(Setdb_Command));
             commands.Add("/nextgame", new Action<Message>(Nextgame_Command));
             commands.Add("/stats", new Action<Message>(Stats_Command));
             commands.Add("/getlang", new Action<Message>(Getlang_Command));
