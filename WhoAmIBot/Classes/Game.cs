@@ -39,6 +39,16 @@ namespace WhoAmIBotSpace.Classes
         {
             if (Winner == null) Winner = p;
         }
+
+        public string GetRolesAsString()
+        {
+            string s = "";
+            foreach (var kvp in RoleIdDict)
+            {
+                s += $"\n{TotalPlayers.Find(x => x.Id == kvp.Key).Name}: {kvp.Value}";
+            }
+            return s;
+        }
     }
 
     public enum GameState
