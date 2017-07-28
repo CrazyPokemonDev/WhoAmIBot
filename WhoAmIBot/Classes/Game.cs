@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,7 +46,8 @@ namespace WhoAmIBotSpace.Classes
             string s = "";
             foreach (var kvp in RoleIdDict)
             {
-                s += $"\n{TotalPlayers.Find(x => x.Id == kvp.Key).Name}: {kvp.Value}";
+                s += $"\n<b>{WebUtility.HtmlEncode(TotalPlayers.Find(x => x.Id == kvp.Key).Name)}</b>: " +
+                    $"<i>{WebUtility.HtmlEncode(kvp.Value)}</i>";
             }
             return s;
         }
