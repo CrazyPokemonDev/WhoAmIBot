@@ -80,11 +80,8 @@ namespace WhoAmIBotSpace
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
-#if DEBUG
-#else
             try
             {
-#endif
                 if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
                 {
                     foreach (var entity in e.Update.Message.Entities)
@@ -114,16 +111,17 @@ namespace WhoAmIBotSpace
                         SendLangMessage(msg.Chat.Id, "PowerGranted");
                     }
                 }
-#if DEBUG
-#else
             }
             catch (Exception x)
             {
+#if DEBUG
+                throw x;
+#else
                 client.SendTextMessageAsync(Flom,
                     $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n" +
                     $"{x.InnerException?.Message}\n{x.InnerException?.StackTrace}");
-            }
 #endif
+            }
         }
         #endregion
 
@@ -267,6 +265,33 @@ namespace WhoAmIBotSpace
             }
         }
         #endregion
+        #region Get Lang File
+#if DEBUG
+        public LangFile GetLangFile(string key)
+#else
+        private LangFile GetLangFile(string key)
+#endif
+        {
+            var par = new Dictionary<string, object>()
+            {
+                { "key", key }
+            };
+            var query = ExecuteSql("SELECT Name FROM ExistingLanguages WHERE Key=@key", par);
+            LangFile lf = new LangFile()
+            {
+                LangKey = key,
+                Name = query[0][0],
+                Strings = new List<JString>()
+            };
+            query = ExecuteSql($"SELECT Key, Value FROM '{key}'");
+            foreach (var row in query)
+            {
+                if (row.Count < 2) continue;
+                lf.Strings.Add(new JString(row[0], row[1]));
+            }
+            return lf;
+        }
+        #endregion
         #endregion
         #region Command Methods
         #region Read Commands
@@ -282,6 +307,8 @@ namespace WhoAmIBotSpace
             commands.Add("/setdb", new Action<Message>(Setdb_Command));
             commands.Add("/nextgame", new Action<Message>(Nextgame_Command));
             commands.Add("/stats", new Action<Message>(Stats_Command));
+            commands.Add("/getlang", new Action<Message>(Getlang_Command));
+            commands.Add("/uploadlang", new Action<Message>(Uploadlang_Command));
         }
         #endregion
 
@@ -304,6 +331,37 @@ namespace WhoAmIBotSpace
             g.Thread?.Abort();
             GamesRunning.Remove(g);
             SendLangMessage(msg.Chat.Id, "GameCancelled");
+        }
+        #endregion
+        #region /getlang
+        private void Getlang_Command(Message msg)
+        {
+            ManualResetEvent mre = new ManualResetEvent(false);
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
+            {
+                if (!e.CallbackQuery.Data.StartsWith("lang:") || e.CallbackQuery.From.Id == msg.From.Id) return;
+                var split = e.CallbackQuery.Data.Split(':', '@');
+                string key = split[1];
+                long groupId = Convert.ToInt64(split[2]);
+                if (groupId != msg.Chat.Id) return;
+                LangFile lf = GetLangFile(key);
+                string path = $"{key}.txt";
+                File.WriteAllText(path, JsonConvert.SerializeObject(lf, Formatting.Indented));
+                using (var str = File.OpenRead(path))
+                {
+                    client.SendDocumentAsync(msg.Chat.Id, new FileToSend(path, str)).Wait();
+                }
+                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                mre.Set();
+            };
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
+                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT (key, name) FROM ExistingLanguages"), msg.Chat.Id),
+                out Message sent, out var u);
+            client.OnCallbackQuery += cHandler;
+            mre.WaitOne();
+            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "OneMoment", null, "", out var u2, out u);
+            client.OnCallbackQuery -= cHandler;
+
         }
         #endregion
         #region /go
@@ -439,13 +497,16 @@ namespace WhoAmIBotSpace
                         }
                         break;
                 }
+                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 mre.Set();
             };
-            SendLangMessage(msg.Chat.Id, "SelectLanguage",
-                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT (key, name) FROM ExistingLanguages"), msg.Chat.Id));
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
+                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT (key, name) FROM ExistingLanguages"), msg.Chat.Id),
+                out Message sent, out string useless);
             client.OnCallbackQuery += cHandler;
             mre.WaitOne();
-            SendLangMessage(msg.Chat.Id, "LangSet");
+            client.OnCallbackQuery -= cHandler;
+            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "LangSet", null, "", out var u, out var u2);
         }
         #endregion
         #region /start
@@ -516,12 +577,108 @@ namespace WhoAmIBotSpace
         #region /sql
         private void SQL_Command(Message msg)
         {
-            if (msg.From.Id != Flom) return;
+            if (!GlobalAdmins.Contains(msg.From.Id)) return;
             string commandText;
             if (msg.ReplyToMessage != null) commandText = msg.ReplyToMessage.Text;
             else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
             string response = ExecuteSqlRaw(commandText);
             if (!string.IsNullOrEmpty(response)) client.SendTextMessageAsync(msg.Chat.Id, response, parseMode: ParseMode.Markdown);
+        }
+        #endregion
+        #region /uploadlang
+        private void Uploadlang_Command(Message msg)
+        {
+            if (msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.DocumentMessage) return;
+            if (!GlobalAdmins.Contains(msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NoGlobalAdmin");
+                return;
+            }
+            var path = DateTime.Now.ToString() + ".temp";
+            using (var str = File.OpenWrite(path))
+            {
+                client.GetFileAsync(msg.ReplyToMessage.Document.FileId, str).Wait();
+            }
+            string text = File.ReadAllText(path);
+            LangFile lf = null;
+            try
+            {
+                ManualResetEvent mre = new ManualResetEvent(false);
+                lf = JsonConvert.DeserializeObject<LangFile>(text);
+                Message sent = null;
+                bool permit = false;
+                //check if lang exists
+                var par = new Dictionary<string, object>()
+                {
+                    { "key", lf.LangKey },
+                    { "name", lf.Name }
+                };
+                EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
+                {
+                    if (!GlobalAdmins.Contains(e.CallbackQuery.From.Id)
+                    || e.CallbackQuery.Message.MessageId != sent.MessageId
+                    || e.CallbackQuery.Message.Chat.Id != sent.Chat.Id) return;
+                    if (e.CallbackQuery.Data == "yes") permit = true;
+                    mre.Set();
+                };
+                var query = ExecuteSql("SELECT * FROM ExistingLanguages WHERE Key=@key", par);
+                string yes = GetString("Yes", LangCode(msg.Chat.Id));
+                string no = GetString("No", LangCode(msg.Chat.Id));
+                if (query.Count == 0)
+                {
+                    //create new language
+                    SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "CreateLang",
+                        ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name);
+                    mre.WaitOne();
+                    if (permit)
+                    {
+                        ExecuteSql("INSERT INTO ExistingLanguages(Key, Name) VALUES(@key, @name)", par);
+                        ExecuteSql($"CREATE TABLE '{lf.LangKey}'(Key varchar primary key, Value varchar)");
+                        foreach (var js in lf.Strings)
+                        {
+                            var par1 = new Dictionary<string, object>()
+                            {
+                                { "key", js.Key },
+                                { "value", js.Value }
+                            };
+                            ExecuteSql($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)", par1);
+                        }
+                    }
+                }
+                else
+                {
+                    //update old lang
+                    query = ExecuteSql($"SELECT Key, Value FROM '{lf.LangKey}'");
+                    SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "UpdateLang",
+                        ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name,
+                        query.Count.ToString(), lf.Strings.Count.ToString());
+                    mre.WaitOne();
+                    if (permit)
+                    {
+                        foreach (var js in lf.Strings)
+                        {
+                            var par1 = new Dictionary<string, object>()
+                            {
+                                { "key", js.Key },
+                                { "value", js.Value }
+                            };
+                            if (query.Exists(x => x.Count > 0 && x[0] == js.Key))
+                            {
+                                ExecuteSql($"UPDATE '{lf.LangKey}' SET Value=@value WHERE Key=@key", par1);
+                            }
+                            else
+                            {
+                                ExecuteSql($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception x)
+            {
+                SendLangMessage(msg.Chat.Id, "ErrorOcurred", null,
+                    $"{x.GetType().Name}\n{x.Message}\n{x.StackTrace}\n{x.InnerException.Message}\n{x.InnerException.StackTrace}");
+            }
         }
         #endregion
         #endregion
@@ -807,6 +964,7 @@ namespace WhoAmIBotSpace
                             comm.Parameters.Add(new SQLiteParameter(kvp.Key, kvp.Value));
                         }
                     }
+                    else if (commandText.Contains("@")) throw new Exception("Missing parameters.");
                     try
                     {
                         using (var reader = comm.ExecuteReader())
@@ -829,6 +987,7 @@ namespace WhoAmIBotSpace
                                 {
                                     row.Add(reader.GetValue(i).ToString());
                                 }
+                                r.Add(row);
                             }
                         }
                     }

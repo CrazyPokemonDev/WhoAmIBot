@@ -9,5 +9,11 @@ namespace WhoAmIBotSpace.Classes
         public string Key { get; set; }
         [JsonProperty(PropertyName = "value")]
         public string Value { get; set; }
+
+        public JString(string key, string value)
+        {
+            Key = key;
+            Value = value;
+        }
     }
 }
