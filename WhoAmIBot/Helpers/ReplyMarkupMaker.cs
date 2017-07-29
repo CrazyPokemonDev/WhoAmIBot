@@ -54,5 +54,11 @@ namespace WhoAmIBotSpace.Helpers
             }
             return new InlineKeyboardMarkup(aGrid.ToArray());
         }
+
+        public static IReplyMarkup InlineStartMe(string username)
+        {
+            InlineKeyboardButton b = InlineKeyboardButton.WithUrl("Start", $"http://t.me/{username}");
+            return new InlineKeyboardMarkup(new InlineKeyboardButton[] { b });
+        }
     }
 }

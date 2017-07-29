@@ -18,6 +18,7 @@ using System.Threading;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Net;
+using System.Text;
 
 namespace WhoAmIBotSpace
 {
@@ -125,8 +126,7 @@ namespace WhoAmIBotSpace
             catch (Exception x)
             {
                 client.SendTextMessageAsync(Flom,
-                    $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n" +
-                    $"{x.InnerException?.Message}\n{x.InnerException?.StackTrace}");
+                    $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n");
             }
 #endif
         }
@@ -365,7 +365,7 @@ namespace WhoAmIBotSpace
                 if (groupId != msg.Chat.Id) return;
                 LangFile lf = GetLangFile(key);
                 string path = $"{key}.txt";
-                File.WriteAllText(path, JsonConvert.SerializeObject(lf, Formatting.Indented));
+                File.WriteAllText(path, JsonConvert.SerializeObject(lf, Formatting.Indented), Encoding.UTF8);
                 using (var str = File.OpenRead(path))
                 {
                     client.SendDocumentAsync(msg.Chat.Id, new FileToSend(path, str), caption: null).Wait();
@@ -598,8 +598,11 @@ namespace WhoAmIBotSpace
             {
                 { "id", msg.From.Id }
             };
-            int winCount = Convert.ToInt32(ExecuteSql("SELECT COUNT(*) FROM GamesFinished WHERE WinnerId=@id", par));
-            SendLangMessage(msg.Chat.Id, msg.From.Id, "Stats", null, msg.From.FullName(), winCount.ToString());
+            string winCount = "";
+            var q = ExecuteSql("SELECT COUNT(*) FROM GamesFinished WHERE WinnerId=@id", par);
+            if (q.Count < 1 || q[0].Count < 1) winCount = "0";
+            else winCount = q[0][0];
+            SendLangMessage(msg.Chat.Id, msg.From.Id, "Stats", null, msg.From.FullName(), winCount);
         }
         #endregion
         #region /sql
@@ -734,7 +737,7 @@ namespace WhoAmIBotSpace
             }
             if (!SendLangMessage(player.Id, game.GroupId, "JoinedGamePM", null, game.GroupName))
             {
-                SendLangMessage(game.GroupId, "PmMe", null, player.Name);
+                SendLangMessage(game.GroupId, "PmMe", ReplyMarkupMaker.InlineStartMe(Username), player.Name);
                 return;
             }
             game.Players.Add(player);
@@ -1000,7 +1003,7 @@ namespace WhoAmIBotSpace
                             comm.Parameters.Add(new SQLiteParameter(kvp.Key, kvp.Value));
                         }
                     }
-                    else if (commandText.Contains("@")) throw new Exception("Missing parameters.");
+                    else if (commandText.Contains("@")) client.SendTextMessageAsync(Flom, $"Missing parameters in {commandText}");
                     try
                     {
                         using (var reader = comm.ExecuteReader())
