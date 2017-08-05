@@ -328,6 +328,7 @@ namespace WhoAmIBotSpace
             commands.Add("/stats", new Action<Message>(Stats_Command));
             commands.Add("/getlang", new Action<Message>(Getlang_Command));
             commands.Add("/uploadlang", new Action<Message>(Uploadlang_Command));
+            commands.Add("/maint", new Action<Message>(Maint_Command));
         }
         #endregion
 
@@ -418,6 +419,16 @@ namespace WhoAmIBotSpace
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
+        }
+        #endregion
+        #region /maint
+        private void Maint_Command(Message msg)
+        {
+            if (!GlobalAdmins.Contains(msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
+            }
+            //more stuff later
         }
         #endregion
         #region /nextgame
@@ -714,9 +725,9 @@ namespace WhoAmIBotSpace
             }
             catch (Exception x)
             {
-                string mess = $"{x.GetType().Name}\n{x.Message}\n{x.StackTrace}\n";
+                string mess = $"{x.GetType().Name}\n{x.Message}\n";
                 if (x.InnerException != null)
-                    mess += $"{x.InnerException.Message}\n{x.InnerException.StackTrace}";
+                    mess += $"{x.InnerException.Message}";
                 SendLangMessage(msg.Chat.Id, "ErrorOcurred", null,
                     mess);
             }
