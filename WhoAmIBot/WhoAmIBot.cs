@@ -705,7 +705,7 @@ namespace WhoAmIBotSpace
                             }
                             else
                             {
-                                ExecuteSql($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)");
+                                ExecuteSql($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value", par1);
                             }
                         }
                     }
@@ -714,8 +714,11 @@ namespace WhoAmIBotSpace
             }
             catch (Exception x)
             {
+                string mess = $"{x.GetType().Name}\n{x.Message}\n{x.StackTrace}\n";
+                if (x.InnerException != null)
+                    mess += $"{x.InnerException.Message}\n{x.InnerException.StackTrace}";
                 SendLangMessage(msg.Chat.Id, "ErrorOcurred", null,
-                    $"{x.GetType().Name}\n{x.Message}\n{x.StackTrace}\n{x.InnerException.Message}\n{x.InnerException.StackTrace}");
+                    mess);
             }
         }
         #endregion
@@ -976,7 +979,7 @@ namespace WhoAmIBotSpace
             var par = new Dictionary<string, object>() { { "id", game.Id } };
             ExecuteSql("DELETE FROM Games WHERE Id=@id", par);
             long winnerId = game.Winner == null ? 0 : game.Winner.Id;
-            string winnerName = game.Winner == null ? "Nobody" : game.Winner.Name;
+            string winnerName = game.Winner == null ? GetString("Nobody", LangCode(game.GroupId)) : game.Winner.Name;
             par = new Dictionary<string, object>() { { "groupid", game.GroupId }, { "winnerid", winnerId }, { "winnername", winnerName } };
             ExecuteSql("INSERT INTO GamesFinished (groupId, winnerid, winnername) VALUES(@groupid, @winnerid, @winnername)", par);
             SendLangMessage(game.GroupId, "GameFinished", null, winnerName);
