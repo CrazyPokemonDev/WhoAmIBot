@@ -442,18 +442,26 @@ namespace WhoAmIBotSpace
             {
                 SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
             }
-            Maintenance = true;
-            SendLangMessage(msg.Chat.Id, msg.From.Id, "Maintenance");
-            if (GamesRunning.Count > 0)
+            if (!Maintenance)
             {
-                GameFinished += (sender, e) =>
+                Maintenance = true;
+                SendLangMessage(msg.Chat.Id, msg.From.Id, "Maintenance");
+                if (GamesRunning.Count > 0)
                 {
-                    if (GamesRunning.Count < 1) { SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished"); }
-                };
+                    GameFinished += (sender, e) =>
+                    {
+                        if (GamesRunning.Count < 1) { SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished"); }
+                    };
+                }
+                else
+                {
+                    SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished");
+                }
             }
             else
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished");
+                Maintenance = false;
+                SendLangMessage(msg.Chat.Id, msg.From.Id, "MaintenanceOff");
             }
         }
         #endregion
