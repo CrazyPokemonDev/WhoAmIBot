@@ -346,6 +346,7 @@ namespace WhoAmIBotSpace
             commands.Add("/getlang", new Action<Message>(Getlang_Command));
             commands.Add("/uploadlang", new Action<Message>(Uploadlang_Command));
             commands.Add("/maint", new Action<Message>(Maint_Command));
+            commands.Add("/help", new Action<Message>(Help_Command));
         }
         #endregion
 
@@ -434,6 +435,12 @@ namespace WhoAmIBotSpace
             Thread t = new Thread(pts);
             g.Thread = t;
             t.Start(g);
+        }
+        #endregion
+        #region /help
+        private void Help_Command(Message msg)
+        {
+            SendLangMessage(msg.Chat.Id, msg.From.Id, "Help");
         }
         #endregion
         #region /join
