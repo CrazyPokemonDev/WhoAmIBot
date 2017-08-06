@@ -598,7 +598,7 @@ namespace WhoAmIBotSpace
         #region /startgame
         private void Startgame_Command(Message msg)
         {
-            if (Maintenance)
+            if (Maintenance && msg.Chat.Id != testingGroupId)
             {
                 SendLangMessage(msg.Chat.Id, "BotUnderMaintenance");
                 return;
