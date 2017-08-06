@@ -355,10 +355,20 @@ namespace WhoAmIBotSpace
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
-            if (!g.Players.Exists(x => x.Id == msg.From.Id))
+            if (!g.Players.Exists(x => x.Id == msg.From.Id) && !GlobalAdmins.Contains(msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NotInGame");
-                return;
+                bool cancancel = false;
+                if (msg.Chat.Type != ChatType.Channel && msg.Chat.Type != ChatType.Private)
+                {
+                    var t = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
+                    t.Wait();
+                    if (t.Result.Status == ChatMemberStatus.Administrator || t.Result.Status == ChatMemberStatus.Creator) cancancel = true;
+                }
+                if (!cancancel)
+                {
+                    SendLangMessage(msg.Chat.Id, "NotInGame");
+                    return;
+                }
             }
             var par = new Dictionary<string, object>() { { "id", g.Id } };
             ExecuteSql($"DELETE FROM Games WHERE Id=@id", par);
