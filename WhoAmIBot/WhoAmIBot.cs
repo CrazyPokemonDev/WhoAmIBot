@@ -755,7 +755,7 @@ namespace WhoAmIBotSpace
                             }
                             else
                             {
-                                ExecuteSql($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value", par1);
+                                ExecuteSql($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)", par1);
                             }
                         }
                     }
