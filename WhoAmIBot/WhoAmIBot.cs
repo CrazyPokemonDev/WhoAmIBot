@@ -549,6 +549,16 @@ namespace WhoAmIBotSpace
         #region /setlang
         private void Setlang_Command(Message msg)
         {
+            if (!GlobalAdmins.Contains(msg.From.Id) && msg.Chat.Type != ChatType.Channel && msg.Chat.Type != ChatType.Private)
+            {
+                var t = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
+                t.Wait();
+                if (t.Result.Status != ChatMemberStatus.Administrator && t.Result.Status != ChatMemberStatus.Creator)
+                {
+                    SendLangMessage(msg.Chat.Id, "AdminOnly");
+                    return;
+                }
+            }
             ManualResetEvent mre = new ManualResetEvent(false);
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
