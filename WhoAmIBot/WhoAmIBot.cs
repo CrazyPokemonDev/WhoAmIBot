@@ -448,10 +448,12 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, msg.From.Id, "Maintenance");
                 if (GamesRunning.Count > 0)
                 {
-                    GameFinished += (sender, e) =>
+                    EventHandler<GameFinishedEventArgs> handler = null;
+                    handler = (sender, e) =>
                     {
-                        if (GamesRunning.Count < 1) { SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished"); }
+                        if (GamesRunning.Count < 1) { SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished"); GameFinished -= handler; }
                     };
+                    GameFinished += handler;
                 }
                 else
                 {
