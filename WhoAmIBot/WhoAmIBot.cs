@@ -378,6 +378,7 @@ namespace WhoAmIBotSpace
             ExecuteSql($"DELETE FROM Games WHERE Id=@id", par);
             g.Thread?.Abort();
             GamesRunning.Remove(g);
+            GameFinished?.Invoke(this, new GameFinishedEventArgs(g));
             SendLangMessage(msg.Chat.Id, "GameCancelled");
         }
         #endregion
