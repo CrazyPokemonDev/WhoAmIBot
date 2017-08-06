@@ -932,8 +932,9 @@ namespace WhoAmIBotSpace
                     string yes = GetString("Yes", LangCode(game.GroupId));
                     string idk = GetString("Idk", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
-                    EditLangMessage(game.GroupId, game.GroupId, sentGroupMessage.MessageId, "QuestionAsked",
-                        ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}", idk, $"idk@{game.GroupId}"), "",
+                    client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
+                    SendAndGetLangMessage(game.GroupId, game.GroupId, "QuestionAsked",
+                        ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}", idk, $"idk@{game.GroupId}"),
                         out sentGroupMessage, out sentMessageText,
                         $"<b>{WebUtility.HtmlEncode(atTurn.Name)}</b>", $"<i>{WebUtility.HtmlEncode(e.Message.Text)}</i>");
                     mre.Set();
@@ -947,9 +948,10 @@ namespace WhoAmIBotSpace
                     SendLangMessage(atTurn.Id, game.GroupId, "QuestionReceived");
                     string yes = GetString("Yes", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
+                    client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
                     SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerGuessed",
                         ReplyMarkupMaker.InlineYesNo(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}"),
-                        out Message uselessM, out sentMessageText,
+                        out sentGroupMessage, out sentMessageText,
                         atTurn.Name, e.Message.Text);
                     mre.Set();
                 };
