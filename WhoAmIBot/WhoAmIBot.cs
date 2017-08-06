@@ -823,10 +823,11 @@ namespace WhoAmIBotSpace
             {
                 game.TotalPlayers.Add(p);
             }
+            game.Players.Shuffle();
             for (int i = 0; i < game.Players.Count; i++)
             {
                 int next = (i == game.Players.Count - 1) ? 0 : i + 1;
-                SendLangMessage(game.Players[i].Id, "ChooseRoleFor", null, game.Players[next].Name);
+                SendLangMessage(game.Players[i].Id, game.GroupId, "ChooseRoleFor", null, game.Players[next].Name);
             }
             ManualResetEvent mre = new ManualResetEvent(false);
             EventHandler<MessageEventArgs> eHandler = (sender, e) =>
@@ -839,7 +840,7 @@ namespace WhoAmIBotSpace
                    Player next = game.Players[nextIndex];
                    if (game.RoleIdDict.ContainsKey(next.Id))
                    {
-                       SendLangMessage(p.Id, "AlreadySentRole", null, next.Name);
+                       SendLangMessage(p.Id, game.GroupId, "AlreadySentRole", null, next.Name);
                    }
                    else
                    {
