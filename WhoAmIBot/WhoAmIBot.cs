@@ -84,6 +84,16 @@ namespace WhoAmIBotSpace
             }
             return base.StartBot();
         }
+
+        public override bool StopBot()
+        {
+            foreach(Game g in GamesRunning)
+            {
+                SendLangMessage(g.GroupId, "BotStopping");
+                g.Thread?.Abort();
+            }
+            return base.StopBot();
+        }
         #endregion
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
@@ -353,6 +363,18 @@ namespace WhoAmIBotSpace
         #region /cancelgame
         private void Cancelgame_Command(Message msg)
         {
+            if (msg.Text.Contains(" ") && GlobalAdmins.Contains(msg.From.Id))
+            {
+                long id = Convert.ToInt64(msg.Text.Substring(msg.Text.IndexOf(" ")));
+                var g2 = GamesRunning.Find(x => x.GroupId == id || x.Id == id);
+                var par1 = new Dictionary<string, object>() { { "id", g2.Id } };
+                ExecuteSql($"DELETE FROM Games WHERE Id=@id", par1);
+                g2.Thread?.Abort();
+                GamesRunning.Remove(g2);
+                GameFinished?.Invoke(this, new GameFinishedEventArgs(g2));
+                SendLangMessage(msg.Chat.Id, "GameCancelled");
+                return;
+            }
             if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
             {
                 SendLangMessage(msg.Chat.Id, "NoGameRunning");
