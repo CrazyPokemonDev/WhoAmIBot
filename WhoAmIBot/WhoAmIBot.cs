@@ -44,6 +44,10 @@ namespace WhoAmIBotSpace
         private List<User> Users = new List<User>();
         private Dictionary<long, List<User>> Nextgame = new Dictionary<long, List<User>>();
         private List<long> GlobalAdmins = new List<long>();
+        private bool Maintenance = false;
+        #endregion
+        #region Events
+        public event EventHandler<GameFinishedEventArgs> GameFinished;
         #endregion
 
         #region Constructors and FlomBot stuff
@@ -100,7 +104,17 @@ namespace WhoAmIBotSpace
                             cmd = cmd.Contains("@" + Username.ToLower()) ? cmd.Remove(cmd.IndexOf("@" + Username.ToLower())) : cmd;
                             if (commands.ContainsKey(cmd))
                             {
-                                Thread t = new Thread(() => commands[cmd].Invoke(e.Update.Message));
+                                Thread t = new Thread(() => 
+                                {
+                                    try
+                                    {
+                                        commands[cmd].Invoke(e.Update.Message);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        client.SendTextMessageAsync(Flom, $"Who am I bot\n{ex.Message}\n{ex.StackTrace}");
+                                    }
+                                });
                                 t.Start();
                                 //commands[cmd].Invoke(e.Update.Message);
                             }
@@ -144,7 +158,7 @@ namespace WhoAmIBotSpace
                 q = ExecuteSql($"SELECT value FROM '{defaultLangCode}' WHERE key=@key", par);
                 if (q.Count < 1 || q[0].Count < 1)
                 {
-                    query = "String missing. Inform @Olfi01.";
+                    query = $"String {key} missing. Inform @Olfi01.";
                 }
                 else
                 {
@@ -428,7 +442,19 @@ namespace WhoAmIBotSpace
             {
                 SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
             }
-            //more stuff later
+            Maintenance = true;
+            SendLangMessage(msg.Chat.Id, msg.From.Id, "Maintenance");
+            if (GamesRunning.Count > 0)
+            {
+                GameFinished += (sender, e) =>
+                {
+                    if (GamesRunning.Count < 1) { SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished"); }
+                };
+            }
+            else
+            {
+                SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished");
+            }
         }
         #endregion
         #region /nextgame
@@ -564,6 +590,11 @@ namespace WhoAmIBotSpace
         #region /startgame
         private void Startgame_Command(Message msg)
         {
+            if (Maintenance)
+            {
+                SendLangMessage(msg.Chat.Id, "BotUnderMaintenance");
+                return;
+            }
             if (msg.Chat.Type != ChatType.Group && msg.Chat.Type != ChatType.Supergroup)
             {
                 SendLangMessage(msg.Chat.Id, "NotInPrivate");
@@ -996,6 +1027,7 @@ namespace WhoAmIBotSpace
             SendLangMessage(game.GroupId, "GameFinished", null, winnerName);
             SendLangMessage(game.GroupId, "RolesWere", null, game.GetRolesAsString());
             GamesRunning.Remove(game);
+            GameFinished?.Invoke(this, new GameFinishedEventArgs(game));
             #endregion
         }
         #endregion
