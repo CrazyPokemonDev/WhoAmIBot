@@ -762,7 +762,8 @@ namespace WhoAmIBotSpace
                         }
                     }
                 }
-                EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "LangUploaded", null, "", out var u1, out var u2);
+                if (permit) EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "LangUploaded", null, "", out var u1, out var u2);
+                else EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "UploadCancelled", null, "", out var u1, out var u2);
             }
             catch (Exception x)
             {
