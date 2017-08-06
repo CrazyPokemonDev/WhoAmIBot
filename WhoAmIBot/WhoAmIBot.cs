@@ -33,6 +33,9 @@ namespace WhoAmIBotSpace
         private const string sqliteFilePath = baseFilePath + "db.sqlite";
         private const string connectionString = "Data Source=\"" + sqliteFilePath + "\";";
         private const string defaultLangCode = "en-US";
+        /*private const string yesEmoji = "✅";
+        private const string noEmoji = "❌";
+        private const string idkEmoji = "🤷‍♂";*/
         private const int minPlayerCount = 2;
         private const long testingGroupId = -1001070844778;
         #endregion
@@ -845,7 +848,7 @@ namespace WhoAmIBotSpace
                    else
                    {
                        game.RoleIdDict.Add(next.Id, e.Message.Text);
-                       SendLangMessage(p.Id, "SetRole", null, next.Name, e.Message.Text);
+                       SendLangMessage(p.Id, game.GroupId, "SetRole", null, next.Name, e.Message.Text);
                        if (game.DictFull()) mre.Set();
                    }
                };
@@ -900,7 +903,7 @@ namespace WhoAmIBotSpace
                 EventHandler<MessageEventArgs> guessHandler = (sender, e) =>
                 {
                     if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
-                    SendLangMessage(atTurn.Id, "QuestionReceived");
+                    SendLangMessage(atTurn.Id, game.GroupId, "QuestionReceived");
                     string yes = GetString("Yes", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
                     SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerGuessed",
@@ -997,12 +1000,14 @@ namespace WhoAmIBotSpace
                     if (groupId != game.GroupId) return;
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
+                    string pname = game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name;
                     switch (answer)
                     {
                         case "yes":
                             EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredYes", null, sentMessageText + "\n",
-                                out Message uselessM, out string uselessSS,
-                                game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
+                                out Message uselessM, out string uselessSS, pname);
+                            EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
+                                "AnsweredYes", null, "", out var u, out var u2, pname);
                             if (guess)
                             {
                                 game.Players.Remove(atTurn);
@@ -1013,13 +1018,15 @@ namespace WhoAmIBotSpace
                             break;
                         case "idk":
                             EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredIdk", null, sentMessageText + "\n",
-                                out Message uselessM2, out string uselessS2,
-                                game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
+                                out Message uselessM2, out string uselessS2, pname);
+                            EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
+                                "AnsweredIdk", null, "", out var u3, out var u4, pname);
                             break;
                         case "no":
                             EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredNo", null, sentMessageText + "\n",
-                                out Message uselessM1, out string uselessS1,
-                            game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name);
+                                out Message uselessM1, out string uselessS1, pname);
+                            EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
+                                "AnsweredNo", null, "", out var u5, out var u6, pname);
                             turn++;
                             break;
                     }
