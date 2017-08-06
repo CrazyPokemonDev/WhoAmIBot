@@ -373,6 +373,7 @@ namespace WhoAmIBotSpace
                 GamesRunning.Remove(g2);
                 GameFinished?.Invoke(this, new GameFinishedEventArgs(g2));
                 SendLangMessage(msg.Chat.Id, "GameCancelled");
+                SendLangMessage(g2.GroupId, "GameCancelledByGlobalAdmin");
                 return;
             }
             if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))

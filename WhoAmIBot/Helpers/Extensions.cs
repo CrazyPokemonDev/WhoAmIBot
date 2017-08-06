@@ -20,7 +20,7 @@ namespace WhoAmIBotSpace.Helpers
             }
             list.Clear();
             Random rnd = new Random();
-            for (int i=0; i < temp.Count; i++)
+            while(temp.Count > 0)
             {
                 T t = temp[rnd.Next(0, temp.Count - 1)];
                 list.Add(t);
