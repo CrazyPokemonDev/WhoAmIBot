@@ -357,6 +357,7 @@ namespace WhoAmIBotSpace
             commands.Add("/uploadlang", new Action<Message>(Uploadlang_Command));
             commands.Add("/maint", new Action<Message>(Maint_Command));
             commands.Add("/help", new Action<Message>(Help_Command));
+            commands.Add("/getgames", new Action<Message>(Getgames_Command));
         }
         #endregion
 
@@ -365,16 +366,21 @@ namespace WhoAmIBotSpace
         {
             if (msg.Text.Contains(" ") && GlobalAdmins.Contains(msg.From.Id))
             {
-                long id = Convert.ToInt64(msg.Text.Substring(msg.Text.IndexOf(" ")));
-                var g2 = GamesRunning.Find(x => x.GroupId == id || x.Id == id);
-                var par1 = new Dictionary<string, object>() { { "id", g2.Id } };
-                ExecuteSql($"DELETE FROM Games WHERE Id=@id", par1);
-                g2.Thread?.Abort();
-                GamesRunning.Remove(g2);
-                GameFinished?.Invoke(this, new GameFinishedEventArgs(g2));
-                SendLangMessage(msg.Chat.Id, "GameCancelled");
-                SendLangMessage(g2.GroupId, "GameCancelledByGlobalAdmin");
-                return;
+                if (long.TryParse(msg.Text.Substring(msg.Text.IndexOf(" ")), out long id))
+                {
+                    var g2 = GamesRunning.Find(x => x.GroupId == id || x.Id == id);
+                    if (g2 != null)
+                    {
+                        var par1 = new Dictionary<string, object>() { { "id", g2.Id } };
+                        ExecuteSql($"DELETE FROM Games WHERE Id=@id", par1);
+                        g2.Thread?.Abort();
+                        GamesRunning.Remove(g2);
+                        GameFinished?.Invoke(this, new GameFinishedEventArgs(g2));
+                        SendLangMessage(msg.Chat.Id, "GameCancelled");
+                        SendLangMessage(g2.GroupId, "GameCancelledByGlobalAdmin");
+                        return;
+                    }
+                }
             }
             if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
             {
@@ -403,6 +409,17 @@ namespace WhoAmIBotSpace
             GamesRunning.Remove(g);
             GameFinished?.Invoke(this, new GameFinishedEventArgs(g));
             SendLangMessage(msg.Chat.Id, "GameCancelled");
+        }
+        #endregion
+        #region /getgames
+        private void Getgames_Command(Message msg)
+        {
+            if (!GlobalAdmins.Contains(msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
+                return;
+            }
+
         }
         #endregion
         #region /getlang
