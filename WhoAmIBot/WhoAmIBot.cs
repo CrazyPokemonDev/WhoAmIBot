@@ -78,6 +78,8 @@ namespace WhoAmIBotSpace
                 var task = client.GetMeAsync();
                 task.Wait();
                 Username = task.Result.Username;
+                client.OnReceiveError += Client_OnReceiveError;
+                client.OnReceiveGeneralError += Client_OnReceiveError;
             }
             catch
             {
@@ -88,11 +90,13 @@ namespace WhoAmIBotSpace
 
         public override bool StopBot()
         {
-            foreach(Game g in GamesRunning)
+            foreach (Game g in GamesRunning)
             {
                 SendLangMessage(g.GroupId, "BotStopping");
                 g.Thread?.Abort();
             }
+            client.OnReceiveError -= Client_OnReceiveError;
+            client.OnReceiveGeneralError -= Client_OnReceiveError;
             return base.StopBot();
         }
         #endregion
@@ -118,7 +122,7 @@ namespace WhoAmIBotSpace
                             cmd = cmd.Contains("@" + Username.ToLower()) ? cmd.Remove(cmd.IndexOf("@" + Username.ToLower())) : cmd;
                             if (commands.ContainsKey(cmd))
                             {
-                                Thread t = new Thread(() => 
+                                Thread t = new Thread(() =>
                                 {
                                     try
                                     {
@@ -167,7 +171,7 @@ namespace WhoAmIBotSpace
             var par = new Dictionary<string, object>() { { "key", key } };
             var q = ExecuteSql($"SELECT value FROM '{langCode}' WHERE key=@key", par);
             string query = "";
-            if (q.Count < 1 || q[0].Count < 1|| q[0][0].StartsWith("SQL logic error or missing database"))
+            if (q.Count < 1 || q[0].Count < 1 || q[0][0].StartsWith("SQL logic error or missing database"))
             {
                 q = ExecuteSql($"SELECT value FROM '{defaultLangCode}' WHERE key=@key", par);
                 if (q.Count < 1 || q[0].Count < 1)
@@ -420,8 +424,9 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
                 return;
             }
-            client.SendTextMessageAsync(msg.Chat.Id, string.Join("\n", 
-                GamesRunning.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State}, {x.GetPlayerList()}")));
+            foreach (var s in string.Join("\n\n",
+                GamesRunning.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000))
+                client.SendTextMessageAsync(msg.Chat.Id, s);
         }
         #endregion
         #region /getlang
@@ -850,6 +855,29 @@ namespace WhoAmIBotSpace
             }
         }
         #endregion
+        #endregion
+
+        #region Error handling
+        private void Client_OnReceiveError(object sender, EventArgs ea)
+        {
+            if (ea is ReceiveErrorEventArgs e)
+            {
+                var ex = e.ApiRequestException;
+                client.SendTextMessageAsync(Flom, $"WhoAmIBot: {ex.Message}\n{ex.StackTrace}");
+                if (ex.InnerException != null)
+                    client.SendTextMessageAsync(Flom, $"WhoAmIBot (inner exception): {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+            }
+            else if (ea is ReceiveGeneralErrorEventArgs ge)
+            {
+                var ex = ge.Exception;
+                client.SendTextMessageAsync(Flom, $"WhoAmIBot: {ex.Message}\n{ex.StackTrace}");
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                    client.SendTextMessageAsync(Flom, $"WhoAmIBot (inner exception): {ex.Message}\n{ex.StackTrace}");
+                }
+            }
+        }
         #endregion
 
         #region Game Flow
