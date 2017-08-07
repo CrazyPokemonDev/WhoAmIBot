@@ -19,6 +19,7 @@ using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Net;
 using System.Text;
+using System.Linq;
 
 namespace WhoAmIBotSpace
 {
@@ -419,7 +420,8 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
                 return;
             }
-
+            client.SendTextMessageAsync(msg.Chat.Id, string.Join("\n", 
+                GamesRunning.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State}, {x.GetPlayerList()}")));
         }
         #endregion
         #region /getlang

@@ -27,5 +27,25 @@ namespace WhoAmIBotSpace.Helpers
                 temp.Remove(t);
             }
         }
+
+        public static List<string> Split(this string s, int chars)
+        {
+            var split = new List<string>();
+            while (s.Length > chars)
+            {
+                split.Add(s.Remove(chars));
+                s = s.Substring(chars);
+            }
+            split.Add(s);
+            return split;
+        }
+    }
+
+    public static class Help
+    {
+        public static List<T> Longer<T>(List<T> l1, List<T> l2)
+        {
+            return l2.Count > l1.Count ? l2 : l1;
+        }
     }
 }

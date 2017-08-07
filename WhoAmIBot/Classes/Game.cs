@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot.Types;
+using WhoAmIBotSpace.Helpers;
 
 namespace WhoAmIBotSpace.Classes
 {
@@ -54,7 +55,7 @@ namespace WhoAmIBotSpace.Classes
             return s;
         }
 
-        public string GetPlayerList() => "\n" + string.Join("\n", Players.Select(x => x.Name));
+        public string GetPlayerList() => "\n" + string.Join("\n", Help.Longer(Players, TotalPlayers).Select(x => x.Name));
     }
 
     public enum GameState
