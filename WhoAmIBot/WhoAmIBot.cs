@@ -854,7 +854,7 @@ namespace WhoAmIBotSpace
             }
             game.Players.Add(player);
             if (game.Players.Count > 1) SendLangMessage(game.GroupId, "PlayerJoinedGame", null, player.Name);
-            else SendLangMessage(game.GroupId, "PlayerJoinedCantStart");
+            else SendLangMessage(game.GroupId, "PlayerJoinedCantStart", null, player.Name);
             EditLangMessage(game.PlayerlistMessage.Chat.Id, game.GroupId, game.PlayerlistMessage.MessageId,
                 "PlayerList", null, "", out var u, out var u1, game.GetPlayerList());
         }
