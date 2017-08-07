@@ -694,6 +694,8 @@ namespace WhoAmIBotSpace
                 }
             }
             SendLangMessage(msg.Chat.Id, "GameStarted");
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "PlayerList", null, out Message m, out var u1, "");
+            g.PlayerlistMessage = m;
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
         }
         #endregion
@@ -852,6 +854,8 @@ namespace WhoAmIBotSpace
             }
             game.Players.Add(player);
             SendLangMessage(game.GroupId, "PlayerJoinedGame", null, player.Name);
+            EditLangMessage(game.PlayerlistMessage.Chat.Id, game.GroupId, game.PlayerlistMessage.MessageId,
+                "PlayerList", null, "", out var u, out var u1, game.GetPlayerList());
         }
         #endregion
         #region Start game flow
@@ -927,8 +931,9 @@ namespace WhoAmIBotSpace
                 EventHandler<MessageEventArgs> qHandler = (sender, e) =>
                 {
                     if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
-                    EditLangMessage(atTurn.Id, game.GroupId, sentMessage.MessageId, "QuestionReceived", null, "",
-                                out Message uselessM, out string uselessSS);
+                    client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId);
+                    SendAndGetLangMessage(atTurn.Id, game.GroupId, "QuestionReceived", null,
+                                out sentMessage, out var u);
                     string yes = GetString("Yes", LangCode(game.GroupId));
                     string idk = GetString("Idk", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
@@ -945,7 +950,8 @@ namespace WhoAmIBotSpace
                 EventHandler<MessageEventArgs> guessHandler = (sender, e) =>
                 {
                     if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
-                    SendLangMessage(atTurn.Id, game.GroupId, "QuestionReceived");
+                    client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId);
+                    SendAndGetLangMessage(atTurn.Id, game.GroupId, "QuestionReceived", null, out sentMessage, out var u);
                     string yes = GetString("Yes", LangCode(game.GroupId));
                     string no = GetString("No", LangCode(game.GroupId));
                     client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);

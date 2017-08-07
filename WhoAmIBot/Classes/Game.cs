@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Telegram.Bot.Types;
 
 namespace WhoAmIBotSpace.Classes
 {
@@ -20,6 +21,7 @@ namespace WhoAmIBotSpace.Classes
         public Dictionary<long, string> RoleIdDict { get; } = new Dictionary<long, string>();
         public Thread Thread { get; set; }
         public Player Winner { get; set; }
+        public Message PlayerlistMessage { get; set; }
         public Game(int id, long groupId, string groupName)
         {
             Id = id;
@@ -48,6 +50,16 @@ namespace WhoAmIBotSpace.Classes
             {
                 s += $"\n<b>{WebUtility.HtmlEncode(TotalPlayers.Find(x => x.Id == kvp.Key).Name)}</b>: " +
                     $"<i>{WebUtility.HtmlEncode(kvp.Value)}</i>";
+            }
+            return s;
+        }
+
+        public string GetPlayerList()
+        {
+            string s = "";
+            foreach(var p in Players)
+            {
+                s += "\n" + p.Name;
             }
             return s;
         }
