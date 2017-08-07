@@ -54,15 +54,7 @@ namespace WhoAmIBotSpace.Classes
             return s;
         }
 
-        public string GetPlayerList()
-        {
-            string s = "";
-            foreach(var p in Players)
-            {
-                s += "\n" + p.Name;
-            }
-            return s;
-        }
+        public string GetPlayerList() => "\n" + string.Join("\n", Players.Select(x => x.Name));
     }
 
     public enum GameState
