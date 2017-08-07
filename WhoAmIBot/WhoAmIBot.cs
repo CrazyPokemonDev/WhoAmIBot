@@ -363,6 +363,7 @@ namespace WhoAmIBotSpace
             commands.Add("/maint", new Action<Message>(Maint_Command));
             commands.Add("/help", new Action<Message>(Help_Command));
             commands.Add("/getgames", new Action<Message>(Getgames_Command));
+            commands.Add("/getroles", new Action<Message>(Getroles_Command));
         }
         #endregion
 
@@ -458,6 +459,41 @@ namespace WhoAmIBotSpace
             client.OnCallbackQuery -= cHandler;
             EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "OneMoment", null, "", out var u2, out u);
 
+        }
+        #endregion
+        #region /getroles
+        private void Getroles_Command(Message msg)
+        {
+            if (msg.Chat.Type != ChatType.Group && msg.Chat.Type != ChatType.Supergroup)
+            {
+                SendLangMessage(msg.Chat.Id, "NotInPrivate");
+                return;
+            }
+            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                return;
+            }
+            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
+            if (!g.TotalPlayers.Exists(x => x.Id == msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NotInGame");
+                return;
+            }
+            var p = g.TotalPlayers.Find(x => x.Id == msg.From.Id);
+            if (!g.DictFull())
+            {
+                SendLangMessage(msg.Chat.Id, "RolesNotSet");
+                return;
+            }
+            string rl = "";
+            foreach (var kvp in g.RoleIdDict)
+            {
+                if (kvp.Key != p.Id) rl += $"\n<b>{WebUtility.HtmlEncode(g.TotalPlayers.Find(x => x.Id == kvp.Key).Name)}:</b> " +
+                        $"<i>{WebUtility.HtmlEncode(kvp.Value)}</i>";
+            }
+            SendLangMessage(msg.From.Id, msg.Chat.Id, "RolesAre", null, rl);
+            SendLangMessage(msg.Chat.Id, msg.From.Id, "SentPM");
         }
         #endregion
         #region /go
@@ -745,7 +781,10 @@ namespace WhoAmIBotSpace
             if (msg.ReplyToMessage != null) commandText = msg.ReplyToMessage.Text;
             else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
             string response = ExecuteSqlRaw(commandText);
-            if (!string.IsNullOrEmpty(response)) client.SendTextMessageAsync(msg.Chat.Id, response, parseMode: ParseMode.Markdown);
+            if (!string.IsNullOrEmpty(response))
+            {
+                foreach (var s in response.Split(2000)) client.SendTextMessageAsync(msg.Chat.Id, s, parseMode: ParseMode.Markdown);
+            }
         }
         #endregion
         #region /uploadlang
