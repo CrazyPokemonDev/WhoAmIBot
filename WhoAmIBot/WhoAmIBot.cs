@@ -515,6 +515,11 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, "NotEnoughPlayers");
                 return;
             }
+            if (g.State != GameState.Joining)
+            {
+                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                return;
+            }
             ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
             Thread t = new Thread(pts);
             g.Thread = t;
