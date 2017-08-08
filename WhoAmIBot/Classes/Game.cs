@@ -23,11 +23,13 @@ namespace WhoAmIBotSpace.Classes
         public Thread Thread { get; set; }
         public Player Winner { get; set; }
         public Message PlayerlistMessage { get; set; }
+        public DateTime LastAction { get; set; }
         public Game(int id, long groupId, string groupName)
         {
             Id = id;
             GroupId = groupId;
             GroupName = groupName;
+            LastAction = DateTime.Now;
         }
 
         public bool DictFull()

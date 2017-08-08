@@ -40,6 +40,7 @@ namespace WhoAmIBotSpace
         private const string idkEmoji = "🤷‍♂";*/
         private const int minPlayerCount = 2;
         private const long testingGroupId = -1001070844778;
+        private static readonly TimeSpan idleJoinTime = TimeSpan.FromMinutes(10);
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
@@ -413,11 +414,7 @@ namespace WhoAmIBotSpace
                     var g2 = GamesRunning.Find(x => x.GroupId == id || x.Id == id);
                     if (g2 != null)
                     {
-                        var par1 = new Dictionary<string, object>() { { "id", g2.Id } };
-                        ExecuteSql($"DELETE FROM Games WHERE Id=@id", par1);
-                        g2.Thread?.Abort();
-                        GamesRunning.Remove(g2);
-                        GameFinished?.Invoke(this, new GameFinishedEventArgs(g2));
+                        CancelGame(g2);
                         SendLangMessage(msg.Chat.Id, "GameCancelled");
                         SendLangMessage(g2.GroupId, "GameCancelledByGlobalAdmin");
                         return;
@@ -445,12 +442,17 @@ namespace WhoAmIBotSpace
                     return;
                 }
             }
+            CancelGame(g);
+            SendLangMessage(msg.Chat.Id, "GameCancelled");
+        }
+
+        private void CancelGame(Game g)
+        {
             var par = new Dictionary<string, object>() { { "id", g.Id } };
             ExecuteSql($"DELETE FROM Games WHERE Id=@id", par);
             g.Thread?.Abort();
             GamesRunning.Remove(g);
             GameFinished?.Invoke(this, new GameFinishedEventArgs(g));
-            SendLangMessage(msg.Chat.Id, "GameCancelled");
         }
         #endregion
         #region /communicate
@@ -603,6 +605,7 @@ namespace WhoAmIBotSpace
             ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
             Thread t = new Thread(pts);
             g.Thread = t;
+            g.LastAction = DateTime.Now;
             t.Start(g);
         }
         #endregion
@@ -622,6 +625,12 @@ namespace WhoAmIBotSpace
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
+            var now = DateTime.Now;
+            g.LastAction = now;
+            Timer t = new Timer(x =>
+            {
+                if (now.Subtract(g.LastAction) > idleJoinTime && g.State == GameState.Joining) CancelGame(g);
+            }, null, (long)Math.Ceiling(idleJoinTime.TotalMilliseconds) + 1000, Timeout.Infinite);
         }
         #endregion
         #region /maint
@@ -842,6 +851,11 @@ namespace WhoAmIBotSpace
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "PlayerList", null, out Message m, out var u1, "");
             g.PlayerlistMessage = m;
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
+            var now = DateTime.Now;
+            Timer t = new Timer(x => 
+            {
+                if (now.Subtract(g.LastAction) > idleJoinTime && g.State == GameState.Joining) CancelGame(g);
+            }, null, (long)Math.Ceiling(idleJoinTime.TotalMilliseconds) + 1000, Timeout.Infinite);
         }
         #endregion
         #region /stats
