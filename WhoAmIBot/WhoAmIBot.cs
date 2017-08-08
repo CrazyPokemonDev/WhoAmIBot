@@ -932,7 +932,7 @@ namespace WhoAmIBotSpace
                 string commandText;
                 if (msg.ReplyToMessage != null) commandText = msg.ReplyToMessage.Text;
                 else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
-                string response = WebUtility.HtmlEncode(ExecuteSqlRaw(commandText));
+                string response = ExecuteSqlRaw(commandText);
                 if (!string.IsNullOrEmpty(response))
                 {
                     foreach (var s in response.Split(2000)) client.SendTextMessageAsync(msg.Chat.Id, s, parseMode: ParseMode.Html).Wait();
@@ -993,17 +993,57 @@ namespace WhoAmIBotSpace
                 if (query.Count == 0)
                 {
                     //create new language
+                    var query2 = ExecuteSql($"SELECT key, value FROM '{defaultLangCode}'");
+                    var missing = new List<string>();
+                    foreach (var row in query2)
+                    {
+                        if (!lf.Strings.Exists(x => x.Key == row[0])) missing.Add(row[0]);
+                    }
+                    var toRemove = new List<JString>();
+                    foreach (var js in lf.Strings)
+                    {
+                        if (!query2.Exists(x => x[0] == js.Key)) continue;
+                        var enStr = query2.Find(x => x[0] == js.Key)[1];
+                        int extras = 0;
+                        while (true)
+                        {
+                            string tag = "{" + extras + "}";
+                            if (enStr.Contains(tag))
+                            {
+                                extras++;
+                                if (!js.Value.Contains(tag))
+                                {
+                                    missing.Add($"{tag} in {js.Key}");
+                                    if (!toRemove.Exists(x => x.Key == js.Key)) toRemove.Add(js);
+                                }
+                            }
+                            else break;
+                        }
+                    }
+                    foreach (var js in toRemove)
+                    {
+                        lf.Strings.Remove(js);
+                    }
                     SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "CreateLang",
-                        ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name);
-                    client.OnCallbackQuery += cHandler;
-                    mre.WaitOne();
-                    client.OnCallbackQuery -= cHandler;
+                        ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u,
+                        lf.LangKey, lf.Name, lf.Strings.Count.ToString(), "\n" + missing.ToStringList());
+                    try
+                    {
+                        client.OnCallbackQuery += cHandler;
+                        mre.WaitOne();
+                    }
+                    finally
+                    {
+                        client.OnCallbackQuery -= cHandler;
+                    }
                     if (permit)
                     {
                         ExecuteSql("INSERT INTO ExistingLanguages(Key, Name) VALUES(@key, @name)", par);
                         ExecuteSql($"CREATE TABLE '{lf.LangKey}'(Key varchar primary key, Value varchar)");
                         foreach (var js in lf.Strings)
                         {
+                            if (!query2.Exists(x => x[0] == js.Key)) continue;
+                            if (missing.Exists(x => x.EndsWith(js.Key))) continue;
                             var par1 = new Dictionary<string, object>()
                             {
                                 { "key", js.Key },
@@ -1017,9 +1057,43 @@ namespace WhoAmIBotSpace
                 {
                     //update old lang
                     query = ExecuteSql($"SELECT Key, Value FROM '{lf.LangKey}'");
+                    var query2 = ExecuteSql($"SELECT key, value FROM '{defaultLangCode}'");
+                    var missing = new List<string>();
+                    int added = 0;
+                    int changed = 0;
+                    var deleted = new List<string>();
+                    foreach (var row in query2)
+                    {
+                        if (!lf.Strings.Exists(x => x.Key == row[0])) missing.Add(row[0]);
+                    }
+                    var toRemove = new List<JString>();
+                    foreach (var js in lf.Strings)
+                    {
+                        if (!query2.Exists(x => x[0] == js.Key)) continue;
+                        if (!query.Exists(x => x[0] == js.Key)) added++;
+                        else if (query.Find(x => x[0] == js.Key)[1] != js.Value) changed++;
+                        var enStr = query2.Find(x => x[0] == js.Key)[1];
+                        int extras = 0;
+                        while (true)
+                        {
+                            string tag = "{" + extras + "}";
+                            if (enStr.Contains(tag))
+                            {
+                                extras++;
+                                if (!js.Value.Contains(tag))
+                                {
+                                    missing.Add($"{tag} in {js.Key}");
+                                    if (!toRemove.Exists(x => x.Key == js.Key)) toRemove.Add(js);
+                                }
+                            }
+                            else break;
+                        }
+                    }
+                    foreach (var row in query) if (!lf.Strings.Exists(x => x.Key == row[0])) deleted.Add(row[0]);
+                    foreach (var js in toRemove) lf.Strings.Remove(js);
                     SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "UpdateLang",
                         ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name,
-                        query.Count.ToString(), lf.Strings.Count.ToString());
+                        added.ToString(), changed.ToString(), deleted.ToStringList(), missing.ToStringList());
                     client.OnCallbackQuery += cHandler;
                     mre.WaitOne();
                     client.OnCallbackQuery -= cHandler;
