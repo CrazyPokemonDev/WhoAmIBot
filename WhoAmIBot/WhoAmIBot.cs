@@ -41,6 +41,14 @@ namespace WhoAmIBotSpace
         private const int minPlayerCount = 2;
         private const long testingGroupId = -1001070844778;
         private static readonly TimeSpan idleJoinTime = TimeSpan.FromMinutes(10);
+        private static readonly List<string> gameQueries = new List<string>()
+        {
+            "yes@",
+            "idk@",
+            "no@",
+            "guess@",
+            "giveup@"
+        };
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
@@ -180,6 +188,7 @@ namespace WhoAmIBotSpace
                 || !long.TryParse(e.CallbackQuery.Data.Substring(e.CallbackQuery.Data.IndexOf("@") + 1), out long id)
                 || e.CallbackQuery.Message == null
                 || GamesRunning.Exists(x => x.Id == id)) return;
+            if (!gameQueries.Exists(x => e.CallbackQuery.Data.StartsWith(x))) return;
             else
             {
                 Message cmsg = e.CallbackQuery.Message;
@@ -1093,7 +1102,7 @@ namespace WhoAmIBotSpace
                     foreach (var js in toRemove) lf.Strings.Remove(js);
                     SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "UpdateLang",
                         ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name,
-                        added.ToString(), changed.ToString(), deleted.ToStringList(), missing.ToStringList());
+                        added.ToString(), changed.ToString(), "\n" + deleted.ToStringList(), "\n" + missing.ToStringList());
                     client.OnCallbackQuery += cHandler;
                     mre.WaitOne();
                     client.OnCallbackQuery -= cHandler;
@@ -1114,6 +1123,22 @@ namespace WhoAmIBotSpace
                             {
                                 ExecuteSql($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)", par1);
                             }
+                        }
+                        foreach (var js in toRemove)
+                        {
+                            var par1 = new Dictionary<string, object>()
+                            {
+                                { "key", js.Key },
+                            };
+                            ExecuteSql($"DELETE FROM '{lf.LangKey}' WHERE key=@key", par1);
+                        }
+                        foreach (var key in deleted)
+                        {
+                            var par1 = new Dictionary<string, object>()
+                            {
+                                { "key", key },
+                            };
+                            ExecuteSql($"DELETE FROM '{lf.LangKey}' WHERE key=@key", par1);
                         }
                     }
                 }
