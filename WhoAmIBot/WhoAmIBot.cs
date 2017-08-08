@@ -496,7 +496,7 @@ namespace WhoAmIBotSpace
                 finally
                 {
                     client.OnMessage -= mHandler;
-                    client.SendTextMessageAsync(msg.Chat.Id, "Communication started.");
+                    client.SendTextMessageAsync(msg.Chat.Id, "Communication stopped.");
                 }
             }
         }
@@ -1146,7 +1146,8 @@ namespace WhoAmIBotSpace
                 if (atTurn.GaveUp)
                 {
                     game.Players.Remove(atTurn);
-                    continue;
+                    if (game.Players.Count > 0) continue;
+                    else break;
                 }
                 SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerTurn", null, out Message sentGroupMessage, out string uselessS, atTurn.Name);
                 #region Ask Question
