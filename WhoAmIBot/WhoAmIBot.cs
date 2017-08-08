@@ -927,13 +927,25 @@ namespace WhoAmIBotSpace
         private void SQL_Command(Message msg)
         {
             if (!GlobalAdmins.Contains(msg.From.Id)) return;
-            string commandText;
-            if (msg.ReplyToMessage != null) commandText = msg.ReplyToMessage.Text;
-            else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
-            string response = ExecuteSqlRaw(commandText);
-            if (!string.IsNullOrEmpty(response))
+            try
             {
-                foreach (var s in response.Split(2000)) client.SendTextMessageAsync(msg.Chat.Id, s, parseMode: ParseMode.Markdown).Wait();
+                string commandText;
+                if (msg.ReplyToMessage != null) commandText = msg.ReplyToMessage.Text;
+                else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
+                string response = WebUtility.HtmlEncode(ExecuteSqlRaw(commandText));
+                if (!string.IsNullOrEmpty(response))
+                {
+                    foreach (var s in response.Split(2000)) client.SendTextMessageAsync(msg.Chat.Id, s, parseMode: ParseMode.Html).Wait();
+                }
+            }
+            catch (Exception e)
+            {
+                client.SendTextMessageAsync(msg.Chat.Id, $"Exception: {e.Message}\n{e.StackTrace}").Wait();
+                while (e.InnerException != null)
+                {
+                    e = e.InnerException;
+                    client.SendTextMessageAsync(msg.Chat.Id, $"Inner Exception: {e.Message}\n{e.StackTrace}").Wait();
+                }
             }
         }
         #endregion
@@ -1420,7 +1432,7 @@ namespace WhoAmIBotSpace
                     {
                         using (var reader = comm.ExecuteReader())
                         {
-                            if (reader.RecordsAffected >= 0) r += $"_{reader.RecordsAffected} records affected_\n";
+                            if (reader.RecordsAffected >= 0) r += $"<i>{reader.RecordsAffected} records affected</i>\n";
                             for (int i = 0; i < reader.FieldCount; i++)
                             {
                                 r += $"{reader.GetName(i)} ({reader.GetFieldType(i).Name})";
