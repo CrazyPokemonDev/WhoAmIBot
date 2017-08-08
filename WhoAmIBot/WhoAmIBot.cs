@@ -193,7 +193,7 @@ namespace WhoAmIBotSpace
                 }
                 if (id < last + 1)
                 {
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "This game is not longer running!");
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("GameNoLongerRunning", LangCode(e.CallbackQuery.From.Id)));
                     client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId, null);
                 }
             }
@@ -602,12 +602,18 @@ namespace WhoAmIBotSpace
             var p = g.Players.Find(x => x.Id == msg.From.Id);
             if (g.Turn == p)
             {
-                SendLangMessage(msg.Chat.Id, "ItsYourTurn");
+                SendLangMessage(msg.Chat.Id, "ItsYourTurnCantGiveUp");
+                return;
+            }
+            if (!g.DictFull())
+            {
+                SendLangMessage(msg.Chat.Id, "RolesNotSet");
                 return;
             }
             p.GaveUp = true;
             SendLangMessage(msg.From.Id, g.GroupId, "YouGaveUp");
-            SendLangMessage(g.GroupId, "GaveUp", null, p.Name, g.RoleIdDict[p.Id]);
+            var role = g.RoleIdDict.ContainsKey(msg.From.Id) ? g.RoleIdDict[msg.From.Id] : "failed to find role";
+            SendLangMessage(g.GroupId, "GaveUp", null, p.Name, g.RoleIdDict[msg.From.Id]);
         }
         #endregion
         #region /go
@@ -631,7 +637,7 @@ namespace WhoAmIBotSpace
             }
             if (g.State != GameState.Joining)
             {
-                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                SendLangMessage(msg.Chat.Id, "GameRunning");
                 return;
             }
             ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
@@ -832,9 +838,22 @@ namespace WhoAmIBotSpace
             {
                 var par = new Dictionary<string, object>() { { "id", msg.From.Id }, { "langcode", msg.From.LanguageCode } };
                 ExecuteSql("INSERT INTO Users(Id, LangKey) VALUES(@id, @langcode)", par);
-                Users.Add(new User(msg.From.Id) { LangKey = msg.From.LanguageCode });
+                var u = new User(msg.From.Id) { LangKey = msg.From.LanguageCode };
+                Users.Add(u);
+                if (string.IsNullOrEmpty(u.LangKey))
+                {
+                    SendLangMessage(msg.Chat.Id, "Welcome");
+                    Setlang_Command(msg);
+                }
+                else
+                {
+                    SendLangMessage(msg.Chat.Id, "Welcome");
+                }
             }
-            SendLangMessage(msg.Chat.Id, "Welcome");
+            else
+            {
+                SendLangMessage(msg.Chat.Id, "Welcome");
+            }
         }
         #endregion
         #region /startgame
