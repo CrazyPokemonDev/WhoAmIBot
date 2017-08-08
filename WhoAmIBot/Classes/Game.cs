@@ -24,6 +24,7 @@ namespace WhoAmIBotSpace.Classes
         public Player Winner { get; set; }
         public Message PlayerlistMessage { get; set; }
         public DateTime LastAction { get; set; }
+        public Player Turn { get; set; }
         public Game(int id, long groupId, string groupName)
         {
             Id = id;

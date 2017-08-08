@@ -401,6 +401,7 @@ namespace WhoAmIBotSpace
             commands.Add("/getgames", new Action<Message>(Getgames_Command));
             commands.Add("/getroles", new Action<Message>(Getroles_Command));
             commands.Add("/communicate", new Action<Message>(Communicate_Command));
+            commands.Add("/giveup", new Action<Message>(Giveup_Command));
         }
         #endregion
 
@@ -427,7 +428,7 @@ namespace WhoAmIBotSpace
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
-            if (!g.Players.Exists(x => x.Id == msg.From.Id) && !GlobalAdmins.Contains(msg.From.Id))
+            if (!GlobalAdmins.Contains(msg.From.Id))
             {
                 bool cancancel = false;
                 if (msg.Chat.Type != ChatType.Channel && msg.Chat.Type != ChatType.Private)
@@ -438,7 +439,7 @@ namespace WhoAmIBotSpace
                 }
                 if (!cancancel)
                 {
-                    SendLangMessage(msg.Chat.Id, "NotInGame");
+                    SendLangMessage(msg.Chat.Id, "AdminOnly");
                     return;
                 }
             }
@@ -489,6 +490,7 @@ namespace WhoAmIBotSpace
                 {
                     client.OnMessage += mHandler;
                     client.SendTextMessageAsync(msg.Chat.Id, "Communication started.");
+                    SendLangMessage(linked, "GASpeaking");
                     mre.WaitOne();
                 }
                 finally
@@ -576,6 +578,36 @@ namespace WhoAmIBotSpace
             }
             SendLangMessage(msg.From.Id, msg.Chat.Id, "RolesAre", null, rl);
             SendLangMessage(msg.Chat.Id, msg.From.Id, "SentPM");
+        }
+        #endregion
+        #region /giveup
+        private void Giveup_Command(Message msg)
+        {
+            if (!msg.Chat.Type.IsGroup())
+            {
+                SendLangMessage(msg.Chat.Id, "NotInPrivate");
+                return;
+            }
+            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                return;
+            }
+            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
+            if (!g.Players.Exists(x => x.Id == msg.From.Id && !x.GaveUp))
+            {
+                SendLangMessage(msg.Chat.Id, "NotInGame");
+                return;
+            }
+            var p = g.Players.Find(x => x.Id == msg.From.Id);
+            if (g.Turn == p)
+            {
+                SendLangMessage(msg.Chat.Id, "ItsYourTurn");
+                return;
+            }
+            p.GaveUp = true;
+            SendLangMessage(msg.From.Id, g.GroupId, "YouGaveUp");
+            SendLangMessage(g.GroupId, "GaveUp", null, p.Name, g.RoleIdDict[p.Id]);
         }
         #endregion
         #region /go
@@ -918,8 +950,8 @@ namespace WhoAmIBotSpace
                 EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
                 {
                     if (!GlobalAdmins.Contains(e.CallbackQuery.From.Id)
-                    /*|| e.CallbackQuery.Message.MessageId != sent.MessageId
-                    || e.CallbackQuery.Message.Chat.Id != sent.Chat.Id*/) return;
+                    || e.CallbackQuery.Message.MessageId != sent.MessageId
+                    || e.CallbackQuery.Message.Chat.Id != sent.Chat.Id) return;
                     if (e.CallbackQuery.Data == "yes") permit = true;
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     mre.Set();
@@ -1110,6 +1142,12 @@ namespace WhoAmIBotSpace
                 // do players turns until everything is finished, then break;
                 if (turn >= game.Players.Count) turn = 0;
                 Player atTurn = game.Players[turn];
+                game.Turn = atTurn;
+                if (atTurn.GaveUp)
+                {
+                    game.Players.Remove(atTurn);
+                    continue;
+                }
                 SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerTurn", null, out Message sentGroupMessage, out string uselessS, atTurn.Name);
                 #region Ask Question
                 string sentMessageText = "";

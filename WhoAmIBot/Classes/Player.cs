@@ -10,6 +10,7 @@ namespace WhoAmIBotSpace.Classes
     {
         public long Id { get; }
         public string Name { get; }
+        public bool GaveUp { get; set; } = false;
         public Player(long id, string name)
         {
             Id = id;
