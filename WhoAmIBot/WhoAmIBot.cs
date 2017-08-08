@@ -20,6 +20,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using System.Net;
 using System.Text;
 using System.Linq;
+using System.Diagnostics;
 
 namespace WhoAmIBotSpace
 {
@@ -49,6 +50,7 @@ namespace WhoAmIBotSpace
         private Dictionary<long, List<User>> Nextgame = new Dictionary<long, List<User>>();
         private List<long> GlobalAdmins = new List<long>();
         private bool Maintenance = false;
+        private List<Thread> currentThreads = new List<Thread>();
         #endregion
         #region Events
         public event EventHandler<GameFinishedEventArgs> GameFinished;
@@ -80,6 +82,7 @@ namespace WhoAmIBotSpace
                 Username = task.Result.Username;
                 client.OnReceiveError += Client_OnReceiveError;
                 client.OnReceiveGeneralError += Client_OnReceiveError;
+                client.OnCallbackQuery += Client_OnCallbackQuery;
             }
             catch
             {
@@ -95,8 +98,13 @@ namespace WhoAmIBotSpace
                 SendLangMessage(g.GroupId, "BotStopping");
                 g.Thread?.Abort();
             }
+            foreach (var t in currentThreads)
+            {
+                t?.Abort();
+            }
             client.OnReceiveError -= Client_OnReceiveError;
             client.OnReceiveGeneralError -= Client_OnReceiveError;
+            client.OnCallbackQuery -= Client_OnCallbackQuery;
             return base.StopBot();
         }
         #endregion
@@ -134,6 +142,7 @@ namespace WhoAmIBotSpace
                                     }
                                 });
                                 t.Start();
+                                currentThreads.Add(t);
                                 //commands[cmd].Invoke(e.Update.Message);
                             }
                         }
@@ -161,6 +170,32 @@ namespace WhoAmIBotSpace
                     $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n");
             }
 #endif
+        }
+        #endregion
+        #region On callback query
+        private void Client_OnCallbackQuery(object sender, CallbackQueryEventArgs e)
+        {
+            if (!e.CallbackQuery.Data.Contains("@")
+                || !long.TryParse(e.CallbackQuery.Data.Substring(e.CallbackQuery.Data.IndexOf("@") + 1), out long id)
+                || e.CallbackQuery.Message == null
+                || GamesRunning.Exists(x => x.Id == id)) return;
+            else
+            {
+                Message cmsg = e.CallbackQuery.Message;
+                var query = ExecuteSql("SELECT seq FROM sqlite_sequence WHERE name = 'Games'");
+                long last = 0;
+                if (query.Count < 1) last = 0;
+                else
+                {
+                    if (query[0].Count < 1) last = 0;
+                    else if (!long.TryParse(query[0][0], out last)) last = 0;
+                }
+                if (id < last + 1)
+                {
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "This game is not longer running!");
+                    client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId, null);
+                }
+            }
         }
         #endregion
 
@@ -364,6 +399,7 @@ namespace WhoAmIBotSpace
             commands.Add("/help", new Action<Message>(Help_Command));
             commands.Add("/getgames", new Action<Message>(Getgames_Command));
             commands.Add("/getroles", new Action<Message>(Getroles_Command));
+            commands.Add("/communicate", new Action<Message>(Communicate_Command));
         }
         #endregion
 
@@ -417,6 +453,48 @@ namespace WhoAmIBotSpace
             SendLangMessage(msg.Chat.Id, "GameCancelled");
         }
         #endregion
+        #region /communicate
+        private void Communicate_Command(Message msg)
+        {
+            if (msg.Chat.Type != ChatType.Private || !msg.Text.Contains(" ")) return;
+            if (!GlobalAdmins.Contains(msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, "NoGlobalAdmin");
+                return;
+            }
+            if (!long.TryParse(msg.Text.Substring(msg.Text.IndexOf(" ")), out long linked)) return;
+            else
+            {
+                ManualResetEvent mre = new ManualResetEvent(false);
+                EventHandler<MessageEventArgs> mHandler = (sender, e) =>
+                {
+                    var msg2 = e.Message;
+                    var priv = msg.Chat.Id;
+                    if (msg2.Chat.Id != linked && msg2.Chat.Id != priv) return;
+                    else if (msg2.Chat.Id == linked) client.ForwardMessageAsync(priv, linked, msg2.MessageId);
+                    else if (msg2.Chat.Id == priv)
+                    {
+                        if (msg2.Type == MessageType.TextMessage && 
+                        (msg2.Text == "/communicate" || msg2.Text == $"/communicate@{Username}"))
+                        {
+                            mre.Set();
+                            return;
+                        }
+                        client.ForwardMessageAsync(linked, priv, msg2.MessageId);
+                    }
+                };
+                try
+                {
+                    client.OnMessage += mHandler;
+                    mre.WaitOne();
+                }
+                finally
+                {
+                    client.OnMessage -= mHandler;
+                }
+            }
+        }
+        #endregion
         #region /getgames
         private void Getgames_Command(Message msg)
         {
@@ -464,7 +542,7 @@ namespace WhoAmIBotSpace
         #region /getroles
         private void Getroles_Command(Message msg)
         {
-            if (msg.Chat.Type != ChatType.Group && msg.Chat.Type != ChatType.Supergroup)
+            if (!msg.Chat.Type.IsGroup())
             {
                 SendLangMessage(msg.Chat.Id, "NotInPrivate");
                 return;
@@ -633,7 +711,7 @@ namespace WhoAmIBotSpace
                 string key = split[1];
                 long groupId = Convert.ToInt64(split[2]);
                 if (groupId != msg.Chat.Id) return;
-                if (msg.Chat.Type == ChatType.Supergroup || msg.Chat.Type == ChatType.Group)
+                if (msg.Chat.Type.IsGroup())
                 {
                     var task = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
                     task.Wait();
@@ -724,7 +802,7 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, "BotUnderMaintenance");
                 return;
             }
-            if (msg.Chat.Type != ChatType.Group && msg.Chat.Type != ChatType.Supergroup)
+            if (!msg.Chat.Type.IsGroup())
             {
                 SendLangMessage(msg.Chat.Id, "NotInPrivate");
                 return;
@@ -788,7 +866,7 @@ namespace WhoAmIBotSpace
             string response = ExecuteSqlRaw(commandText);
             if (!string.IsNullOrEmpty(response))
             {
-                foreach (var s in response.Split(2000)) client.SendTextMessageAsync(msg.Chat.Id, s, parseMode: ParseMode.Markdown);
+                foreach (var s in response.Split(2000)) client.SendTextMessageAsync(msg.Chat.Id, s, parseMode: ParseMode.Markdown).Wait();
             }
         }
         #endregion
@@ -1031,7 +1109,7 @@ namespace WhoAmIBotSpace
                     string no = GetString("No", LangCode(game.GroupId));
                     client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
                     SendAndGetLangMessage(game.GroupId, game.GroupId, "QuestionAsked",
-                        ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}", idk, $"idk@{game.GroupId}"),
+                        ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.Id}", no, $"no@{game.Id}", idk, $"idk@{game.Id}"),
                         out sentGroupMessage, out sentMessageText,
                         $"<b>{WebUtility.HtmlEncode(atTurn.Name)}</b>", $"<i>{WebUtility.HtmlEncode(e.Message.Text)}</i>");
                     mre.Set();
@@ -1048,7 +1126,7 @@ namespace WhoAmIBotSpace
                     string no = GetString("No", LangCode(game.GroupId));
                     client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
                     SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerGuessed",
-                        ReplyMarkupMaker.InlineYesNo(yes, $"yes@{game.GroupId}", no, $"no@{game.GroupId}"),
+                        ReplyMarkupMaker.InlineYesNo(yes, $"yes@{game.Id}", no, $"no@{game.Id}"),
                         out sentGroupMessage, out sentMessageText,
                         atTurn.Name, e.Message.Text);
                     mre.Set();
@@ -1057,12 +1135,12 @@ namespace WhoAmIBotSpace
                 #region Callback Handler
                 EventHandler<CallbackQueryEventArgs> c1Handler = (sender, e) =>
                 {
-                    if (!game.TotalPlayers.Exists(x => x.Id == e.CallbackQuery.From.Id)
+                    if (!game.Players.Exists(x => x.Id == e.CallbackQuery.From.Id)
                     || (!e.CallbackQuery.Data.StartsWith("guess@") && !e.CallbackQuery.Data.StartsWith("giveup@"))
                     || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
                     string answer = e.CallbackQuery.Data.Split('@')[0];
-                    long groupId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
-                    if (groupId != game.GroupId) return;
+                    long gameId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
+                    if (gameId != game.Id) return;
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
                     client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
@@ -1095,7 +1173,7 @@ namespace WhoAmIBotSpace
                 string guess1 = GetString("Guess", LangCode(game.GroupId));
                 string giveUp1 = GetString("GiveUp", LangCode(game.GroupId));
                 SendAndGetLangMessage(atTurn.Id, game.GroupId, "AskQuestion",
-                    ReplyMarkupMaker.InlineGuessGiveUp(guess1, $"guess@{game.GroupId}", giveUp1, $"giveup@{game.GroupId}"),
+                    ReplyMarkupMaker.InlineGuessGiveUp(guess1, $"guess@{game.Id}", giveUp1, $"giveup@{game.Id}"),
                     out sentMessage, out string useless);
                 mre.Reset();
                 try
@@ -1137,8 +1215,8 @@ namespace WhoAmIBotSpace
                         return;
                     }
                     string answer = e.CallbackQuery.Data.Split('@')[0];
-                    long groupId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
-                    if (groupId != game.GroupId) return;
+                    long gameId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
+                    if (gameId != game.Id) return;
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
                     string pname = game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name;

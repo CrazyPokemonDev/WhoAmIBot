@@ -24,8 +24,9 @@ namespace WhoAmIBotSpace.Helpers
             InlineKeyboardButton yesButton = new InlineKeyboardButton(yes, yesCallback);
             InlineKeyboardButton idkButton = new InlineKeyboardButton(idk, idkCallback);
             InlineKeyboardButton noButton = new InlineKeyboardButton(no, noCallback);
-            InlineKeyboardButton[] row = new InlineKeyboardButton[] { yesButton, idkButton, noButton };
-            return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row });
+            InlineKeyboardButton[] row = new InlineKeyboardButton[] { yesButton, noButton };
+            InlineKeyboardButton[] row2 = new InlineKeyboardButton[] { idkButton };
+            return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row, row2 });
         }
 
         public static IReplyMarkup InlineGuessGiveUp(string guess, string guessCallback, string giveUp, string giveUpCallback)

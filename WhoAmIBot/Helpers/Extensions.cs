@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace WhoAmIBotSpace.Helpers
 {
@@ -39,6 +40,8 @@ namespace WhoAmIBotSpace.Helpers
             split.Add(s);
             return split;
         }
+
+        public static bool IsGroup(this ChatType ct) => ct == ChatType.Group || ct == ChatType.Supergroup;
     }
 
     public static class Help
