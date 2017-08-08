@@ -486,11 +486,13 @@ namespace WhoAmIBotSpace
                 try
                 {
                     client.OnMessage += mHandler;
+                    client.SendTextMessageAsync(msg.Chat.Id, "Communication started.");
                     mre.WaitOne();
                 }
                 finally
                 {
                     client.OnMessage -= mHandler;
+                    client.SendTextMessageAsync(msg.Chat.Id, "Communication started.");
                 }
             }
         }
