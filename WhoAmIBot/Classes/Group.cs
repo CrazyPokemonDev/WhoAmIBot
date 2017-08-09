@@ -5,6 +5,7 @@
         public long Id { get; }
         public string LangKey { get; set; }
         public bool LangSet { get; private set; } = false;
+        public string Name { get; set; }
         public Group(long id, bool langSet = false)
         {
             Id = id;

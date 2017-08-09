@@ -42,6 +42,7 @@ namespace WhoAmIBotSpace
         private const string idkEmoji = "🤷‍♂";*/
         private const int minPlayerCount = 2;
         private const long testingGroupId = -1001070844778;
+        private const string allLangSelector = "SELECT key, name FROM ExistingLanguages ORDER BY key";
         private static readonly TimeSpan idleJoinTime = TimeSpan.FromMinutes(10);
         private static readonly List<string> gameQueries = new List<string>()
         {
@@ -52,6 +53,7 @@ namespace WhoAmIBotSpace
             "giveup@"
         };
         private static readonly Regex SelectLangRegex = new Regex(@"^lang:.+@-*\d+$");
+        protected new static readonly Flom Flom = new Flom();
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
@@ -241,9 +243,19 @@ namespace WhoAmIBotSpace
         #region Lang code
         private string LangCode(long id)
         {
-            if (Groups.Exists(x => x.Id == id)) return Groups.Find(x => x.Id == id).LangKey;
-            else if (Users.Exists(x => x.Id == id)) return Users.Find(x => x.Id == id).LangKey;
-            else return defaultLangCode;
+            string key = "";
+            if (Groups.Exists(x => x.Id == id)) key = Groups.Find(x => x.Id == id).LangKey;
+            else if (Users.Exists(x => x.Id == id)) key = Users.Find(x => x.Id == id).LangKey;
+            else key = defaultLangCode;
+            var par = new Dictionary<string, object>() { { "key", key } };
+            var q = ExecuteSql("SELECT key FROM ExistingLanguages WHERE Key=@key", par);
+            if (q.Count > 0 && q[0].Count > 0) return q[0][0];
+            else
+            {
+                q = ExecuteSql("SELECT key FROM existinglanguages WHERE key LIKE (SUBSTR((SELECT langkey FROM users LIMIT 1), 0, 3)||'-%')");
+                if (q.Count > 0 && q[0].Count > 0) return q[0][0];
+                else return defaultLangCode;
+            }
         }
         #endregion
         #region Send Lang Message
@@ -505,7 +517,7 @@ namespace WhoAmIBotSpace
                     else if (msg2.Chat.Id == linked) client.ForwardMessageAsync(priv, linked, msg2.MessageId);
                     else if (msg2.Chat.Id == priv)
                     {
-                        if (msg2.Type == MessageType.TextMessage && 
+                        if (msg2.Type == MessageType.TextMessage &&
                         (msg2.Text == "/communicate" || msg2.Text == $"/communicate@{Username}"))
                         {
                             mre.Set();
@@ -565,7 +577,7 @@ namespace WhoAmIBotSpace
                 mre.Set();
             };
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
-                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT key, name FROM ExistingLanguages"), msg.Chat.Id),
+                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector), msg.Chat.Id),
                 out Message sent, out var u);
             client.OnCallbackQuery += cHandler;
             mre.WaitOne();
@@ -685,6 +697,18 @@ namespace WhoAmIBotSpace
         #region /join
         private void Join_Command(Message msg)
         {
+            if (Users.Exists(x => x.Id == msg.From.Id))
+            {
+                var u = Users.Find(x => x.Id == msg.From.Id);
+                if (u.Name != msg.From.FullName() || u.Username != msg.From.Username)
+                {
+                    var par = new Dictionary<string, object>() { { "id", msg.From.Id },
+                    { "name", msg.From.FullName() }, { "username", msg.From.Username } };
+                    ExecuteSql("UPDATE Users SET Name=@name, Username=@username WHERE id=@id", par);
+                    u.Name = msg.From.FullName();
+                    u.Username = msg.From.Username;
+                }
+            }
             if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
             {
                 SendLangMessage(msg.Chat.Id, "NoGameRunning");
@@ -744,12 +768,12 @@ namespace WhoAmIBotSpace
                         else break;
                     }
                 }
-                EditLangMessage(sent.Chat.Id, sent.Chat.Id, sent.MessageId, "LangInfo", null, "", 
+                EditLangMessage(sent.Chat.Id, sent.Chat.Id, sent.MessageId, "LangInfo", null, "",
                     out var u, out var u2, key, "\n" + missing.ToStringList());
                 mre.Set();
             };
-            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage", 
-                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT key, name FROM ExistingLanguages"), msg.Chat.Id),
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
+                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector), msg.Chat.Id),
                 out sent, out var u1);
             try
             {
@@ -914,7 +938,7 @@ namespace WhoAmIBotSpace
                 mre.Set();
             };
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
-                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT key, name FROM ExistingLanguages"), msg.Chat.Id),
+                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector), msg.Chat.Id),
                 out Message sent, out string useless);
             client.OnCallbackQuery += cHandler;
             mre.WaitOne();
@@ -928,8 +952,9 @@ namespace WhoAmIBotSpace
             if (msg.Chat.Type != ChatType.Private) return;
             if (!Users.Exists(x => x.Id == msg.From.Id))
             {
-                var par = new Dictionary<string, object>() { { "id", msg.From.Id }, { "langcode", msg.From.LanguageCode } };
-                ExecuteSql("INSERT INTO Users(Id, LangKey) VALUES(@id, @langcode)", par);
+                var par = new Dictionary<string, object>() { { "id", msg.From.Id }, { "langcode", msg.From.LanguageCode },
+                    { "name", msg.From.FullName() }, { "username", msg.From.Username } };
+                ExecuteSql("INSERT INTO Users(Id, LangKey, Name, Username) VALUES(@id, @langcode, @name, @username)", par);
                 var u = new User(msg.From.Id) { LangKey = msg.From.LanguageCode };
                 Users.Add(u);
                 if (string.IsNullOrEmpty(u.LangKey))
@@ -944,6 +969,15 @@ namespace WhoAmIBotSpace
             }
             else
             {
+                var u = Users.Find(x => x.Id == msg.From.Id);
+                if (u.Name != msg.From.FullName() || u.Username != msg.From.Username)
+                {
+                    var par = new Dictionary<string, object>() { { "id", msg.From.Id },
+                    { "name", msg.From.FullName() }, { "username", msg.From.Username } };
+                    ExecuteSql("UPDATE Users SET Name=@name, Username=@username WHERE id=@id", par);
+                    u.Name = msg.From.FullName();
+                    u.Username = msg.From.Username;
+                }
                 SendLangMessage(msg.Chat.Id, "Welcome");
             }
         }
@@ -966,12 +1000,36 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, "GameRunning");
                 return;
             }
+            if (Users.Exists(x => x.Id == msg.From.Id))
+            {
+                var u = Users.Find(x => x.Id == msg.From.Id);
+                if (u.Name != msg.From.FullName() || u.Username != msg.From.Username)
+                {
+                    var par = new Dictionary<string, object>() { { "id", msg.From.Id },
+                    { "name", msg.From.FullName() }, { "username", msg.From.Username } };
+                    ExecuteSql("UPDATE Users SET Name=@name, Username=@username WHERE id=@id", par);
+                    u.Name = msg.From.FullName();
+                    u.Username = msg.From.Username;
+                }
+            }
             if (!Groups.Exists(x => x.Id == msg.Chat.Id))
             {
-                var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "langCode", defaultLangCode } };
-                ExecuteSql("INSERT INTO Groups (Id, LangKey, LangSet) VALUES(@id, @langCode, 0)", par);
+                var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "langCode", defaultLangCode },
+                    { "name", msg.Chat.Title } };
+                ExecuteSql("INSERT INTO Groups (Id, LangKey, LangSet, Name) VALUES(@id, @langCode, 0, @name)", par);
                 Groups.Add(new Group(msg.Chat.Id));
             }
+            else
+            {
+                Group group = Groups.Find(x => x.Id == msg.Chat.Id);
+                if (group.Name != msg.Chat.Title)
+                {
+                    var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "name", msg.Chat.Title } };
+                    ExecuteSql("UPDATE Groups SET Name=@name WHERE id=@id", par);
+                    group.Name = msg.Chat.Title;
+                }
+            }
+
             var par2 = new Dictionary<string, object>() { { "id", msg.Chat.Id } };
             ExecuteSql($"INSERT INTO Games (groupId) VALUES(@id)", par2);
             string response = ExecuteSql("SELECT id FROM Games WHERE groupId=@id", par2)[0][0];
@@ -995,7 +1053,7 @@ namespace WhoAmIBotSpace
             g.PlayerlistMessage = m;
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
             var now = DateTime.Now;
-            Timer t = new Timer(x => 
+            Timer t = new Timer(x =>
             {
                 if (now.Subtract(g.LastAction) > idleJoinTime && g.State == GameState.Joining) CancelGame(g);
             }, null, (long)Math.Ceiling(idleJoinTime.TotalMilliseconds) + 1000, Timeout.Infinite);
@@ -1662,21 +1720,21 @@ namespace WhoAmIBotSpace
         #region Read Groups and Users
         private void ReadGroupsAndUsers()
         {
-            var query = ExecuteSql("SELECT Id, LangKey, LangSet FROM Groups");
+            var query = ExecuteSql("SELECT Id, LangKey, LangSet, Name FROM Groups");
             Groups.Clear();
             foreach (var row in query)
             {
                 if (row.Count == 0) continue;
                 Groups.Add(new Group(Convert.ToInt64(row[0].Trim()), Convert.ToBoolean(row[2].Trim()))
-                { LangKey = row[1].Trim() });
+                { LangKey = row[1].Trim(), Name = row[3].Trim() });
             }
-            query = ExecuteSql("SELECT Id, LangKey FROM Users");
+            query = ExecuteSql("SELECT Id, LangKey, Name, Username FROM Users");
             Users.Clear();
             foreach (var row in query)
             {
                 if (row.Count == 0) continue;
                 Users.Add(new User(Convert.ToInt64(row[0].Trim()))
-                { LangKey = row[1].Trim() });
+                { LangKey = row[1].Trim(), Name = row[2].Trim(), Username = row[3].Trim() });
             }
             query = ExecuteSql("SELECT Id FROM GlobalAdmins");
             GlobalAdmins.Clear();

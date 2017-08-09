@@ -81,6 +81,7 @@
     <Compile Include="Classes\JString.cs" />
     <Compile Include="Classes\User.cs" />
     <Compile Include="Helpers\Extensions.cs" />
+    <Compile Include="Helpers\Flom.cs" />
     <Compile Include="Helpers\ReplyMarkupMaker.cs" />
     <Compile Include="WhoAmIBot.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
