@@ -10,6 +10,7 @@ using Telegram.Bot.Types.Enums;
 using WhoAmIBotSpace.Classes;
 using Game = WhoAmIBotSpace.Classes.Game;
 using User = WhoAmIBotSpace.Classes.User;
+using Group = WhoAmIBotSpace.Classes.Group;
 using WhoAmIBotSpace.Helpers;
 using Newtonsoft.Json;
 using Telegram.Bot;
@@ -21,6 +22,7 @@ using System.Net;
 using System.Text;
 using System.Linq;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace WhoAmIBotSpace
 {
@@ -49,6 +51,7 @@ namespace WhoAmIBotSpace
             "guess@",
             "giveup@"
         };
+        private static readonly Regex SelectLangRegex = new Regex(@"^lang:.+@-*\d+$");
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
@@ -71,13 +74,13 @@ namespace WhoAmIBotSpace
             if (!Directory.Exists(baseFilePath)) Directory.CreateDirectory(baseFilePath);
             if (!File.Exists(sqliteFilePath)) SQLiteConnection.CreateFile(sqliteFilePath);
             InitSqliteConn();
+            ReadCommands();
         }
 
         private void InitSqliteConn()
         {
             sqliteConn = new SQLiteConnection(connectionString);
             sqliteConn.Open();
-            ReadCommands();
             ClearGames();
             ReadGroupsAndUsers();
         }
@@ -400,7 +403,7 @@ namespace WhoAmIBotSpace
             commands.Add("/cancelgame", new Action<Message>(Cancelgame_Command));
             commands.Add("/go", new Action<Message>(Go_Command));
             commands.Add("/setlang", new Action<Message>(Setlang_Command));
-            //commands.Add("/setdb", new Action<Message>(Setdb_Command));
+            commands.Add("/setdb", new Action<Message>(Setdb_Command));
             commands.Add("/nextgame", new Action<Message>(Nextgame_Command));
             commands.Add("/stats", new Action<Message>(Stats_Command));
             commands.Add("/getlang", new Action<Message>(Getlang_Command));
@@ -411,9 +414,25 @@ namespace WhoAmIBotSpace
             commands.Add("/getroles", new Action<Message>(Getroles_Command));
             commands.Add("/communicate", new Action<Message>(Communicate_Command));
             commands.Add("/giveup", new Action<Message>(Giveup_Command));
+            commands.Add("/langinfo", new Action<Message>(Langinfo_Command));
+            commands.Add("/backup", new Action<Message>(Backup_Command));
         }
         #endregion
 
+        #region /backup
+        private void Backup_Command(Message msg)
+        {
+            if (!GlobalAdmins.Contains(msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
+                return;
+            }
+            const string temp = "temp.sqlite";
+            if (File.Exists(temp)) File.Delete(temp);
+            File.Copy(sqliteFilePath, temp);
+            client.SendDocumentAsync(msg.Chat.Id, new FileToSend("db.sqlite", File.OpenRead(temp)), caption: "#whoamibotbackup");
+        }
+        #endregion
         #region /cancelgame
         private void Cancelgame_Command(Message msg)
         {
@@ -506,6 +525,7 @@ namespace WhoAmIBotSpace
                 {
                     client.OnMessage -= mHandler;
                     client.SendTextMessageAsync(msg.Chat.Id, "Communication stopped.");
+                    SendLangMessage(linked, "MessageLinkStopped");
                 }
             }
         }
@@ -680,6 +700,68 @@ namespace WhoAmIBotSpace
             }, null, (long)Math.Ceiling(idleJoinTime.TotalMilliseconds) + 1000, Timeout.Infinite);
         }
         #endregion
+        #region /langinfo
+        private void Langinfo_Command(Message msg)
+        {
+            ManualResetEvent mre = new ManualResetEvent(false);
+            Message sent = null;
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
+            {
+                if (!SelectLangRegex.IsMatch(e.CallbackQuery.Data)
+                || !long.TryParse(e.CallbackQuery.Data.Substring(e.CallbackQuery.Data.IndexOf("@") + 1), out long gId)
+                || gId != msg.Chat.Id) return;
+                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                var data = e.CallbackQuery.Data;
+                var atI = data.IndexOf("@");
+                var dpI = data.IndexOf(":");
+                var key = data.Remove(atI).Substring(dpI + 1);
+                var query = ExecuteSql($"SELECT Key, Value FROM '{key}'");
+                var query2 = ExecuteSql($"SELECT key, value FROM '{defaultLangCode}'");
+                var missing = new List<string>();
+                foreach (var row in query2)
+                {
+                    if (!query.Exists(x => x[0] == row[0])) missing.Add(row[0]);
+                }
+                foreach (var s in query)
+                {
+                    if (!query2.Exists(x => x[0] == s[0]))
+                    {
+                        Console.WriteLine(s[0]);
+                    }
+                    var enStr = query2.Find(x => x[0] == s[0])[1];
+                    int extras = 0;
+                    while (true)
+                    {
+                        string tag = "{" + extras + "}";
+                        if (enStr.Contains(tag))
+                        {
+                            extras++;
+                            if (!s[1].Contains(tag))
+                            {
+                                missing.Add($"{tag} in {s[0]}");
+                            }
+                        }
+                        else break;
+                    }
+                }
+                EditLangMessage(sent.Chat.Id, sent.Chat.Id, sent.MessageId, "LangInfo", null, "", 
+                    out var u, out var u2, key, "\n" + missing.ToStringList());
+                mre.Set();
+            };
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage", 
+                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql("SELECT key, name FROM ExistingLanguages"), msg.Chat.Id),
+                out sent, out var u1);
+            try
+            {
+                client.OnCallbackQuery += cHandler;
+                mre.WaitOne();
+            }
+            finally
+            {
+                client.OnCallbackQuery -= cHandler;
+            }
+        }
+        #endregion
         #region /maint
         private void Maint_Command(Message msg)
         {
@@ -736,22 +818,23 @@ namespace WhoAmIBotSpace
         {
             if (msg.From.Id != Flom || msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.DocumentMessage) return;
             sqliteConn.Close();
+            sqliteConn.Dispose();
             File.Delete(sqliteFilePath);
             using (Stream str = File.OpenWrite(sqliteFilePath))
             {
-                var task = client.GetFileAsync(msg.Document.FileId, str);
+                var task = client.GetFileAsync(msg.ReplyToMessage.Document.FileId, str);
                 task.Wait();
                 str.Flush();
                 str.Close();
             }
             InitSqliteConn();
-            SendLangMessage(msg.From.Id, "DatabaseUpdated");
+            SendLangMessage(msg.Chat.Id, msg.From.Id, "DatabaseUpdated");
         }
         #endregion
         #region /setlang
         private void Setlang_Command(Message msg)
         {
-            if (!GlobalAdmins.Contains(msg.From.Id) && msg.Chat.Type != ChatType.Channel && msg.Chat.Type != ChatType.Private)
+            if (!GlobalAdmins.Contains(msg.From.Id) && msg.Chat.Type.IsGroup())
             {
                 var t = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
                 t.Wait();
@@ -1011,7 +1094,11 @@ namespace WhoAmIBotSpace
                     var toRemove = new List<JString>();
                     foreach (var js in lf.Strings)
                     {
-                        if (!query2.Exists(x => x[0] == js.Key)) continue;
+                        if (!query2.Exists(x => x[0] == js.Key))
+                        {
+                            toRemove.Add(js);
+                            continue;
+                        }
                         var enStr = query2.Find(x => x[0] == js.Key)[1];
                         int extras = 0;
                         while (true)
@@ -1078,7 +1165,11 @@ namespace WhoAmIBotSpace
                     var toRemove = new List<JString>();
                     foreach (var js in lf.Strings)
                     {
-                        if (!query2.Exists(x => x[0] == js.Key)) continue;
+                        if (!query2.Exists(x => x[0] == js.Key) && lf.LangKey != defaultLangCode)
+                        {
+                            toRemove.Add(js);
+                            continue;
+                        }
                         if (!query.Exists(x => x[0] == js.Key)) added++;
                         else if (query.Find(x => x[0] == js.Key)[1] != js.Value) changed++;
                         var enStr = query2.Find(x => x[0] == js.Key)[1];
@@ -1572,6 +1663,7 @@ namespace WhoAmIBotSpace
         private void ReadGroupsAndUsers()
         {
             var query = ExecuteSql("SELECT Id, LangKey, LangSet FROM Groups");
+            Groups.Clear();
             foreach (var row in query)
             {
                 if (row.Count == 0) continue;
@@ -1579,6 +1671,7 @@ namespace WhoAmIBotSpace
                 { LangKey = row[1].Trim() });
             }
             query = ExecuteSql("SELECT Id, LangKey FROM Users");
+            Users.Clear();
             foreach (var row in query)
             {
                 if (row.Count == 0) continue;
@@ -1586,6 +1679,7 @@ namespace WhoAmIBotSpace
                 { LangKey = row[1].Trim() });
             }
             query = ExecuteSql("SELECT Id FROM GlobalAdmins");
+            GlobalAdmins.Clear();
             foreach (var row in query)
             {
                 if (row.Count == 0) continue;

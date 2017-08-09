@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.InlineKeyboardButtons;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace WhoAmIBotSpace.Helpers
@@ -12,8 +13,8 @@ namespace WhoAmIBotSpace.Helpers
     {
         public static IReplyMarkup InlineYesNo(string yes, string yesCallback, string no, string noCallback)
         {
-            InlineKeyboardButton yesButton = new InlineKeyboardButton(yes, yesCallback);
-            InlineKeyboardButton noButton = new InlineKeyboardButton(no, noCallback);
+            InlineKeyboardButton yesButton = new InlineKeyboardCallbackButton(yes, yesCallback);
+            InlineKeyboardButton noButton = new InlineKeyboardCallbackButton(no, noCallback);
             InlineKeyboardButton[] row = new InlineKeyboardButton[] { yesButton, noButton };
             return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row });
         }
@@ -21,9 +22,9 @@ namespace WhoAmIBotSpace.Helpers
         public static IReplyMarkup InlineYesNoIdk(string yes, string yesCallback, string no, string noCallback, 
             string idk, string idkCallback)
         {
-            InlineKeyboardButton yesButton = new InlineKeyboardButton(yes, yesCallback);
-            InlineKeyboardButton idkButton = new InlineKeyboardButton(idk, idkCallback);
-            InlineKeyboardButton noButton = new InlineKeyboardButton(no, noCallback);
+            InlineKeyboardButton yesButton = new InlineKeyboardCallbackButton(yes, yesCallback);
+            InlineKeyboardButton idkButton = new InlineKeyboardCallbackButton(idk, idkCallback);
+            InlineKeyboardButton noButton = new InlineKeyboardCallbackButton(no, noCallback);
             InlineKeyboardButton[] row = new InlineKeyboardButton[] { yesButton, noButton };
             InlineKeyboardButton[] row2 = new InlineKeyboardButton[] { idkButton };
             return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row, row2 });
@@ -31,8 +32,8 @@ namespace WhoAmIBotSpace.Helpers
 
         public static IReplyMarkup InlineGuessGiveUp(string guess, string guessCallback, string giveUp, string giveUpCallback)
         {
-            InlineKeyboardButton guessButton = new InlineKeyboardButton(guess, guessCallback);
-            InlineKeyboardButton giveUpButton = new InlineKeyboardButton(giveUp, giveUpCallback);
+            InlineKeyboardButton guessButton = new InlineKeyboardCallbackButton(guess, guessCallback);
+            InlineKeyboardButton giveUpButton = new InlineKeyboardCallbackButton(giveUp, giveUpCallback);
             InlineKeyboardButton[] row = new InlineKeyboardButton[] { guessButton, giveUpButton };
             return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row });
         }
@@ -45,13 +46,29 @@ namespace WhoAmIBotSpace.Helpers
                 var l = new List<InlineKeyboardButton>();
                 string key = row[0];
                 string name = row[1];
-                l.Add(new InlineKeyboardButton(name, $"lang:{key}@{chatId}"));
+                l.Add(new InlineKeyboardCallbackButton(name, $"lang:{key}@{chatId}"));
                 bGrid.Add(l);
             }
             var aGrid = new List<InlineKeyboardButton[]>();
-            foreach (var bRow in bGrid)
+            for (int i = 0; i < bGrid.Count; i++)
             {
-                aGrid.Add(bRow.ToArray());
+                if (i%2 == 0)
+                {
+                    if (i < bGrid.Count - 1)
+                    {
+                        InlineKeyboardButton[] aRow = new InlineKeyboardButton[2];
+                        aRow[0] = bGrid[i][0];
+                        aGrid.Add(aRow);
+                    }
+                    else
+                    {
+                        aGrid.Add(bGrid[i].ToArray());
+                    }
+                }
+                else
+                {
+                    aGrid[i / 2][1] = bGrid[i][0];
+                }
             }
             return new InlineKeyboardMarkup(aGrid.ToArray());
         }
