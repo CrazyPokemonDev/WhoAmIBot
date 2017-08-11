@@ -1499,6 +1499,7 @@ namespace WhoAmIBotSpace
                     string answer = e.CallbackQuery.Data.Split('@')[0];
                     long gameId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
                     if (gameId != game.Id) return;
+                    if (e.CallbackQuery.Message == null) return;
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
                     client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
@@ -1567,14 +1568,15 @@ namespace WhoAmIBotSpace
                     if (!game.TotalPlayers.Exists(x => x.Id == e.CallbackQuery.From.Id)
                     || (!e.CallbackQuery.Data.StartsWith("yes@") && !e.CallbackQuery.Data.StartsWith("no@") && !e.CallbackQuery.Data.StartsWith("idk@"))
                     || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
-                    if (e.CallbackQuery.From.Id == atTurn.Id && game.GroupId != testingGroupId)
-                    {
-                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "You cannot answer yourself!", showAlert: true);
-                        return;
-                    }
+                    if (e.CallbackQuery.Message == null) return;
                     string answer = e.CallbackQuery.Data.Split('@')[0];
                     long gameId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
                     if (gameId != game.Id) return;
+                    if (e.CallbackQuery.From.Id == atTurn.Id && game.GroupId != testingGroupId)
+                    {
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("NoAnswerSelf", LangCode(game.GroupId)), showAlert: true);
+                        return;
+                    }
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
                     string pname = game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name;
