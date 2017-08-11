@@ -428,6 +428,7 @@ namespace WhoAmIBotSpace
             commands.Add("/giveup", new Action<Message>(Giveup_Command));
             commands.Add("/langinfo", new Action<Message>(Langinfo_Command));
             commands.Add("/backup", new Action<Message>(Backup_Command));
+            commands.Add("/rate", new Action<Message>(Rate_Command));
         }
         #endregion
 
@@ -837,6 +838,12 @@ namespace WhoAmIBotSpace
             SendLangMessage(msg.Chat.Id, msg.From.Id, "PutOnNextgameList");
         }
         #endregion
+        #region /rate
+        private void Rate_Command(Message msg)
+        {
+            SendLangMessage(msg.Chat.Id, msg.From.Id, "RateMe", null, "http://t.me/storebot?start={Username}");
+        }
+        #endregion
         #region /setdb
         private void Setdb_Command(Message msg)
         {
@@ -1230,7 +1237,7 @@ namespace WhoAmIBotSpace
                         }
                         if (!query.Exists(x => x[0] == js.Key)) added++;
                         else if (query.Find(x => x[0] == js.Key)[1] != js.Value) changed++;
-                        var enStr = query2.Find(x => x[0] == js.Key)[1];
+                        var enStr = query2.Exists(x => x[0] == js.Key) ? query2.Find(x => x[0] == js.Key)[1] : "";
                         int extras = 0;
                         while (true)
                         {
