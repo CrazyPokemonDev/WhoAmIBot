@@ -381,7 +381,7 @@ namespace WhoAmIBotSpace
 #if DEBUG
         public LangFile GetLangFile(string key, bool completify = true)
 #else
-        private LangFile GetLangFile(string key)
+        private LangFile GetLangFile(string key, bool completify = true)
 #endif
         {
             var par = new Dictionary<string, object>()
@@ -435,6 +435,7 @@ namespace WhoAmIBotSpace
             commands.Add("/rate", new Action<Message>(Rate_Command));
             commands.Add("/canceljoin", new Action<Message>(Canceljoin_Command));
             commands.Add("/identify", new Action<Message>(Identify_Command));
+            commands.Add("/ping", new Action<Message>(Ping_Command));
         }
         #endregion
 
@@ -852,6 +853,14 @@ namespace WhoAmIBotSpace
             if (!Nextgame.ContainsKey(msg.Chat.Id)) Nextgame.Add(msg.Chat.Id, new List<User>());
             Nextgame[msg.Chat.Id].Add(new User(msg.From.Id));
             SendLangMessage(msg.Chat.Id, msg.From.Id, "PutOnNextgameList");
+        }
+        #endregion
+        #region /ping
+        private void Ping_Command(Message msg)
+        {
+            var now = DateTime.Now;
+            var span = now.Subtract(msg.Date);
+            SendLangMessage(msg.Chat.Id, msg.From.Id, "Ping", null, span.TotalSeconds.ToString());
         }
         #endregion
         #region /rate
