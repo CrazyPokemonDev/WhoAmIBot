@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.InlineKeyboardButtons;
 using Telegram.Bot.Types.ReplyMarkups;
+using Game = WhoAmIBotSpace.Classes.Game;
 
 namespace WhoAmIBotSpace.Helpers
 {
@@ -77,6 +78,22 @@ namespace WhoAmIBotSpace.Helpers
         {
             InlineKeyboardButton b = InlineKeyboardButton.WithUrl("Start", $"http://t.me/{username}");
             return new InlineKeyboardMarkup(new InlineKeyboardButton[] { b });
+        }
+
+        public static IReplyMarkup InlineGetGames(List<Game> games, long chatid)
+        {
+            var rows = new List<InlineKeyboardButton[]>();
+            foreach (var g in games)
+            {
+                rows.Add(new InlineKeyboardButton[] 
+                {
+                    new InlineKeyboardCallbackButton(g.GroupId.ToString(), "null"),
+                    new InlineKeyboardCallbackButton("Cancel", $"cancel:{g.GroupId}@{chatid}"),
+                    new InlineKeyboardCallbackButton("Communicate", $"communicate:{g.GroupId}@{chatid}")
+                });
+            }
+            rows.Add(new InlineKeyboardButton[] { new InlineKeyboardCallbackButton("Close", $"close@{chatid}") });
+            return new InlineKeyboardMarkup(rows.ToArray());
         }
     }
 }

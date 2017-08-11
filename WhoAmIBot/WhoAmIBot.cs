@@ -208,7 +208,7 @@ namespace WhoAmIBotSpace
                 }
                 if (id < last + 1)
                 {
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("GameNoLongerRunning", LangCode(e.CallbackQuery.From.Id)));
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("GameNoLongerRunning", e.CallbackQuery.From.Id));
                     client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId, null);
                 }
             }
@@ -239,6 +239,11 @@ namespace WhoAmIBotSpace
                 query = q[0][0];
             }
             return query;
+        }
+        
+        private string GetString(string key, long langFrom)
+        {
+            return GetString(key, LangCode(langFrom));
         }
         #endregion
         #region Lang code
@@ -565,9 +570,62 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
                 return;
             }
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) => { };
+            cHandler = (sender, e) =>
+            {
+                string data = e.CallbackQuery.Data;
+                if ((!data.StartsWith("cancel:") && !data.StartsWith("communicate:") && !data.StartsWith("close@"))
+                || !data.Contains("@") || data.IndexOf("@") != data.LastIndexOf("@")
+                || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long chatid)
+                || chatid != msg.Chat.Id || e.CallbackQuery.Message == null) return;
+                if (!GlobalAdmins.Contains(e.CallbackQuery.From.Id))
+                {
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("NoGlobalAdmin", LangCode(msg.Chat.Id)));
+                    return;
+                }
+                if (data.StartsWith("close@"))
+                {
+                    client.EditMessageReplyMarkupAsync(e.CallbackQuery.Message.Chat.Id, e.CallbackQuery.Message.MessageId, null);
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                    client.OnCallbackQuery -= cHandler;
+                    return;
+                }
+                if (!long.TryParse(data.Remove(data.IndexOf("@")).Substring(data.IndexOf(":") + 1), out long groupid)) return;
+                var action = data.Remove(data.IndexOf(":"));
+                switch (action)
+                {
+                    case "cancel":
+                        if (!GamesRunning.Exists(x => x.GroupId == groupid))
+                        {
+                            client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "That game is no longer running.");
+                            return;
+                        }
+                        Game g = GamesRunning.Find(x => x.GroupId == groupid);
+                        CancelGame(g);
+                        SendLangMessage(g.GroupId, "GameCancelledByGlobalAdmin");
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("GameCancelled", e.CallbackQuery.From.Id));
+                        return;
+                    case "communicate":
+                        Thread t = new Thread(() =>
+                        {
+                            try
+                            {
+                                commands["/communicate"].Invoke(new CommDummyMsg(from: e.CallbackQuery.From.Id, groupid: groupid));
+                            }
+                            catch (Exception ex)
+                            {
+                                client.SendTextMessageAsync(Flom, $"Who am I bot\n{ex.Message}\n{ex.StackTrace}");
+                            }
+                        });
+                        t.Start();
+                        currentThreads.Add(t);
+                        return;
+                }
+            };
             foreach (var s in string.Join("\n\n",
                 GamesRunning.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000))
-                client.SendTextMessageAsync(msg.Chat.Id, s);
+                client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(GamesRunning, msg.Chat.Id)).Wait();
+            client.OnCallbackQuery += cHandler;
         }
         #endregion
         #region /getlang

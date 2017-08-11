@@ -70,4 +70,14 @@ namespace WhoAmIBotSpace.Helpers
             return l2.Count > l1.Count ? l2 : l1;
         }
     }
+
+    public class CommDummyMsg : Message
+    {
+        public CommDummyMsg(int from, long groupid)
+        {
+            From = new User() { Id = from };
+            Text = $"/communicate {groupid}";
+            Chat = new Chat() { Type = ChatType.Private, Id = from };
+        }
+    }
 }
