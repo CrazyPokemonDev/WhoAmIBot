@@ -44,6 +44,7 @@ namespace WhoAmIBotSpace.Helpers
                     sout.Clear();
                 }
             }
+            sout2.Add(string.Join("\n", sout));
             foreach (var l in sout2)
             {
                 string s2 = l;

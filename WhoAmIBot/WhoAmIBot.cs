@@ -503,7 +503,7 @@ namespace WhoAmIBotSpace
             {
                 CancelGame(g);
                 client.SendTextMessageAsync(msg.Chat.Id, $"A game was cancelled in {g.GroupName} ({g.GroupId})");
-                SendLangMessage(msg.Chat.Id, "GameCancelledByGlobalAdmin");
+                SendLangMessage(g.GroupId, "GameCancelledByGlobalAdmin");
             }
         }
         #endregion
