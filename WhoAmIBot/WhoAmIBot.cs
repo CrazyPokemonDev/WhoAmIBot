@@ -379,7 +379,7 @@ namespace WhoAmIBotSpace
         #endregion
         #region Get Lang File
 #if DEBUG
-        public LangFile GetLangFile(string key)
+        public LangFile GetLangFile(string key, bool completify = true)
 #else
         private LangFile GetLangFile(string key)
 #endif
@@ -395,7 +395,10 @@ namespace WhoAmIBotSpace
                 Name = query[0][0],
                 Strings = new List<JString>()
             };
-            query = ExecuteSql($"SELECT Key, Value FROM '{key}'");
+            string command = $"SELECT Key, Value FROM '{key}'";
+            if (completify) command = $"SELECT key, value FROM '{key}' UNION ALL" +
+                    $" SELECT key, value FROM '{defaultLangCode}' WHERE key NOT IN (SELECT key FROM '{key}')";
+            query = ExecuteSql(command);
             foreach (var row in query)
             {
                 if (row.Count < 2) continue;
