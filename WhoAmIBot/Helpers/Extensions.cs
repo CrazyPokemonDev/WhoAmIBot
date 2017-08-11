@@ -22,7 +22,7 @@ namespace WhoAmIBotSpace.Helpers
             }
             list.Clear();
             Random rnd = new Random();
-            while(temp.Count > 0)
+            while (temp.Count > 0)
             {
                 T t = temp[rnd.Next(0, temp.Count - 1)];
                 list.Add(t);
@@ -33,12 +33,27 @@ namespace WhoAmIBotSpace.Helpers
         public static List<string> Split(this string s, int chars)
         {
             var split = new List<string>();
-            while (s.Length > chars)
+            var sout2 = new List<string>();
+            var sout = new List<string>();
+            foreach (var line in s.Split('\n'))
             {
-                split.Add(s.Remove(chars));
-                s = s.Substring(chars);
+                if (string.Join("\n", sout).Length + line.Length < chars) sout.Add(line);
+                else
+                {
+                    sout2.Add(string.Join("\n", sout));
+                    sout.Clear();
+                }
             }
-            split.Add(s);
+            foreach (var l in sout2)
+            {
+                string s2 = l;
+                while (s2.Length > chars)
+                {
+                    split.Add(s2.Remove(chars));
+                    s2 = s2.Substring(chars);
+                }
+                split.Add(s2);
+            }
             return split;
         }
 

@@ -111,6 +111,7 @@ namespace WhoAmIBotSpace
             {
                 SendLangMessage(g.GroupId, "BotStopping");
                 g.Thread?.Abort();
+                g.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
             }
             foreach (var t in currentThreads)
             {
@@ -429,6 +430,8 @@ namespace WhoAmIBotSpace
             commands.Add("/langinfo", new Action<Message>(Langinfo_Command));
             commands.Add("/backup", new Action<Message>(Backup_Command));
             commands.Add("/rate", new Action<Message>(Rate_Command));
+            commands.Add("/canceljoin", new Action<Message>(Canceljoin_Command));
+            commands.Add("/identify", new Action<Message>(Identify_Command));
         }
         #endregion
 
@@ -487,14 +490,21 @@ namespace WhoAmIBotSpace
             CancelGame(g);
             SendLangMessage(msg.Chat.Id, "GameCancelled");
         }
-
-        private void CancelGame(Game g)
+        #endregion
+        #region /canceljoin
+        private void Canceljoin_Command(Message msg)
         {
-            var par = new Dictionary<string, object>() { { "id", g.Id } };
-            ExecuteSql($"DELETE FROM Games WHERE Id=@id", par);
-            g.Thread?.Abort();
-            GamesRunning.Remove(g);
-            GameFinished?.Invoke(this, new GameFinishedEventArgs(g));
+            if (!GlobalAdmins.Contains(msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
+                return;
+            }
+            foreach (var g in GamesRunning.FindAll(x => x.State == GameState.Joining))
+            {
+                CancelGame(g);
+                client.SendTextMessageAsync(msg.Chat.Id, $"A game was cancelled in {g.GroupName} ({g.GroupId})");
+                SendLangMessage(msg.Chat.Id, "GameCancelledByGlobalAdmin");
+            }
         }
         #endregion
         #region /communicate
@@ -685,7 +695,7 @@ namespace WhoAmIBotSpace
             ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
             Thread t = new Thread(pts);
             g.Thread = t;
-            g.LastAction = DateTime.Now;
+            g.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
             t.Start(g);
         }
         #endregion
@@ -693,6 +703,14 @@ namespace WhoAmIBotSpace
         private void Help_Command(Message msg)
         {
             SendLangMessage(msg.Chat.Id, msg.From.Id, "Help");
+        }
+        #endregion
+        #region /identify
+        private void Identify_Command(Message msg)
+        {
+            ChatId i = Flom;
+            if (i.Identifier != msg.From.Id) return;
+            client.SendTextMessageAsync(msg.Chat.Id, "Yep, you are my developer", replyToMessageId: msg.MessageId);
         }
         #endregion
         #region /join
@@ -717,12 +735,7 @@ namespace WhoAmIBotSpace
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
-            var now = DateTime.Now;
-            g.LastAction = now;
-            Timer t = new Timer(x =>
-            {
-                if (now.Subtract(g.LastAction) > idleJoinTime && g.State == GameState.Joining) CancelGame(g);
-            }, null, (long)Math.Ceiling(idleJoinTime.TotalMilliseconds) + 1000, Timeout.Infinite);
+            g.InactivityTimer.Change((long)Math.Ceiling(idleJoinTime.TotalMilliseconds), Timeout.Infinite);
         }
         #endregion
         #region /langinfo
@@ -1059,11 +1072,12 @@ namespace WhoAmIBotSpace
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "PlayerList", null, out Message m, out var u1, "");
             g.PlayerlistMessage = m;
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
-            var now = DateTime.Now;
             Timer t = new Timer(x =>
             {
-                if (now.Subtract(g.LastAction) > idleJoinTime && g.State == GameState.Joining) CancelGame(g);
-            }, null, (long)Math.Ceiling(idleJoinTime.TotalMilliseconds) + 1000, Timeout.Infinite);
+                CancelGame(g);
+                SendLangMessage(g.GroupId, "GameTimedOut");
+            }, null, (long)Math.Ceiling(idleJoinTime.TotalMilliseconds), Timeout.Infinite);
+            g.InactivityTimer = t;
         }
         #endregion
         #region /stats
@@ -1619,6 +1633,17 @@ namespace WhoAmIBotSpace
             GameFinished?.Invoke(this, new GameFinishedEventArgs(game));
             #endregion
         }
+        #endregion
+        #region Cancel game
+        private void CancelGame(Game g)
+        {
+            var par = new Dictionary<string, object>() { { "id", g.Id } };
+            ExecuteSql($"DELETE FROM Games WHERE Id=@id", par);
+            g.Thread?.Abort();
+            GamesRunning.Remove(g);
+            GameFinished?.Invoke(this, new GameFinishedEventArgs(g));
+        }
+
         #endregion
         #endregion
 
