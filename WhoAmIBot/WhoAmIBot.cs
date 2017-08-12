@@ -13,16 +13,14 @@ using User = WhoAmIBotSpace.Classes.User;
 using Group = WhoAmIBotSpace.Classes.Group;
 using WhoAmIBotSpace.Helpers;
 using Newtonsoft.Json;
-using Telegram.Bot;
-using System.Threading.Tasks;
 using System.Threading;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Net;
 using System.Text;
 using System.Linq;
-using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Telegram.Bot.Types.InlineKeyboardButtons;
 
 namespace WhoAmIBotSpace
 {
@@ -43,7 +41,8 @@ namespace WhoAmIBotSpace
         private const int minPlayerCount = 2;
         private const long testingGroupId = -1001070844778;
         private const string allLangSelector = "SELECT key, name FROM ExistingLanguages ORDER BY key";
-        private static readonly TimeSpan idleJoinTime = TimeSpan.FromMinutes(10);
+        private static readonly TimeSpan maxIdleJoinTime = TimeSpan.FromMinutes(10);
+        private static readonly TimeSpan maxIdleGameTime = TimeSpan.FromHours(24);
         private static readonly List<string> gameQueries = new List<string>()
         {
             "yes@",
@@ -109,7 +108,7 @@ namespace WhoAmIBotSpace
         {
             foreach (Game g in GamesRunning)
             {
-                SendLangMessage(g.GroupId, "BotStopping");
+                SendLangMessage(g.GroupId, Strings.BotStopping);
                 g.Thread?.Abort();
                 g.InactivityTimer?.Change(Timeout.Infinite, Timeout.Infinite);
             }
@@ -172,7 +171,7 @@ namespace WhoAmIBotSpace
                             { "id", msg.ReplyToMessage.From.Id }
                         };
                         ExecuteSql("INSERT INTO GlobalAdmins VALUES(@id)", par);
-                        SendLangMessage(msg.Chat.Id, "PowerGranted");
+                        SendLangMessage(msg.Chat.Id, Strings.PowerGranted);
                     }
                 }
 #if DEBUG
@@ -182,7 +181,7 @@ namespace WhoAmIBotSpace
             catch (Exception x)
             {
                 client.SendTextMessageAsync(Flom,
-                    $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n");
+                    $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
             }
 #endif
         }
@@ -208,11 +207,142 @@ namespace WhoAmIBotSpace
                 }
                 if (id < last + 1)
                 {
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("GameNoLongerRunning", e.CallbackQuery.From.Id));
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.GameNoLongerRunning, e.CallbackQuery.From.Id));
                     client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId, null);
                 }
             }
         }
+        #endregion
+
+        #region Settings
+        #region Cancelgame
+        private void SetCancelgame(long groupid, long chat)
+        {
+            var mre = new ManualResetEvent(false);
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
+            {
+                var d = e.CallbackQuery.Data;
+                if ((!d.StartsWith("cancelgameYes@") && !d.StartsWith("cancelgameNo@"))
+                || d.IndexOf("@") != d.LastIndexOf("@")
+                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                || grp != groupid || !Groups.Exists(x => x.Id == groupid)
+                || e.CallbackQuery.Message == null
+                || e.CallbackQuery.From.Id != chat) return;
+                var par = new Dictionary<string, object>() { { "id", groupid } };
+                switch (d.Remove(d.IndexOf("@")))
+                {
+                    case "cancelgameYes":
+                        Groups.Find(x => x.Id == groupid).CancelgameAdmin = true;
+                        par.Add("b", true);
+                        ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
+                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done);
+                        break;
+                    case "cancelgameNo":
+                        Groups.Find(x => x.Id == groupid).CancelgameAdmin = false;
+                        par.Add("b", false);
+                        ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
+                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done);
+                        break;
+                }
+                mre.Set();
+            };
+            SendLangMessage(chat, Strings.CancelgameQ, ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, groupid), $"cancelgameYes@{groupid}",
+                GetString(Strings.No, groupid), $"cancelgameNo@{groupid}"), 
+                GetString(Groups.Find(x => x.Id == groupid).CancelgameAdmin? Strings.True : Strings.False, groupid));
+            try
+            {
+                client.OnCallbackQuery += cHandler;
+                mre.WaitOne();
+            }
+            finally
+            {
+                client.OnCallbackQuery -= cHandler;
+            }
+        }
+        #endregion
+        #region Join Timeout
+        private void SetJoinTimeout(long groupid, long chat)
+        {
+            var mre = new ManualResetEvent(false);
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
+            {
+                var d = e.CallbackQuery.Data;
+                if (!d.StartsWith("joinTimeout:") || !d.Contains("@") || d.IndexOf("@") != d.LastIndexOf("@")
+                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                || grp != groupid || e.CallbackQuery.From.Id != chat
+                || e.CallbackQuery.Message == null
+                || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out int val)
+                || !Groups.Exists(x => x.Id == groupid)) return;
+                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                Groups.Find(x => x.Id == groupid).JoinTimeout = val;
+                var par = new Dictionary<string, object>()
+                {
+                    { "val", val },
+                    { "id", groupid }
+                };
+                ExecuteSql("UPDATE Groups SET JoinTimeout=@val WHERE id=@id", par);
+                EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done, null);
+            };
+            var row = new InlineKeyboardButton[3];
+            row[0] = new InlineKeyboardCallbackButton("2", $"joinTimeout:2@{groupid}");
+            row[1] = new InlineKeyboardCallbackButton("5", $"joinTimeout:5@{groupid}");
+            row[2] = new InlineKeyboardCallbackButton("10", $"joinTimeout:10@{groupid}");
+            InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
+            SendLangMessage(chat, groupid, Strings.JoinTimeoutQ, markup,
+                maxIdleJoinTime.TotalMinutes.ToString(), Groups.Find(x => x.Id == groupid).JoinTimeout.ToString());
+            try
+            {
+                client.OnCallbackQuery += cHandler;
+                mre.WaitOne();
+            }
+            finally
+            {
+                client.OnCallbackQuery -= cHandler;
+            }
+        }
+        #endregion
+        #region Game Timeout
+        private void SetGameTimeout(long groupid, long chat)
+        {
+            var mre = new ManualResetEvent(false);
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
+            {
+                var d = e.CallbackQuery.Data;
+                if (!d.StartsWith("gameTimeout:") || !d.Contains("@") || d.IndexOf("@") != d.LastIndexOf("@")
+                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                || grp != groupid || e.CallbackQuery.From.Id != chat
+                || e.CallbackQuery.Message == null
+                || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out int val)
+                || !Groups.Exists(x => x.Id == groupid)) return;
+                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                Groups.Find(x => x.Id == groupid).JoinTimeout = val;
+                var par = new Dictionary<string, object>()
+                {
+                    { "val", val },
+                    { "id", groupid }
+                };
+                ExecuteSql("UPDATE Groups SET GameTimeout=@val WHERE id=@id", par);
+                EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done, null);
+            };
+            var row = new InlineKeyboardButton[4];
+            row[0] = new InlineKeyboardCallbackButton("1h", $"gameTimeout:60@{groupid}");
+            row[1] = new InlineKeyboardCallbackButton("6h", $"gameTimeout:360@{groupid}");
+            row[2] = new InlineKeyboardCallbackButton("12h", $"gameTimeout:720@{groupid}");
+            row[3] = new InlineKeyboardCallbackButton("24h", $"gameTimeout:1440@{groupid}");
+            InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
+            SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
+                maxIdleGameTime.TotalMinutes.ToString(), Groups.Find(x => x.Id == groupid).JoinTimeout.ToString());
+            try
+            {
+                client.OnCallbackQuery += cHandler;
+                mre.WaitOne();
+            }
+            finally
+            {
+                client.OnCallbackQuery -= cHandler;
+            }
+        }
+        #endregion
         #endregion
 
         #region Language
@@ -381,6 +511,16 @@ namespace WhoAmIBotSpace
                 return false;
             }
         }
+
+        private bool EditLangMessage(long chatid, long langFrom, int messageId, string key, IReplyMarkup markup = null)
+        {
+            return EditLangMessage(chatid, langFrom, messageId, key, markup, "", out var u, out var u2);
+        }
+
+        private bool EditLangMessage(long chatid, long langFrom, int messageId, string key, IReplyMarkup markup, params string[] par)
+        {
+            return EditLangMessage(chatid, langFrom, messageId, key, markup, "", out var u, out var u2, par);
+        }
         #endregion
         #region Get Lang File
 #if DEBUG
@@ -450,7 +590,7 @@ namespace WhoAmIBotSpace
         {
             if (!GlobalAdmins.Contains(msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
+                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
                 return;
             }
             const string temp = "temp.sqlite";
@@ -470,22 +610,29 @@ namespace WhoAmIBotSpace
                     if (g2 != null)
                     {
                         CancelGame(g2);
-                        SendLangMessage(msg.Chat.Id, "GameCancelled");
-                        SendLangMessage(g2.GroupId, "GameCancelledByGlobalAdmin");
+                        SendLangMessage(msg.Chat.Id, Strings.GameCancelled);
+                        SendLangMessage(g2.GroupId, Strings.GameCancelledByGlobalAdmin);
                         return;
                     }
                 }
             }
             if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
+            if (!Groups.Exists(x => x.Id == msg.Chat.Id))
+            {
+                var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "langCode", defaultLangCode },
+                    { "name", msg.Chat.Title } };
+                ExecuteSql("INSERT INTO Groups (Id, LangKey, Name) VALUES(@id, @langCode, @name)", par);
+                Groups.Add(new Group(msg.Chat.Id) { Name = msg.Chat.Title });
+            }
             if (!GlobalAdmins.Contains(msg.From.Id))
             {
-                bool cancancel = false;
-                if (msg.Chat.Type != ChatType.Channel && msg.Chat.Type != ChatType.Private)
+                bool cancancel = !Groups.Find(x => x.Id == msg.Chat.Id).CancelgameAdmin;
+                if (msg.Chat.Type.IsGroup())
                 {
                     var t = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
                     t.Wait();
@@ -493,12 +640,17 @@ namespace WhoAmIBotSpace
                 }
                 if (!cancancel)
                 {
-                    SendLangMessage(msg.Chat.Id, "AdminOnly");
+                    SendLangMessage(msg.Chat.Id,  Strings.AdminOnly);
                     return;
                 }
             }
+            if (!Help.Longer(g.Players, g.TotalPlayers).Exists(x => x.Id == msg.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, Strings.NotInGame);
+                return;
+            }
             CancelGame(g);
-            SendLangMessage(msg.Chat.Id, "GameCancelled");
+            SendLangMessage(msg.Chat.Id, Strings.GameCancelled);
         }
         #endregion
         #region /canceljoin
@@ -506,14 +658,14 @@ namespace WhoAmIBotSpace
         {
             if (!GlobalAdmins.Contains(msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
+                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
                 return;
             }
             foreach (var g in GamesRunning.FindAll(x => x.State == GameState.Joining))
             {
                 CancelGame(g);
                 client.SendTextMessageAsync(msg.Chat.Id, $"A game was cancelled in {g.GroupName} ({g.GroupId})");
-                SendLangMessage(g.GroupId, "GameCancelledByGlobalAdmin");
+                SendLangMessage(g.GroupId, Strings.GameCancelledByGlobalAdmin);
             }
         }
         #endregion
@@ -523,7 +675,7 @@ namespace WhoAmIBotSpace
             if (msg.Chat.Type != ChatType.Private || !msg.Text.Contains(" ")) return;
             if (!GlobalAdmins.Contains(msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NoGlobalAdmin");
+                SendLangMessage(msg.Chat.Id, Strings.NoGlobalAdmin);
                 return;
             }
             if (!long.TryParse(msg.Text.Substring(msg.Text.IndexOf(" ")), out long linked)) return;
@@ -551,14 +703,14 @@ namespace WhoAmIBotSpace
                 {
                     client.OnMessage += mHandler;
                     client.SendTextMessageAsync(msg.Chat.Id, "Communication started.");
-                    SendLangMessage(linked, "GASpeaking");
+                    SendLangMessage(linked, Strings.GASpeaking);
                     mre.WaitOne();
                 }
                 finally
                 {
                     client.OnMessage -= mHandler;
                     client.SendTextMessageAsync(msg.Chat.Id, "Communication stopped.");
-                    SendLangMessage(linked, "MessageLinkStopped");
+                    SendLangMessage(linked, Strings.MessageLinkStopped);
                 }
             }
         }
@@ -568,7 +720,7 @@ namespace WhoAmIBotSpace
         {
             if (!GlobalAdmins.Contains(msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
+                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
                 return;
             }
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) => { };
@@ -581,7 +733,7 @@ namespace WhoAmIBotSpace
                 || chatid != msg.Chat.Id || e.CallbackQuery.Message == null) return;
                 if (!GlobalAdmins.Contains(e.CallbackQuery.From.Id))
                 {
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("NoGlobalAdmin", LangCode(msg.Chat.Id)));
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.NoGlobalAdmin, LangCode(msg.Chat.Id)));
                     return;
                 }
                 if (data.StartsWith("close@"))
@@ -603,8 +755,8 @@ namespace WhoAmIBotSpace
                         }
                         Game g = GamesRunning.Find(x => x.GroupId == groupid);
                         CancelGame(g);
-                        SendLangMessage(g.GroupId, "GameCancelledByGlobalAdmin");
-                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("GameCancelled", e.CallbackQuery.From.Id));
+                        SendLangMessage(g.GroupId, Strings.GameCancelledByGlobalAdmin);
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.GameCancelled, e.CallbackQuery.From.Id));
                         return;
                     case "communicate":
                         Thread t = new Thread(() =>
@@ -650,13 +802,13 @@ namespace WhoAmIBotSpace
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 mre.Set();
             };
-            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.SelectLanguage,
                 ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector), msg.Chat.Id),
                 out Message sent, out var u);
             client.OnCallbackQuery += cHandler;
             mre.WaitOne();
             client.OnCallbackQuery -= cHandler;
-            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "OneMoment", null, "", out var u2, out u);
+            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, Strings.OneMoment, null, "", out var u2, out u);
 
         }
         #endregion
@@ -665,24 +817,24 @@ namespace WhoAmIBotSpace
         {
             if (!msg.Chat.Type.IsGroup())
             {
-                SendLangMessage(msg.Chat.Id, "NotInPrivate");
+                SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
             if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
             if (!g.TotalPlayers.Exists(x => x.Id == msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NotInGame");
+                SendLangMessage(msg.Chat.Id, Strings.NotInGame);
                 return;
             }
             var p = g.TotalPlayers.Find(x => x.Id == msg.From.Id);
             if (!g.DictFull())
             {
-                SendLangMessage(msg.Chat.Id, "RolesNotSet");
+                SendLangMessage(msg.Chat.Id, Strings.RolesNotSet);
                 return;
             }
             string rl = "";
@@ -691,8 +843,8 @@ namespace WhoAmIBotSpace
                 if (kvp.Key != p.Id) rl += $"\n<b>{WebUtility.HtmlEncode(g.TotalPlayers.Find(x => x.Id == kvp.Key).Name)}:</b> " +
                         $"<i>{WebUtility.HtmlEncode(kvp.Value)}</i>";
             }
-            SendLangMessage(msg.From.Id, msg.Chat.Id, "RolesAre", null, rl);
-            SendLangMessage(msg.Chat.Id, msg.From.Id, "SentPM");
+            SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.RolesAre, null, rl);
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.SentPM);
         }
         #endregion
         #region /giveup
@@ -700,35 +852,35 @@ namespace WhoAmIBotSpace
         {
             if (!msg.Chat.Type.IsGroup())
             {
-                SendLangMessage(msg.Chat.Id, "NotInPrivate");
+                SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
             if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
             if (!g.Players.Exists(x => x.Id == msg.From.Id && !x.GaveUp))
             {
-                SendLangMessage(msg.Chat.Id, "NotInGame");
+                SendLangMessage(msg.Chat.Id, Strings.NotInGame);
                 return;
             }
             var p = g.Players.Find(x => x.Id == msg.From.Id);
             if (g.Turn == p)
             {
-                SendLangMessage(msg.Chat.Id, "ItsYourTurnCantGiveUp");
+                SendLangMessage(msg.Chat.Id, Strings.ItsYourTurnCantGiveUp);
                 return;
             }
             if (!g.DictFull())
             {
-                SendLangMessage(msg.Chat.Id, "RolesNotSet");
+                SendLangMessage(msg.Chat.Id, Strings.RolesNotSet);
                 return;
             }
             p.GaveUp = true;
-            SendLangMessage(msg.From.Id, g.GroupId, "YouGaveUp");
+            SendLangMessage(msg.From.Id, g.GroupId, Strings.YouGaveUp);
             var role = g.RoleIdDict.ContainsKey(msg.From.Id) ? g.RoleIdDict[msg.From.Id] : "failed to find role";
-            SendLangMessage(g.GroupId, "GaveUp", null, p.Name, g.RoleIdDict[msg.From.Id]);
+            SendLangMessage(g.GroupId, Strings.GaveUp, null, p.Name, g.RoleIdDict[msg.From.Id]);
         }
         #endregion
         #region /go
@@ -736,36 +888,36 @@ namespace WhoAmIBotSpace
         {
             if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
             if (!g.Players.Exists(x => x.Id == msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NotInGame");
+                SendLangMessage(msg.Chat.Id, Strings.NotInGame);
                 return;
             }
             if (g.Players.Count < minPlayerCount && msg.Chat.Id != testingGroupId)
             {
-                SendLangMessage(msg.Chat.Id, "NotEnoughPlayers");
+                SendLangMessage(msg.Chat.Id, Strings.NotEnoughPlayers);
                 return;
             }
             if (g.State != GameState.Joining)
             {
-                SendLangMessage(msg.Chat.Id, "GameRunning");
+                SendLangMessage(msg.Chat.Id, Strings.GameRunning);
                 return;
             }
             ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
             Thread t = new Thread(pts);
             g.Thread = t;
-            g.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            g.InactivityTimer.Change(GetGroup(g).GameTimeout * 60 * 1000, Timeout.Infinite);
             t.Start(g);
         }
         #endregion
         #region /help
         private void Help_Command(Message msg)
         {
-            SendLangMessage(msg.Chat.Id, msg.From.Id, "Help");
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Help);
         }
         #endregion
         #region /identify
@@ -793,12 +945,12 @@ namespace WhoAmIBotSpace
             }
             if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NoGameRunning");
+                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
-            g.InactivityTimer.Change((long)Math.Ceiling(idleJoinTime.TotalMilliseconds), Timeout.Infinite);
+            g.InactivityTimer.Change(g.Group.JoinTimeout * 60 * 1000, Timeout.Infinite);
         }
         #endregion
         #region /langinfo
@@ -845,11 +997,11 @@ namespace WhoAmIBotSpace
                         else break;
                     }
                 }
-                EditLangMessage(sent.Chat.Id, sent.Chat.Id, sent.MessageId, "LangInfo", null, "",
+                EditLangMessage(sent.Chat.Id, sent.Chat.Id, sent.MessageId, Strings.LangInfo, null, "",
                     out var u, out var u2, key, "\n" + missing.ToStringList());
                 mre.Set();
             };
-            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.SelectLanguage,
                 ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector), msg.Chat.Id),
                 out sent, out var u1);
             try
@@ -868,30 +1020,30 @@ namespace WhoAmIBotSpace
         {
             if (!GlobalAdmins.Contains(msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, "NoGlobalAdmin");
+                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
             }
             if (!Maintenance)
             {
                 Maintenance = true;
-                SendLangMessage(msg.Chat.Id, msg.From.Id, "Maintenance");
+                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Maintenance);
                 if (GamesRunning.Count > 0)
                 {
                     EventHandler<GameFinishedEventArgs> handler = null;
                     handler = (sender, e) =>
                     {
-                        if (GamesRunning.Count < 1) { SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished"); GameFinished -= handler; }
+                        if (GamesRunning.Count < 1) { SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.GamesFinished); GameFinished -= handler; }
                     };
                     GameFinished += handler;
                 }
                 else
                 {
-                    SendLangMessage(msg.Chat.Id, msg.From.Id, "GamesFinished");
+                    SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.GamesFinished);
                 }
             }
             else
             {
                 Maintenance = false;
-                SendLangMessage(msg.Chat.Id, msg.From.Id, "MaintenanceOff");
+                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.MaintenanceOff);
             }
         }
         #endregion
@@ -901,17 +1053,17 @@ namespace WhoAmIBotSpace
             if (msg.Chat.Type == ChatType.Channel) return;
             if (msg.Chat.Type == ChatType.Private)
             {
-                SendLangMessage(msg.Chat.Id, "NotInPrivate");
+                SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
             if (Nextgame.ContainsKey(msg.Chat.Id) && Nextgame[msg.Chat.Id].Exists(x => x.Id == msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, "AlreadyOnNextgameList");
+                SendLangMessage(msg.Chat.Id, msg.From.Id,  Strings.AlreadyOnNextgameList);
                 return;
             }
             if (!Nextgame.ContainsKey(msg.Chat.Id)) Nextgame.Add(msg.Chat.Id, new List<User>());
             Nextgame[msg.Chat.Id].Add(new User(msg.From.Id));
-            SendLangMessage(msg.Chat.Id, msg.From.Id, "PutOnNextgameList");
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.PutOnNextgameList);
         }
         #endregion
         #region /ping
@@ -919,13 +1071,13 @@ namespace WhoAmIBotSpace
         {
             var now = DateTime.Now;
             var span = now.Subtract(msg.Date);
-            SendLangMessage(msg.Chat.Id, msg.From.Id, "Ping", null, span.TotalSeconds.ToString());
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, span.TotalSeconds.ToString());
         }
         #endregion
         #region /rate
         private void Rate_Command(Message msg)
         {
-            SendLangMessage(msg.Chat.Id, msg.From.Id, "RateMe", null, "http://t.me/storebot?start={Username}");
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.RateMe, null, "http://t.me/storebot?start={Username}");
         }
         #endregion
         #region /setdb
@@ -943,7 +1095,7 @@ namespace WhoAmIBotSpace
                 str.Close();
             }
             InitSqliteConn();
-            SendLangMessage(msg.Chat.Id, msg.From.Id, "DatabaseUpdated");
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.DatabaseUpdated);
         }
         #endregion
         #region /setlang
@@ -955,7 +1107,7 @@ namespace WhoAmIBotSpace
                 t.Wait();
                 if (t.Result.Status != ChatMemberStatus.Administrator && t.Result.Status != ChatMemberStatus.Creator)
                 {
-                    SendLangMessage(msg.Chat.Id, "AdminOnly");
+                    SendLangMessage(msg.Chat.Id,  Strings.AdminOnly);
                     return;
                 }
             }
@@ -973,7 +1125,7 @@ namespace WhoAmIBotSpace
                     task.Wait();
                     if (task.Result.Status != ChatMemberStatus.Administrator && task.Result.Status != ChatMemberStatus.Creator)
                     {
-                        SendLangMessage(msg.Chat.Id, "AdminOnly");
+                        SendLangMessage(msg.Chat.Id,  Strings.AdminOnly);
                     }
                 }
                 switch (msg.Chat.Type)
@@ -1004,7 +1156,7 @@ namespace WhoAmIBotSpace
                     case ChatType.Supergroup:
                         if (!Groups.Exists(x => x.Id == msg.Chat.Id))
                         {
-                            Groups.Add(new Group(msg.From.Id) { LangKey = key });
+                            Groups.Add(new Group(msg.From.Id) { LangKey = key, Name = msg.Chat.Title });
                             var par = new Dictionary<string, object>()
                             {
                                 { "key", key },
@@ -1028,13 +1180,13 @@ namespace WhoAmIBotSpace
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 mre.Set();
             };
-            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "SelectLanguage",
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.SelectLanguage,
                 ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector), msg.Chat.Id),
                 out Message sent, out string useless);
             client.OnCallbackQuery += cHandler;
             mre.WaitOne();
             client.OnCallbackQuery -= cHandler;
-            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "LangSet", null, "", out var u, out var u2);
+            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, Strings.LangSet, null, "", out var u, out var u2);
         }
         #endregion
         #region /settings
@@ -1042,10 +1194,61 @@ namespace WhoAmIBotSpace
         {
             if (!msg.Chat.Type.IsGroup())
             {
-                SendLangMessage(msg.Chat.Id, "NotInPrivate");
+                SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
-            SendLangMessage(msg.Chat.Id, "NotImplemented");
+            if (!Groups.Exists(x => x.Id == msg.Chat.Id))
+            {
+                var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "langCode", defaultLangCode },
+                    { "name", msg.Chat.Title } };
+                ExecuteSql("INSERT INTO Groups (Id, LangKey, Name) VALUES(@id, @langCode, @name)", par);
+                Groups.Add(new Group(msg.Chat.Id) { Name = msg.Chat.Title });
+            }
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) => { };
+            cHandler = (sender, e) =>
+            {
+                var d = e.CallbackQuery.Data;
+                if ((!d.StartsWith("joinTimeout@") && !d.StartsWith("gameTimeout@")
+                && !d.StartsWith("cancelgameAdmin@") && !d.StartsWith("closesettings@"))
+                || d.IndexOf("@") != d.LastIndexOf("@")
+                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long groupid)
+                || groupid != msg.Chat.Id || e.CallbackQuery.Message == null) return;
+                var action = d.Remove(d.IndexOf("@"));
+                switch (action)
+                {
+                    case "joinTimeout":
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                        Thread t1 = new Thread(() => SetJoinTimeout(groupid, msg.From.Id));
+                        t1.Start();
+                        currentThreads.Add(t1);
+                        break;
+                    case "gameTimeout":
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                        Thread t2 = new Thread(() => SetGameTimeout(groupid, msg.From.Id));
+                        t2.Start();
+                        currentThreads.Add(t2);
+                        break;
+                    case "cancelgameAdmin":
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                        Thread t3 = new Thread(() => SetCancelgame(groupid, msg.From.Id));
+                        t3.Start();
+                        currentThreads.Add(t3);
+                        break;
+                    case "closesettings":
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done, null);
+                        client.OnCallbackQuery -= cHandler;
+                        break;
+                }
+            };
+            var joinTimeout = GetString(Strings.JoinTimeout, msg.Chat.Id);
+            var gameTimeout = GetString(Strings.GameTimeout, msg.Chat.Id);
+            var cancelgameAdmin = GetString(Strings.CancelgameAdmin, msg.Chat.Id);
+            var close = GetString(Strings.Close, msg.Chat.Id);
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.SentPM);
+            SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.Settings, ReplyMarkupMaker.InlineSettings(msg.Chat.Id,
+                joinTimeout, gameTimeout, cancelgameAdmin, close));
+            client.OnCallbackQuery += cHandler;
         }
         #endregion
         #region /start
@@ -1061,12 +1264,12 @@ namespace WhoAmIBotSpace
                 Users.Add(u);
                 if (string.IsNullOrEmpty(u.LangKey))
                 {
-                    SendLangMessage(msg.Chat.Id, "Welcome");
+                    SendLangMessage(msg.Chat.Id, Strings.Welcome);
                     Setlang_Command(msg);
                 }
                 else
                 {
-                    SendLangMessage(msg.Chat.Id, "Welcome");
+                    SendLangMessage(msg.Chat.Id, Strings.Welcome);
                 }
             }
             else
@@ -1080,7 +1283,7 @@ namespace WhoAmIBotSpace
                     u.Name = msg.From.FullName();
                     u.Username = msg.From.Username;
                 }
-                SendLangMessage(msg.Chat.Id, "Welcome");
+                SendLangMessage(msg.Chat.Id, Strings.Welcome);
             }
         }
         #endregion
@@ -1089,17 +1292,17 @@ namespace WhoAmIBotSpace
         {
             if (Maintenance && msg.Chat.Id != testingGroupId)
             {
-                SendLangMessage(msg.Chat.Id, "BotUnderMaintenance");
+                SendLangMessage(msg.Chat.Id, Strings.BotUnderMaintenance);
                 return;
             }
             if (!msg.Chat.Type.IsGroup())
             {
-                SendLangMessage(msg.Chat.Id, "NotInPrivate");
+                SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
             if (GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
             {
-                SendLangMessage(msg.Chat.Id, "GameRunning");
+                SendLangMessage(msg.Chat.Id, Strings.GameRunning);
                 return;
             }
             if (Users.Exists(x => x.Id == msg.From.Id))
@@ -1118,8 +1321,8 @@ namespace WhoAmIBotSpace
             {
                 var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "langCode", defaultLangCode },
                     { "name", msg.Chat.Title } };
-                ExecuteSql("INSERT INTO Groups (Id, LangKey, LangSet, Name) VALUES(@id, @langCode, 0, @name)", par);
-                Groups.Add(new Group(msg.Chat.Id));
+                ExecuteSql("INSERT INTO Groups (Id, LangKey, Name) VALUES(@id, @langCode, @name)", par);
+                Groups.Add(new Group(msg.Chat.Id) { Name = msg.Chat.Title });
             }
             else
             {
@@ -1131,18 +1334,17 @@ namespace WhoAmIBotSpace
                     group.Name = msg.Chat.Title;
                 }
             }
-
             var par2 = new Dictionary<string, object>() { { "id", msg.Chat.Id } };
             ExecuteSql($"INSERT INTO Games (groupId) VALUES(@id)", par2);
             string response = ExecuteSql("SELECT id FROM Games WHERE groupId=@id", par2)[0][0];
-            Game g = new Game(Convert.ToInt32(response), msg.Chat.Id, msg.Chat.Title);
+            Game g = new Game(Convert.ToInt32(response), msg.Chat.Id, msg.Chat.Title, Groups.Find(x => x.Id == msg.Chat.Id));
             GamesRunning.Add(g);
             if (Nextgame.ContainsKey(msg.Chat.Id))
             {
                 var toRem = new List<User>();
                 foreach (var u in Nextgame[msg.Chat.Id])
                 {
-                    SendLangMessage(u.Id, "NewGameStarting", null, g.GroupName);
+                    SendLangMessage(u.Id, Strings.NewGameStarting, null, g.GroupName);
                     toRem.Add(u);
                 }
                 foreach (var u in toRem)
@@ -1150,15 +1352,15 @@ namespace WhoAmIBotSpace
                     Nextgame[msg.Chat.Id].Remove(u);
                 }
             }
-            SendLangMessage(msg.Chat.Id, "GameStarted");
-            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "PlayerList", null, out Message m, out var u1, "");
+            SendLangMessage(msg.Chat.Id, Strings.GameStarted);
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.PlayerList, null, out Message m, out var u1, "");
             g.PlayerlistMessage = m;
             AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
             Timer t = new Timer(x =>
             {
                 CancelGame(g);
-                SendLangMessage(g.GroupId, "GameTimedOut");
-            }, null, (long)Math.Ceiling(idleJoinTime.TotalMilliseconds), Timeout.Infinite);
+                SendLangMessage(g.GroupId, Strings.GameTimedOut);
+            }, null, g.Group.JoinTimeout * 60 * 1000, Timeout.Infinite);
             g.InactivityTimer = t;
         }
         #endregion
@@ -1173,7 +1375,7 @@ namespace WhoAmIBotSpace
             var q = ExecuteSql("SELECT COUNT(*) FROM GamesFinished WHERE WinnerId=@id", par);
             if (q.Count < 1 || q[0].Count < 1) winCount = "0";
             else winCount = q[0][0];
-            SendLangMessage(msg.Chat.Id, msg.From.Id, "Stats", null, msg.From.FullName(), winCount);
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Stats, null, msg.From.FullName(), winCount);
         }
         #endregion
         #region /sql
@@ -1208,7 +1410,7 @@ namespace WhoAmIBotSpace
             if (msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.DocumentMessage) return;
             if (!GlobalAdmins.Contains(msg.From.Id))
             {
-                SendLangMessage(msg.Chat.Id, "NoGlobalAdmin");
+                SendLangMessage(msg.Chat.Id, Strings.NoGlobalAdmin);
                 return;
             }
             var now = DateTime.Now;
@@ -1241,8 +1443,8 @@ namespace WhoAmIBotSpace
                     mre.Set();
                 };
                 var query = ExecuteSql("SELECT * FROM ExistingLanguages WHERE Key=@key", par);
-                string yes = GetString("Yes", LangCode(msg.Chat.Id));
-                string no = GetString("No", LangCode(msg.Chat.Id));
+                string yes = GetString(Strings.Yes, LangCode(msg.Chat.Id));
+                string no = GetString(Strings.No, LangCode(msg.Chat.Id));
                 if (query.Count == 0)
                 {
                     //create new language
@@ -1281,7 +1483,7 @@ namespace WhoAmIBotSpace
                     {
                         lf.Strings.Remove(js);
                     }
-                    SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "CreateLang",
+                    SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.CreateLang,
                         ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u,
                         lf.LangKey, lf.Name, lf.Strings.Count.ToString(), "\n" + missing.ToStringList());
                     try
@@ -1352,7 +1554,7 @@ namespace WhoAmIBotSpace
                     }
                     foreach (var row in query) if (!lf.Strings.Exists(x => x.Key == row[0])) deleted.Add(row[0]);
                     foreach (var js in toRemove) lf.Strings.Remove(js);
-                    SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, "UpdateLang",
+                    SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.UpdateLang,
                         ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name,
                         added.ToString(), changed.ToString(), "\n" + deleted.ToStringList(), "\n" + missing.ToStringList());
                     client.OnCallbackQuery += cHandler;
@@ -1394,19 +1596,26 @@ namespace WhoAmIBotSpace
                         }
                     }
                 }
-                if (permit) EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "LangUploaded", null, "", out var u1, out var u2);
-                else EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "UploadCancelled", null, "", out var u1, out var u2);
+                if (permit) EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, Strings.LangUploaded, null, "", out var u1, out var u2);
+                else EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, Strings.UploadCancelled, null, "", out var u1, out var u2);
             }
             catch (Exception x)
             {
                 string mess = $"{x.GetType().Name}\n{x.Message}\n";
                 if (x.InnerException != null)
                     mess += $"{x.InnerException.Message}";
-                SendLangMessage(msg.Chat.Id, "ErrorOcurred", null,
+                SendLangMessage(msg.Chat.Id, Strings.ErrorOcurred, null,
                     mess);
             }
         }
         #endregion
+        #endregion
+
+        #region Helpers
+        private Group GetGroup(Game g)
+        {
+            return Groups.Find(x => x.Id == g.GroupId);
+        }
         #endregion
 
         #region Error handling
@@ -1438,24 +1647,24 @@ namespace WhoAmIBotSpace
         {
             if (game.State != GameState.Joining)
             {
-                SendLangMessage(game.GroupId, "GameNotJoining");
+                SendLangMessage(game.GroupId, Strings.GameNotJoining);
                 return;
             }
             if (game.Players.Exists(x => x.Id == player.Id))
             {
-                SendLangMessage(game.GroupId, "AlreadyInGame", null, player.Name);
+                SendLangMessage(game.GroupId,  Strings.AlreadyInGame, null, player.Name);
                 return;
             }
-            if (!SendLangMessage(player.Id, game.GroupId, "JoinedGamePM", null, game.GroupName))
+            if (!SendLangMessage(player.Id, game.GroupId, Strings.JoinedGamePM, null, game.GroupName))
             {
-                SendLangMessage(game.GroupId, "PmMe", ReplyMarkupMaker.InlineStartMe(Username), player.Name);
+                SendLangMessage(game.GroupId, Strings.PmMe, ReplyMarkupMaker.InlineStartMe(Username), player.Name);
                 return;
             }
             game.Players.Add(player);
-            if (game.Players.Count > 1) SendLangMessage(game.GroupId, "PlayerJoinedGame", null, player.Name);
-            else SendLangMessage(game.GroupId, "PlayerJoinedCantStart", null, player.Name);
+            if (game.Players.Count > 1) SendLangMessage(game.GroupId, Strings.PlayerJoinedGame, null, player.Name);
+            else SendLangMessage(game.GroupId, Strings.PlayerJoinedCantStart, null, player.Name);
             EditLangMessage(game.PlayerlistMessage.Chat.Id, game.GroupId, game.PlayerlistMessage.MessageId,
-                "PlayerList", null, "", out var u, out var u1, game.GetPlayerList());
+                Strings.PlayerList, null, "", out var u, out var u1, game.GetPlayerList());
         }
         #endregion
         #region Start game flow
@@ -1464,7 +1673,7 @@ namespace WhoAmIBotSpace
             if (!(gameObject is Game)) return;
             Game game = (Game)gameObject;
             #region Preparation phase
-            SendLangMessage(game.GroupId, "GameFlowStarted");
+            SendLangMessage(game.GroupId, Strings.GameFlowStarted);
             game.State = GameState.Running;
             game.TotalPlayers = new List<Player>();
             foreach (var p in game.Players)
@@ -1475,7 +1684,7 @@ namespace WhoAmIBotSpace
             for (int i = 0; i < game.Players.Count; i++)
             {
                 int next = (i == game.Players.Count - 1) ? 0 : i + 1;
-                SendLangMessage(game.Players[i].Id, game.GroupId, "ChooseRoleFor", null, game.Players[next].Name);
+                SendLangMessage(game.Players[i].Id, game.GroupId, Strings.ChooseRoleFor, null, game.Players[next].Name);
             }
             ManualResetEvent mre = new ManualResetEvent(false);
             EventHandler<MessageEventArgs> eHandler = (sender, e) =>
@@ -1488,12 +1697,12 @@ namespace WhoAmIBotSpace
                    Player next = game.Players[nextIndex];
                    if (game.RoleIdDict.ContainsKey(next.Id))
                    {
-                       SendLangMessage(p.Id, game.GroupId, "AlreadySentRole", null, next.Name);
+                       SendLangMessage(p.Id, game.GroupId,  Strings.AlreadySentRole, null, next.Name);
                    }
                    else
                    {
                        game.RoleIdDict.Add(next.Id, e.Message.Text);
-                       SendLangMessage(p.Id, game.GroupId, "SetRole", null, next.Name, e.Message.Text);
+                       SendLangMessage(p.Id, game.GroupId, Strings.SetRole, null, next.Name, e.Message.Text);
                        if (game.DictFull()) mre.Set();
                    }
                };
@@ -1506,7 +1715,8 @@ namespace WhoAmIBotSpace
             {
                 client.OnMessage -= eHandler;
             }
-            SendLangMessage(game.GroupId, "AllRolesSet");
+            SendLangMessage(game.GroupId,  Strings.AllRolesSet);
+            game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
             foreach (Player p in game.Players)
             {
                 string message = "\n";
@@ -1514,7 +1724,7 @@ namespace WhoAmIBotSpace
                 {
                     if (kvp.Key != p.Id) message += $"{game.Players.Find(x => x.Id == kvp.Key).Name}: {kvp.Value}\n";
                 }
-                SendLangMessage(p.Id, game.GroupId, "RolesAre", null, message);
+                SendLangMessage(p.Id, game.GroupId, Strings.RolesAre, null, message);
             }
             #endregion
             int turn = 0;
@@ -1531,21 +1741,22 @@ namespace WhoAmIBotSpace
                     if (game.Players.Count > 0) continue;
                     else break;
                 }
-                SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerTurn", null, out Message sentGroupMessage, out string uselessS, atTurn.Name);
+                SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.PlayerTurn, null, out Message sentGroupMessage, out string uselessS, atTurn.Name);
                 #region Ask Question
                 string sentMessageText = "";
                 Message sentMessage = null;
                 EventHandler<MessageEventArgs> qHandler = (sender, e) =>
                 {
                     if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
+                    game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
                     client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId);
-                    SendAndGetLangMessage(atTurn.Id, game.GroupId, "QuestionReceived", null,
+                    SendAndGetLangMessage(atTurn.Id, game.GroupId, Strings.QuestionReceived, null,
                                 out sentMessage, out var u);
-                    string yes = GetString("Yes", LangCode(game.GroupId));
-                    string idk = GetString("Idk", LangCode(game.GroupId));
-                    string no = GetString("No", LangCode(game.GroupId));
+                    string yes = GetString(Strings.Yes, LangCode(game.GroupId));
+                    string idk = GetString(Strings.Idk, LangCode(game.GroupId));
+                    string no = GetString(Strings.No, LangCode(game.GroupId));
                     client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
-                    SendAndGetLangMessage(game.GroupId, game.GroupId, "QuestionAsked",
+                    SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.QuestionAsked,
                         ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.Id}", no, $"no@{game.Id}", idk, $"idk@{game.Id}"),
                         out sentGroupMessage, out sentMessageText,
                         $"<b>{WebUtility.HtmlEncode(atTurn.Name)}</b>", $"<i>{WebUtility.HtmlEncode(e.Message.Text)}</i>");
@@ -1557,12 +1768,13 @@ namespace WhoAmIBotSpace
                 EventHandler<MessageEventArgs> guessHandler = (sender, e) =>
                 {
                     if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
+                    game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
                     client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId);
-                    SendAndGetLangMessage(atTurn.Id, game.GroupId, "QuestionReceived", null, out sentMessage, out var u);
-                    string yes = GetString("Yes", LangCode(game.GroupId));
-                    string no = GetString("No", LangCode(game.GroupId));
+                    SendAndGetLangMessage(atTurn.Id, game.GroupId, Strings.QuestionReceived, null, out sentMessage, out var u);
+                    string yes = GetString(Strings.Yes, LangCode(game.GroupId));
+                    string no = GetString(Strings.No, LangCode(game.GroupId));
                     client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
-                    SendAndGetLangMessage(game.GroupId, game.GroupId, "PlayerGuessed",
+                    SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.PlayerGuessed,
                         ReplyMarkupMaker.InlineYesNo(yes, $"yes@{game.Id}", no, $"no@{game.Id}"),
                         out sentGroupMessage, out sentMessageText,
                         atTurn.Name, e.Message.Text);
@@ -1579,6 +1791,7 @@ namespace WhoAmIBotSpace
                     long gameId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
                     if (gameId != game.Id) return;
                     if (e.CallbackQuery.Message == null) return;
+                    game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
                     client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
@@ -1588,7 +1801,7 @@ namespace WhoAmIBotSpace
                             #region Guess
                             guess = true;
                             mre.Set();
-                            EditLangMessage(e.CallbackQuery.From.Id, game.GroupId, sentMessage.MessageId, "PleaseGuess", null, "",
+                            EditLangMessage(e.CallbackQuery.From.Id, game.GroupId, sentMessage.MessageId, Strings.PleaseGuess, null, "",
                                 out Message uselessM, out string uselessSS);
                             #endregion
                             break;
@@ -1596,10 +1809,10 @@ namespace WhoAmIBotSpace
                             #region Give Up
                             endloop = true;
                             Player p = game.Players.Find(x => x.Id == e.CallbackQuery.From.Id);
-                            SendLangMessage(game.GroupId, "GaveUp", null,
+                            SendLangMessage(game.GroupId, Strings.GaveUp, null,
                                 p.Name,
                                 game.RoleIdDict[e.CallbackQuery.From.Id]);
-                            SendLangMessage(p.Id, game.GroupId, "YouGaveUp");
+                            SendLangMessage(p.Id, game.GroupId, Strings.YouGaveUp);
                             client.EditMessageReplyMarkupAsync(sentMessage.Chat.Id, sentMessage.MessageId);
                             game.Players.Remove(p);
                             mre.Set();
@@ -1608,9 +1821,9 @@ namespace WhoAmIBotSpace
                     }
                 };
                 #endregion
-                string guess1 = GetString("Guess", LangCode(game.GroupId));
-                string giveUp1 = GetString("GiveUp", LangCode(game.GroupId));
-                SendAndGetLangMessage(atTurn.Id, game.GroupId, "AskQuestion",
+                string guess1 = GetString(Strings.Guess, LangCode(game.GroupId));
+                string giveUp1 = GetString(Strings.GiveUp, LangCode(game.GroupId));
+                SendAndGetLangMessage(atTurn.Id, game.GroupId, Strings.AskQuestion,
                     ReplyMarkupMaker.InlineGuessGiveUp(guess1, $"guess@{game.Id}", giveUp1, $"giveup@{game.Id}"),
                     out sentMessage, out string useless);
                 mre.Reset();
@@ -1626,6 +1839,7 @@ namespace WhoAmIBotSpace
                     client.OnCallbackQuery -= c1Handler;
                 }
                 mre.Reset();
+                game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
                 if (guess)
                 {
                     try
@@ -1653,38 +1867,39 @@ namespace WhoAmIBotSpace
                     if (gameId != game.Id) return;
                     if (e.CallbackQuery.From.Id == atTurn?.Id && game.GroupId != testingGroupId)
                     {
-                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("NoAnswerSelf", LangCode(game.GroupId)), showAlert: true);
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.NoAnswerSelf, LangCode(game.GroupId)), showAlert: true);
                         return;
                     }
+                    game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
                     string pname = game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name;
                     switch (answer)
                     {
                         case "yes":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredYes", null, sentMessageText + "\n",
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, Strings.AnsweredYes, null, sentMessageText + "\n",
                                 out Message uselessM, out string uselessSS, pname);
                             EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
-                                "AnsweredYes", null, "", out var u, out var u2, pname);
+                                Strings.AnsweredYes, null, "", out var u, out var u2, pname);
                             if (guess)
                             {
                                 game.Players.Remove(atTurn);
                                 game.TrySetWinner(atTurn);
-                                SendLangMessage(game.GroupId, "PlayerFinished", null,
+                                SendLangMessage(game.GroupId, Strings.PlayerFinished, null,
                                     atTurn.Name);
                             }
                             break;
                         case "idk":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredIdk", null, sentMessageText + "\n",
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId,  Strings.AnsweredIdk, null, sentMessageText + "\n",
                                 out Message uselessM2, out string uselessS2, pname);
                             EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
-                                "AnsweredIdk", null, "", out var u3, out var u4, pname);
+                                 Strings.AnsweredIdk, null, "", out var u3, out var u4, pname);
                             break;
                         case "no":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, "AnsweredNo", null, sentMessageText + "\n",
+                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId,  Strings.AnsweredNo, null, sentMessageText + "\n",
                                 out Message uselessM1, out string uselessS1, pname);
                             EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
-                                "AnsweredNo", null, "", out var u5, out var u6, pname);
+                                 Strings.AnsweredNo, null, "", out var u5, out var u6, pname);
                             turn++;
                             break;
                     }
@@ -1700,19 +1915,21 @@ namespace WhoAmIBotSpace
                 {
                     client.OnCallbackQuery -= cHandler;
                 }
+                game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
                 if (game.Players.Count < 1) break;
                 #endregion
             }
             #endregion
             #region Finish game
+            game.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
             var par = new Dictionary<string, object>() { { "id", game.Id } };
             ExecuteSql("DELETE FROM Games WHERE Id=@id", par);
             long winnerId = game.Winner == null ? 0 : game.Winner.Id;
-            string winnerName = game.Winner == null ? GetString("Nobody", LangCode(game.GroupId)) : game.Winner.Name;
+            string winnerName = game.Winner == null ? GetString(Strings.Nobody, LangCode(game.GroupId)) : game.Winner.Name;
             par = new Dictionary<string, object>() { { "groupid", game.GroupId }, { "winnerid", winnerId }, { "winnername", winnerName } };
             ExecuteSql("INSERT INTO GamesFinished (groupId, winnerid, winnername) VALUES(@groupid, @winnerid, @winnername)", par);
-            SendLangMessage(game.GroupId, "GameFinished", null, winnerName);
-            SendLangMessage(game.GroupId, "RolesWere", null, game.GetRolesAsString());
+            SendLangMessage(game.GroupId, Strings.GameFinished, null, winnerName);
+            SendLangMessage(game.GroupId, Strings.RolesWere, null, game.GetRolesAsString());
             GamesRunning.Remove(game);
             GameFinished?.Invoke(this, new GameFinishedEventArgs(game));
             #endregion
@@ -1836,13 +2053,14 @@ namespace WhoAmIBotSpace
         #region Read Groups and Users
         private void ReadGroupsAndUsers()
         {
-            var query = ExecuteSql("SELECT Id, LangKey, Name FROM Groups");
+            var query = ExecuteSql("SELECT Id, LangKey, Name, JoinTimeout, GameTimeout, CancelgameAdmin FROM Groups");
             Groups.Clear();
             foreach (var row in query)
             {
                 if (row.Count == 0) continue;
                 Groups.Add(new Group(Convert.ToInt64(row[0].Trim()))
-                { LangKey = row[1].Trim(), Name = row[2].Trim() });
+                { LangKey = row[1].Trim(), Name = row[2].Trim(), JoinTimeout = Convert.ToInt32(row[3]),
+                GameTimeout = Convert.ToInt32(row[4]), CancelgameAdmin = Convert.ToBoolean(row[5])});
             }
             query = ExecuteSql("SELECT Id, LangKey, Name, Username FROM Users");
             Users.Clear();

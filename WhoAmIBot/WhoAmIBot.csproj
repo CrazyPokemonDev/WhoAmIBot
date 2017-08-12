@@ -83,6 +83,7 @@
     <Compile Include="Helpers\Extensions.cs" />
     <Compile Include="Helpers\Flom.cs" />
     <Compile Include="Helpers\ReplyMarkupMaker.cs" />
+    <Compile Include="Helpers\Strings.cs" />
     <Compile Include="WhoAmIBot.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

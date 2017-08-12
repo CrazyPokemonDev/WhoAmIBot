@@ -25,11 +25,13 @@ namespace WhoAmIBotSpace.Classes
         public Message PlayerlistMessage { get; set; }
         public Timer InactivityTimer { get; set; }
         public Player Turn { get; set; }
-        public Game(int id, long groupId, string groupName)
+        public Group Group { get; set; }
+        public Game(int id, long groupId, string groupName, Group group)
         {
             Id = id;
             GroupId = groupId;
             GroupName = groupName;
+            Group = group;
         }
 
         public bool DictFull()
