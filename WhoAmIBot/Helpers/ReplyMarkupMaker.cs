@@ -12,6 +12,7 @@ namespace WhoAmIBotSpace.Helpers
 {
     public static class ReplyMarkupMaker
     {
+        #region Yes No (Idk)
         public static IReplyMarkup InlineYesNo(string yes, string yesCallback, string no, string noCallback)
         {
             InlineKeyboardButton yesButton = new InlineKeyboardCallbackButton(yes, yesCallback);
@@ -30,7 +31,8 @@ namespace WhoAmIBotSpace.Helpers
             InlineKeyboardButton[] row2 = new InlineKeyboardButton[] { idkButton };
             return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row, row2 });
         }
-
+        #endregion
+        #region Guess, give up
         public static IReplyMarkup InlineGuessGiveUp(string guess, string guessCallback, string giveUp, string giveUpCallback)
         {
             InlineKeyboardButton guessButton = new InlineKeyboardCallbackButton(guess, guessCallback);
@@ -38,7 +40,8 @@ namespace WhoAmIBotSpace.Helpers
             InlineKeyboardButton[] row = new InlineKeyboardButton[] { guessButton, giveUpButton };
             return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row });
         }
-
+        #endregion
+        #region Choose language
         public static IReplyMarkup InlineChooseLanguage(List<List<string>> grid, long chatId)
         {
             List<List<InlineKeyboardButton>> bGrid = new List<List<InlineKeyboardButton>>();
@@ -73,13 +76,15 @@ namespace WhoAmIBotSpace.Helpers
             }
             return new InlineKeyboardMarkup(aGrid.ToArray());
         }
-
+        #endregion
+        #region Start me
         public static IReplyMarkup InlineStartMe(string username)
         {
             InlineKeyboardButton b = InlineKeyboardButton.WithUrl("Start", $"http://t.me/{username}");
             return new InlineKeyboardMarkup(new InlineKeyboardButton[] { b });
         }
-
+        #endregion
+        #region Get Games
         public static IReplyMarkup InlineGetGames(List<Game> games, long chatid)
         {
             var rows = new List<InlineKeyboardButton[]>();
@@ -95,5 +100,19 @@ namespace WhoAmIBotSpace.Helpers
             rows.Add(new InlineKeyboardButton[] { new InlineKeyboardCallbackButton("Close", $"close@{chatid}") });
             return new InlineKeyboardMarkup(rows.ToArray());
         }
+        #endregion
+        #region Settings
+        public static IReplyMarkup InlineSettings(long groupId, string joinTimeout,
+            string gameTimeout, string cancelgameAdmin, string close)
+        {
+            var row1 = new InlineKeyboardButton[2];
+            row1[0] = new InlineKeyboardCallbackButton(joinTimeout, $"joinTimeout@{groupId}");
+            row1[1] = new InlineKeyboardCallbackButton(gameTimeout, $"joinTimeout@{groupId}");
+            var row2 = new InlineKeyboardButton[2];
+            row2[0] = new InlineKeyboardCallbackButton(cancelgameAdmin, $"cancelgameAdmin@{groupId}");
+            row2[1] = new InlineKeyboardCallbackButton(close, $"closesettings@{groupId}");
+            return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row1, row2 });
+        }
+        #endregion
     }
 }

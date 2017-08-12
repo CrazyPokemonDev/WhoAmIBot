@@ -111,7 +111,7 @@ namespace WhoAmIBotSpace
             {
                 SendLangMessage(g.GroupId, "BotStopping");
                 g.Thread?.Abort();
-                g.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                g.InactivityTimer?.Change(Timeout.Infinite, Timeout.Infinite);
             }
             foreach (var t in currentThreads)
             {
@@ -441,6 +441,7 @@ namespace WhoAmIBotSpace
             commands.Add("/canceljoin", new Action<Message>(Canceljoin_Command));
             commands.Add("/identify", new Action<Message>(Identify_Command));
             commands.Add("/ping", new Action<Message>(Ping_Command));
+            commands.Add("/settings", new Action<Message>(Settings_Command));
         }
         #endregion
 
@@ -1003,7 +1004,7 @@ namespace WhoAmIBotSpace
                     case ChatType.Supergroup:
                         if (!Groups.Exists(x => x.Id == msg.Chat.Id))
                         {
-                            Groups.Add(new Group(msg.From.Id, true) { LangKey = key });
+                            Groups.Add(new Group(msg.From.Id) { LangKey = key });
                             var par = new Dictionary<string, object>()
                             {
                                 { "key", key },
@@ -1034,6 +1035,17 @@ namespace WhoAmIBotSpace
             mre.WaitOne();
             client.OnCallbackQuery -= cHandler;
             EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, "LangSet", null, "", out var u, out var u2);
+        }
+        #endregion
+        #region /settings
+        private void Settings_Command(Message msg)
+        {
+            if (!msg.Chat.Type.IsGroup())
+            {
+                SendLangMessage(msg.Chat.Id, "NotInPrivate");
+                return;
+            }
+            SendLangMessage(msg.Chat.Id, "NotImplemented");
         }
         #endregion
         #region /start
@@ -1637,9 +1649,9 @@ namespace WhoAmIBotSpace
                     || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
                     if (e.CallbackQuery.Message == null) return;
                     string answer = e.CallbackQuery.Data.Split('@')[0];
-                    long gameId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
+                    if (!long.TryParse(e.CallbackQuery.Data.Split('@')[1], out long gameId)) return;
                     if (gameId != game.Id) return;
-                    if (e.CallbackQuery.From.Id == atTurn.Id && game.GroupId != testingGroupId)
+                    if (e.CallbackQuery.From.Id == atTurn?.Id && game.GroupId != testingGroupId)
                     {
                         client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString("NoAnswerSelf", LangCode(game.GroupId)), showAlert: true);
                         return;
@@ -1824,13 +1836,13 @@ namespace WhoAmIBotSpace
         #region Read Groups and Users
         private void ReadGroupsAndUsers()
         {
-            var query = ExecuteSql("SELECT Id, LangKey, LangSet, Name FROM Groups");
+            var query = ExecuteSql("SELECT Id, LangKey, Name FROM Groups");
             Groups.Clear();
             foreach (var row in query)
             {
                 if (row.Count == 0) continue;
-                Groups.Add(new Group(Convert.ToInt64(row[0].Trim()), Convert.ToBoolean(row[2].Trim()))
-                { LangKey = row[1].Trim(), Name = row[3].Trim() });
+                Groups.Add(new Group(Convert.ToInt64(row[0].Trim()))
+                { LangKey = row[1].Trim(), Name = row[2].Trim() });
             }
             query = ExecuteSql("SELECT Id, LangKey, Name, Username FROM Users");
             Users.Clear();
