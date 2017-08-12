@@ -8,8 +8,8 @@ namespace WhoAmIBotSpace.Classes
 {
     public class GameFinishedEventArgs : EventArgs
     {
-        public Game Game;
-        public GameFinishedEventArgs(Game game)
+        public NodeGame Game;
+        public GameFinishedEventArgs(NodeGame game)
         {
             Game = game;
         }

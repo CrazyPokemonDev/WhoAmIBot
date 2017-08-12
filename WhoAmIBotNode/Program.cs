@@ -11,9 +11,9 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using WhoAmIBotSpace.Classes;
 using WhoAmIBotSpace.Helpers;
-using Game = WhoAmIBotSpace.Classes.Game;
-using User = WhoAmIBotSpace.Classes.User;
-using Group = WhoAmIBotSpace.Classes.Group;
+using Game = WhoAmIBotSpace.Classes.NodeGame;
+using User = WhoAmIBotSpace.Classes.NodeUser;
+using Group = WhoAmIBotSpace.Classes.NodeGroup;
 using File = System.IO.File;
 using Telegram.Bot;
 using System.Net;
@@ -135,6 +135,7 @@ namespace WhoAmIBotSpace
                     db.Groups.Find(groupid).JoinTimeout = val;
                     EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
                         Strings.JoinTimeoutA, null, val.ToString());
+                    db.SaveChanges();
                 }
             };
             var row = new InlineKeyboardButton[3];
@@ -178,6 +179,7 @@ namespace WhoAmIBotSpace
                     db.Groups.Find(groupid).GameTimeout = val;
                     EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
                         Strings.GameTimeoutA, null, $"{val / 60}h");
+                    db.SaveChanges();
                 }
             };
             var row = new InlineKeyboardButton[4];
@@ -199,16 +201,10 @@ namespace WhoAmIBotSpace
             }
             finally
             {
-                client.OnCallbackQuery -= cHandler;
+                OnCallbackQuery -= cHandler;
             }
         }
         #endregion
-        #endregion
-        #region Helpers
-        private static Group GetGroup(Game g)
-        {
-            return Groups.Find(x => x.Id == g.GroupId);
-        }
         #endregion
 
         #region Initialization stuff
@@ -323,33 +319,6 @@ namespace WhoAmIBotSpace
             #endregion
         }
         #endregion
-        #region On callback query
-        private static void Client_OnCallbackQuery(object sender, CallbackQueryEventArgs e)
-        {
-            if (!e.CallbackQuery.Data.Contains("@")
-                || !long.TryParse(e.CallbackQuery.Data.Substring(e.CallbackQuery.Data.IndexOf("@") + 1), out long id)
-                || e.CallbackQuery.Message == null
-                || GamesRunning.Exists(x => x.Id == id)) return;
-            if (!gameQueries.Exists(x => e.CallbackQuery.Data.StartsWith(x))) return;
-            else
-            {
-                Message cmsg = e.CallbackQuery.Message;
-                var query = ExecuteSql("SELECT seq FROM sqlite_sequence WHERE name = 'Games'");
-                long last = 0;
-                if (query.Count < 1) last = 0;
-                else
-                {
-                    if (query[0].Count < 1) last = 0;
-                    else if (!long.TryParse(query[0][0], out last)) last = 0;
-                }
-                if (id < last + 1)
-                {
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.GameNoLongerRunning, e.CallbackQuery.From.Id));
-                    client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId, null);
-                }
-            }
-        }
-        #endregion
 
         #region Language
         #region Get string
@@ -385,20 +354,22 @@ namespace WhoAmIBotSpace
         #region Lang code
         private static string LangCode(long id)
         {
-            string key = "";
-            if (Groups.Exists(x => x.Id == id)) key = Groups.Find(x => x.Id == id).LangKey;
-            else if (Users.Exists(x => x.Id == id)) key = Users.Find(x => x.Id == id).LangKey;
-            else key = defaultLangCode;
-            var par = new Dictionary<string, object>() { { "key", key } };
-            var q = ExecuteSql("SELECT key FROM ExistingLanguages WHERE Key=@key", par);
-            if (q.Count > 0 && q[0].Count > 0) return q[0][0];
-            else
+            using (var db = new WhoAmIBotContext())
             {
-                par = new Dictionary<string, object>() { { "id", id } };
-                q = ExecuteSql("SELECT key FROM existinglanguages WHERE key LIKE (SUBSTR((SELECT langkey FROM users where id=@id), 0, 3)||'-%')",
-                    par);
-                if (q.Count > 0 && q[0].Count > 0) return q[0][0];
-                else return defaultLangCode;
+                string key = "";
+                if (db.Groups.Any(x => x.Id == id)) key = db.Groups.Find(id).LangKey;
+                else if (db.Users.Any(x => x.Id == id)) key = db.Users.Find(id).LangKey;
+                else key = defaultLangCode;
+                var l = db.ExistingLanguages.Find(key);
+                if (l != null) return l.Key;
+                else
+                {
+                    var par = new Dictionary<string, object>() { { "id", id } };
+                    var q = ExecuteSql("SELECT key FROM existinglanguages WHERE key LIKE " +
+                        "(SUBSTR((SELECT langkey FROM users where id=@p0), 0, 3)||'-%')", par);
+                    if (q.Count > 0 && q[0].Count > 0) return q[0][0];
+                    else return defaultLangCode;
+                }
             }
         }
         #endregion
@@ -537,27 +508,26 @@ namespace WhoAmIBotSpace
         private LangFile GetLangFile(string key, bool completify = true)
 #endif
         {
-            var par = new Dictionary<string, object>()
+            using (var db = new WhoAmIBotContext())
             {
-                { "key", key }
-            };
-            var query = ExecuteSql("SELECT Name FROM ExistingLanguages WHERE Key=@key", par);
-            LangFile lf = new LangFile()
-            {
-                LangKey = key,
-                Name = query[0][0],
-                Strings = new List<JString>()
-            };
-            string command = $"SELECT Key, Value FROM '{key}'";
-            if (completify) command = $"SELECT key, value FROM '{key}' UNION ALL" +
-                    $" SELECT key, value FROM '{defaultLangCode}' WHERE key NOT IN (SELECT key FROM '{key}')";
-            query = ExecuteSql(command);
-            foreach (var row in query)
-            {
-                if (row.Count < 2) continue;
-                lf.Strings.Add(new JString(row[0], row[1]));
+                var lang = db.ExistingLanguages.Find(key);
+                LangFile lf = new LangFile()
+                {
+                    LangKey = key,
+                    Name = lang.Name,
+                    Strings = new List<JString>()
+                };
+                string command = $"SELECT Key, Value FROM '{key}'";
+                if (completify) command = $"SELECT key, value FROM '{key}' UNION ALL" +
+                        $" SELECT key, value FROM '{defaultLangCode}' WHERE key NOT IN (SELECT key FROM '{key}')";
+                var query = ExecuteSql(command);
+                foreach (var row in query)
+                {
+                    if (row.Count < 2) continue;
+                    lf.Strings.Add(new JString(row[0], row[1]));
+                }
+                return lf;
             }
-            return lf;
         }
         #endregion
         #endregion
@@ -963,7 +933,7 @@ namespace WhoAmIBotSpace
                 return;
             }
             Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
-            AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
+            AddPlayer(g, new NodePlayer(msg.From.Id, msg.From.FullName()));
             g.InactivityTimer.Change(g.Group.JoinTimeout * 60 * 1000, Timeout.Infinite);
         }
         #endregion
@@ -1375,7 +1345,7 @@ namespace WhoAmIBotSpace
             SendLangMessage(msg.Chat.Id, Strings.GameStarted);
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.PlayerList, null, out Message m, out var u1, "");
             g.PlayerlistMessage = m;
-            AddPlayer(g, new Player(msg.From.Id, msg.From.FullName()));
+            AddPlayer(g, new NodePlayer(msg.From.Id, msg.From.FullName()));
             Timer t = new Timer(x =>
             {
                 CancelGame(g);
@@ -1639,7 +1609,7 @@ namespace WhoAmIBotSpace
 
         #region Game Flow
         #region Add player
-        private static void AddPlayer(Game game, Player player)
+        private static void AddPlayer(Game game, NodePlayer player)
         {
             if (game.State != GameState.Joining)
             {
@@ -1671,7 +1641,7 @@ namespace WhoAmIBotSpace
             #region Preparation phase
             SendLangMessage(game.GroupId, Strings.GameFlowStarted);
             game.State = GameState.Running;
-            game.TotalPlayers = new List<Player>();
+            game.TotalPlayers = new List<NodePlayer>();
             foreach (var p in game.Players)
             {
                 game.TotalPlayers.Add(p);
@@ -1687,10 +1657,10 @@ namespace WhoAmIBotSpace
             {
                 if (!game.Players.Exists(x => x.Id == e.Message.From.Id)
                 || e.Message.Type != MessageType.TextMessage || e.Message.Chat.Type != ChatType.Private) return;
-                Player p = game.Players.Find(x => x.Id == e.Message.From.Id);
+                NodePlayer p = game.Players.Find(x => x.Id == e.Message.From.Id);
                 int pIndex = game.Players.IndexOf(p);
                 int nextIndex = (pIndex == game.Players.Count - 1) ? 0 : pIndex + 1;
-                Player next = game.Players[nextIndex];
+                NodePlayer next = game.Players[nextIndex];
                 if (game.RoleIdDict.ContainsKey(next.Id))
                 {
                     SendLangMessage(p.Id, game.GroupId, Strings.AlreadySentRole, null, next.Name);
@@ -1713,7 +1683,7 @@ namespace WhoAmIBotSpace
             }
             SendLangMessage(game.GroupId, Strings.AllRolesSet);
             game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-            foreach (Player p in game.Players)
+            foreach (NodePlayer p in game.Players)
             {
                 string message = "\n";
                 foreach (var kvp in game.RoleIdDict)
@@ -1729,7 +1699,7 @@ namespace WhoAmIBotSpace
             {
                 // do players turns until everything is finished, then break;
                 if (turn >= game.Players.Count) turn = 0;
-                Player atTurn = game.Players[turn];
+                NodePlayer atTurn = game.Players[turn];
                 game.Turn = atTurn;
                 if (atTurn.GaveUp)
                 {
@@ -1804,7 +1774,7 @@ namespace WhoAmIBotSpace
                         case "giveup":
                             #region Give Up
                             endloop = true;
-                            Player p = game.Players.Find(x => x.Id == e.CallbackQuery.From.Id);
+                            NodePlayer p = game.Players.Find(x => x.Id == e.CallbackQuery.From.Id);
                             SendLangMessage(game.GroupId, Strings.GaveUp, null,
                                 p.Name,
                                 game.RoleIdDict[e.CallbackQuery.From.Id]);

@@ -11,22 +11,22 @@ using WhoAmIBotSpace.Helpers;
 
 namespace WhoAmIBotSpace.Classes
 {
-    public class Game
+    public class NodeGame
     {
         public int Id { get; }
         public long GroupId { get; }
         public string GroupName { get; }
-        public List<Player> Players { get; } = new List<Player>();
-        public List<Player> TotalPlayers { get; set; } = new List<Player>();
+        public List<NodePlayer> Players { get; } = new List<NodePlayer>();
+        public List<NodePlayer> TotalPlayers { get; set; } = new List<NodePlayer>();
         public GameState State { get; set; } = GameState.Joining;
         public Dictionary<long, string> RoleIdDict { get; } = new Dictionary<long, string>();
         public Thread Thread { get; set; }
-        public Player Winner { get; set; }
+        public NodePlayer Winner { get; set; }
         public Message PlayerlistMessage { get; set; }
         public Timer InactivityTimer { get; set; }
-        public Player Turn { get; set; }
-        public Group Group { get; set; }
-        public Game(int id, long groupId, string groupName, Group group)
+        public NodePlayer Turn { get; set; }
+        public NodeGroup Group { get; set; }
+        public NodeGame(int id, long groupId, string groupName, NodeGroup group)
         {
             Id = id;
             GroupId = groupId;
@@ -36,14 +36,14 @@ namespace WhoAmIBotSpace.Classes
 
         public bool DictFull()
         {
-            foreach (Player p in Players)
+            foreach (NodePlayer p in Players)
             {
                 if (!RoleIdDict.ContainsKey(p.Id)) return false;
             }
             return true;
         }
 
-        public void TrySetWinner(Player p)
+        public void TrySetWinner(NodePlayer p)
         {
             if (Winner == null) Winner = p;
         }

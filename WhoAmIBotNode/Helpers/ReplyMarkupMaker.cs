@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.InlineKeyboardButtons;
 using Telegram.Bot.Types.ReplyMarkups;
-using Game = WhoAmIBotSpace.Classes.Game;
+using Game = WhoAmIBotSpace.Classes.NodeGame;
 
 namespace WhoAmIBotSpace.Helpers
 {

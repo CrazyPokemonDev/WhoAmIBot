@@ -75,12 +75,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Classes\Args.cs" />
-    <Compile Include="Classes\Game.cs" />
+    <Compile Include="Classes\NodeGame.cs" />
     <Compile Include="Classes\GameFinishedEventArgs.cs" />
+    <Compile Include="Classes\NodeGroup.cs" />
     <Compile Include="Classes\JString.cs" />
     <Compile Include="Classes\LangFile.cs" />
-    <Compile Include="Classes\Player.cs" />
-    <Compile Include="Classes\User.cs" />
+    <Compile Include="Classes\NodePlayer.cs" />
+    <Compile Include="Classes\NodeUser.cs" />
     <Compile Include="Command.cs">
       <DependentUpon>DBModel.tt</DependentUpon>
     </Compile>
