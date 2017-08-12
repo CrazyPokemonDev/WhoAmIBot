@@ -348,6 +348,12 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #endregion
+        #region Helpers
+        private Group GetGroup(Game g)
+        {
+            return Groups.Find(x => x.Id == g.GroupId);
+        }
+        #endregion
 
         #region Language
         #region Get string
@@ -1615,12 +1621,7 @@ namespace WhoAmIBotSpace
         #endregion
         #endregion
 
-        #region Helpers
-        private Group GetGroup(Game g)
-        {
-            return Groups.Find(x => x.Id == g.GroupId);
-        }
-        #endregion
+        
 
         #region Error handling
         private void Client_OnReceiveError(object sender, EventArgs ea)
