@@ -392,7 +392,9 @@ namespace WhoAmIBotSpace
             if (q.Count > 0 && q[0].Count > 0) return q[0][0];
             else
             {
-                q = ExecuteSql("SELECT key FROM existinglanguages WHERE key LIKE (SUBSTR((SELECT langkey FROM users LIMIT 1), 0, 3)||'-%')");
+                par = new Dictionary<string, object>() { { "id", id } };
+                q = ExecuteSql("SELECT key FROM existinglanguages WHERE key LIKE (SUBSTR((SELECT langkey FROM users where id=@id), 0, 3)||'-%')",
+                    par);
                 if (q.Count > 0 && q[0].Count > 0) return q[0][0];
                 else return defaultLangCode;
             }
