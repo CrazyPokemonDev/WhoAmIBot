@@ -12,10 +12,9 @@ namespace WhoAmIBotSpace
     using System;
     using System.Collections.Generic;
     
-    public partial class Nextgame
+    public partial class ExistingLanguage
     {
-        public long Index { get; set; }
-        public long Id { get; set; }
-        public long GroupId { get; set; }
+        public string Key { get; set; }
+        public string Name { get; set; }
     }
 }

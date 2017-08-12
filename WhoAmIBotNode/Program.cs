@@ -16,7 +16,6 @@ using User = WhoAmIBotSpace.Classes.User;
 using Group = WhoAmIBotSpace.Classes.Group;
 using File = System.IO.File;
 using Telegram.Bot;
-using Telegram.Bot.Args;
 using System.Net;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.InlineKeyboardButtons;
@@ -59,9 +58,11 @@ namespace WhoAmIBotSpace
         private static bool Maintenance = false;
         private static TelegramBotClient client;
         private static bool running = true;
+        private static List<Thread> currentThreads = new List<Thread>();
         #endregion
         #region Events
-        public static event EventHandler<GameFinishedEventArgs> GameFinished;
+        public static event EventHandler<CallbackQueryEventArgs> OnCallbackQuery;
+        public static event EventHandler<MessageEventArgs> OnMessage;
         #endregion
 
         #region Settings
@@ -71,30 +72,33 @@ namespace WhoAmIBotSpace
             var mre = new ManualResetEvent(false);
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
-                var d = e.CallbackQuery.Data;
-                if ((!d.StartsWith("cancelgameYes@") && !d.StartsWith("cancelgameNo@"))
-                || d.IndexOf("@") != d.LastIndexOf("@")
-                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
-                || grp != groupid || !Groups.Exists(x => x.Id == groupid)
-                || e.CallbackQuery.Message == null
-                || e.CallbackQuery.From.Id != chat) return;
-                var par = new Dictionary<string, object>() { { "id", groupid } };
-                switch (d.Remove(d.IndexOf("@")))
+                using (var db = new WhoAmIBotContext())
                 {
-                    case "cancelgameYes":
-                        Groups.Find(x => x.Id == groupid).CancelgameAdmin = true;
-                        par.Add("b", true);
-                        ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
-                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
-                            Strings.CancelgameA, null, GetString(Strings.True, groupid));
-                        break;
-                    case "cancelgameNo":
-                        Groups.Find(x => x.Id == groupid).CancelgameAdmin = false;
-                        par.Add("b", false);
-                        ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
-                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
-                            Strings.CancelgameA, null, GetString(Strings.False, groupid));
-                        break;
+                    var d = e.CallbackQuery.Data;
+                    if ((!d.StartsWith("cancelgameYes@") && !d.StartsWith("cancelgameNo@"))
+                    || d.IndexOf("@") != d.LastIndexOf("@")
+                    || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                    || grp != groupid || !Groups.Exists(x => x.Id == groupid)
+                    || e.CallbackQuery.Message == null
+                    || e.CallbackQuery.From.Id != chat) return;
+                    var par = new Dictionary<string, object>() { { "id", groupid } };
+                    switch (d.Remove(d.IndexOf("@")))
+                    {
+                        case "cancelgameYes":
+                            Groups.Find(x => x.Id == groupid).CancelgameAdmin = true;
+                            par.Add("b", true);
+                            ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
+                            EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
+                                Strings.CancelgameA, null, GetString(Strings.True, groupid));
+                            break;
+                        case "cancelgameNo":
+                            Groups.Find(x => x.Id == groupid).CancelgameAdmin = false;
+                            par.Add("b", false);
+                            ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
+                            EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
+                                Strings.CancelgameA, null, GetString(Strings.False, groupid));
+                            break;
+                    }
                 }
                 mre.Set();
             };
@@ -103,12 +107,12 @@ namespace WhoAmIBotSpace
                 GetString(Groups.Find(x => x.Id == groupid).CancelgameAdmin ? Strings.True : Strings.False, groupid));
             try
             {
-                client.OnCallbackQuery += cHandler;
+                OnCallbackQuery += cHandler;
                 mre.WaitOne();
             }
             finally
             {
-                client.OnCallbackQuery -= cHandler;
+                OnCallbackQuery -= cHandler;
             }
         }
         #endregion
@@ -145,12 +149,12 @@ namespace WhoAmIBotSpace
                 maxIdleJoinTime.TotalMinutes.ToString(), Groups.Find(x => x.Id == groupid).JoinTimeout.ToString());
             try
             {
-                client.OnCallbackQuery += cHandler;
+                OnCallbackQuery += cHandler;
                 mre.WaitOne();
             }
             finally
             {
-                client.OnCallbackQuery -= cHandler;
+                OnCallbackQuery -= cHandler;
             }
         }
         #endregion
@@ -188,7 +192,7 @@ namespace WhoAmIBotSpace
                 $"{maxIdleGameTime.TotalHours}h", $"{Groups.Find(x => x.Id == groupid).GameTimeout / 60}h");
             try
             {
-                client.OnCallbackQuery += cHandler;
+                OnCallbackQuery += cHandler;
                 mre.WaitOne();
             }
             finally
@@ -252,13 +256,6 @@ namespace WhoAmIBotSpace
         #region Handle Data
         private static void HandleData(string data)
         {
-            if (data.StartsWith("TOKEN:"))
-            {
-                client = new TelegramBotClient(data.Substring(data.IndexOf(":") + 1));
-                return;
-            }
-            #region On update
-            var update = JsonConvert.DeserializeObject<Update>(data);
 #if DEBUG
             do
             {
@@ -266,6 +263,13 @@ namespace WhoAmIBotSpace
             try
             {
 #endif
+                if (data.StartsWith("TOKEN:"))
+                {
+                    client = new TelegramBotClient(data.Substring(data.IndexOf(":") + 1));
+                    return;
+                }
+                #region On update
+                var update = JsonConvert.DeserializeObject<Update>(data);
                 if (update.Type == UpdateType.MessageUpdate && update.Message.Type == MessageType.TextMessage)
                 {
                     foreach (var entity in update.Message.Entities)
@@ -295,6 +299,14 @@ namespace WhoAmIBotSpace
                             }
                         }
                     }
+                }
+                if (update.Type == UpdateType.MessageUpdate)
+                {
+                    OnMessage?.Invoke(null, new MessageEventArgs(update.Message));
+                }
+                if (update.Type == UpdateType.CallbackQueryUpdate)
+                {
+                    OnCallbackQuery?.Invoke(null, new CallbackQueryEventArgs(update.CallbackQuery));
                 }
 #if DEBUG
             } while (false);
@@ -695,14 +707,14 @@ namespace WhoAmIBotSpace
                 };
                 try
                 {
-                    client.OnMessage += mHandler;
+                    OnMessage += mHandler;
                     client.SendTextMessageAsync(msg.Chat.Id, "Communication started.");
                     SendLangMessage(linked, Strings.GASpeaking);
                     mre.WaitOne();
                 }
                 finally
                 {
-                    client.OnMessage -= mHandler;
+                    OnMessage -= mHandler;
                     client.SendTextMessageAsync(msg.Chat.Id, "Communication stopped.");
                     SendLangMessage(linked, Strings.MessageLinkStopped);
                 }
@@ -734,7 +746,7 @@ namespace WhoAmIBotSpace
                 {
                     client.EditMessageReplyMarkupAsync(e.CallbackQuery.Message.Chat.Id, e.CallbackQuery.Message.MessageId, null);
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
-                    client.OnCallbackQuery -= cHandler;
+                    OnCallbackQuery -= cHandler;
                     return;
                 }
                 if (!long.TryParse(data.Remove(data.IndexOf("@")).Substring(data.IndexOf(":") + 1), out long groupid)) return;
@@ -772,7 +784,7 @@ namespace WhoAmIBotSpace
             foreach (var s in string.Join("\n\n",
                 GamesRunning.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000))
                 client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(GamesRunning, msg.Chat.Id)).Wait();
-            client.OnCallbackQuery += cHandler;
+            OnCallbackQuery += cHandler;
         }
         #endregion
         #region /getlang
@@ -799,9 +811,15 @@ namespace WhoAmIBotSpace
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.SelectLanguage,
                 ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector), msg.Chat.Id),
                 out Message sent, out var u);
-            client.OnCallbackQuery += cHandler;
-            mre.WaitOne();
-            client.OnCallbackQuery -= cHandler;
+            try
+            {
+                OnCallbackQuery += cHandler;
+                mre.WaitOne();
+            }
+            finally
+            {
+                OnCallbackQuery -= cHandler;
+            }
             EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, Strings.OneMoment, null, "", out var u2, out u);
 
         }
@@ -1000,12 +1018,12 @@ namespace WhoAmIBotSpace
                 out sent, out var u1);
             try
             {
-                client.OnCallbackQuery += cHandler;
+                OnCallbackQuery += cHandler;
                 mre.WaitOne();
             }
             finally
             {
-                client.OnCallbackQuery -= cHandler;
+                OnCallbackQuery -= cHandler;
             }
         }
         #endregion
@@ -1177,9 +1195,15 @@ namespace WhoAmIBotSpace
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.SelectLanguage,
                 ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector), msg.Chat.Id),
                 out Message sent, out string useless);
-            client.OnCallbackQuery += cHandler;
-            mre.WaitOne();
-            client.OnCallbackQuery -= cHandler;
+            try
+            {
+                OnCallbackQuery += cHandler;
+                mre.WaitOne();
+            }
+            finally
+            {
+                OnCallbackQuery -= cHandler;
+            }
             EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, Strings.LangSet, null, "", out var u, out var u2);
         }
         #endregion
@@ -1231,7 +1255,7 @@ namespace WhoAmIBotSpace
                     case "closesettings":
                         client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                         EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done, null);
-                        client.OnCallbackQuery -= cHandler;
+                        OnCallbackQuery -= cHandler;
                         break;
                 }
             };
@@ -1242,7 +1266,7 @@ namespace WhoAmIBotSpace
             SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.SentPM);
             SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.Settings, ReplyMarkupMaker.InlineSettings(msg.Chat.Id,
                 joinTimeout, gameTimeout, cancelgameAdmin, close));
-            client.OnCallbackQuery += cHandler;
+            OnCallbackQuery += cHandler;
         }
         #endregion
         #region /start
@@ -1482,12 +1506,12 @@ namespace WhoAmIBotSpace
                         lf.LangKey, lf.Name, lf.Strings.Count.ToString(), "\n" + missing.ToStringList());
                     try
                     {
-                        client.OnCallbackQuery += cHandler;
+                        OnCallbackQuery += cHandler;
                         mre.WaitOne();
                     }
                     finally
                     {
-                        client.OnCallbackQuery -= cHandler;
+                        OnCallbackQuery -= cHandler;
                     }
                     if (permit)
                     {
@@ -1551,9 +1575,15 @@ namespace WhoAmIBotSpace
                     SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.UpdateLang,
                         ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name,
                         added.ToString(), changed.ToString(), "\n" + deleted.ToStringList(), "\n" + missing.ToStringList());
-                    client.OnCallbackQuery += cHandler;
-                    mre.WaitOne();
-                    client.OnCallbackQuery -= cHandler;
+                    try
+                    {
+                        OnCallbackQuery += cHandler;
+                        mre.WaitOne();
+                    }
+                    finally
+                    {
+                        OnCallbackQuery -= cHandler;
+                    }
                     if (permit)
                     {
                         foreach (var js in lf.Strings)
@@ -1672,12 +1702,12 @@ namespace WhoAmIBotSpace
             };
             try    //we don't wanna have that handler there if the thread is aborted, do we?
             {
-                client.OnMessage += eHandler;
+                OnMessage += eHandler;
                 mre.WaitOne();
             }
             finally
             {
-                client.OnMessage -= eHandler;
+                OnMessage -= eHandler;
             }
             SendLangMessage(game.GroupId, Strings.AllRolesSet);
             game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
@@ -1793,14 +1823,14 @@ namespace WhoAmIBotSpace
                 mre.Reset();
                 try
                 {
-                    client.OnMessage += qHandler;
-                    client.OnCallbackQuery += c1Handler;
+                    OnMessage += qHandler;
+                    OnCallbackQuery += c1Handler;
                     mre.WaitOne();
                 }
                 finally
                 {
-                    client.OnMessage -= qHandler;
-                    client.OnCallbackQuery -= c1Handler;
+                    OnMessage -= qHandler;
+                    OnCallbackQuery -= c1Handler;
                 }
                 mre.Reset();
                 game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
@@ -1808,12 +1838,12 @@ namespace WhoAmIBotSpace
                 {
                     try
                     {
-                        client.OnMessage += guessHandler;
+                        OnMessage += guessHandler;
                         mre.WaitOne();
                     }
                     finally
                     {
-                        client.OnMessage -= guessHandler;
+                        OnMessage -= guessHandler;
                     }
                 }
                 if (game.Players.Count < 1) break;
@@ -1872,12 +1902,12 @@ namespace WhoAmIBotSpace
                 mre.Reset();
                 try
                 {
-                    client.OnCallbackQuery += cHandler;
+                    OnCallbackQuery += cHandler;
                     mre.WaitOne();
                 }
                 finally
                 {
-                    client.OnCallbackQuery -= cHandler;
+                    OnCallbackQuery -= cHandler;
                 }
                 game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
                 if (game.Players.Count < 1) break;

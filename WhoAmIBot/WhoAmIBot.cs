@@ -104,7 +104,31 @@ namespace WhoAmIBotSpace
             }
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
             {
-
+                if (e.Update.Message.Entities.Count > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand)
+                {
+                    var cmd = e.Update.Message.EntityValues[0];
+                    using (var db = new WhoAmIBotContext())
+                    {
+                        if (db.Commands.Any(x => x.Trigger == cmd && x.Standalone))
+                        {
+                            var node = Nodes.FirstOrDefault(x => x.State == NodeState.Running);
+                            using (var sw = new StreamWriter(node.Pipe))
+                            {
+                                sw.WriteLine(JsonConvert.SerializeObject(e.Update));
+                                sw.Flush();
+                            }
+                            return;
+                        }
+                    }
+                }
+                foreach (var node in Nodes)
+                {
+                    using (var sw = new StreamWriter(node.Pipe))
+                    {
+                        sw.WriteLine(JsonConvert.SerializeObject(e.Update));
+                        sw.Flush();
+                    }
+                }
             }
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage
             && e.Update.Message.Text == "I hereby grant you permission." && e.Update.Message.From.Id == Flom)
