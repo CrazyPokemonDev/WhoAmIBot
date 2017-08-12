@@ -295,18 +295,6 @@ namespace WhoAmIBotSpace
                             }
                         }
                     }
-                    if (update.Message.Text == "I hereby grant you permission." && update.Message.From.Id == Flom)
-                    {
-                        var msg = update.Message;
-                        if (msg.ReplyToMessage == null) return;
-                        GlobalAdmins.Add(msg.ReplyToMessage.From.Id);
-                        var par = new Dictionary<string, object>()
-                        {
-                            { "id", msg.ReplyToMessage.From.Id }
-                        };
-                        ExecuteSql("INSERT INTO GlobalAdmins VALUES(@id)", par);
-                        SendLangMessage(msg.Chat.Id, Strings.PowerGranted);
-                    }
                 }
 #if DEBUG
             } while (false);

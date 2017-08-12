@@ -32,5 +32,6 @@ namespace WhoAmIBotSpace
         public virtual DbSet<Group> Groups { get; set; }
         public virtual DbSet<User> Users { get; set; }
         public virtual DbSet<Nextgame> Nextgames { get; set; }
+        public virtual DbSet<Command> Commands { get; set; }
     }
 }

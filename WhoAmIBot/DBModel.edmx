@@ -5,6 +5,13 @@
     <!-- SSDL content -->
     <edmx:StorageModels>
     <Schema Namespace="WhoAmIBotSpace.DBModel.Store" Provider="System.Data.SQLite.EF6" ProviderManifestToken="Data Source=C:\Olfi01\WhoAmIBot\db.sqlite" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
+        <EntityType Name="Commands">
+          <Key>
+            <PropertyRef Name="Trigger" />
+          </Key>
+          <Property Name="Trigger" Type="nvarchar" MaxLength="2147483647" Nullable="false" />
+          <Property Name="Standalone" Type="bit" Nullable="false" />
+        </EntityType>
         <EntityType Name="ExistingLanguages">
           <Key>
             <PropertyRef Name="Key" />
@@ -49,9 +56,9 @@
           <Key>
             <PropertyRef Name="Index" />
           </Key>
-          <Property Name="Index" Type="integer" Nullable="false" />
-          <Property Name="Id" Type="integer" />
-          <Property Name="GroupId" Type="integer" />
+          <Property Name="Index" Type="integer" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="Id" Type="integer" Nullable="false" />
+          <Property Name="GroupId" Type="integer" Nullable="false" />
         </EntityType>
         <EntityType Name="Users">
           <Key>
@@ -63,6 +70,7 @@
           <Property Name="Username" Type="nvarchar" MaxLength="2147483647" />
         </EntityType>
         <EntityContainer Name="WhoAmIBotSpaceDBModelStoreContainer">
+          <EntitySet Name="Commands" EntityType="Self.Commands" store:Type="Tables" />
           <EntitySet Name="ExistingLanguages" EntityType="Self.ExistingLanguages" store:Type="Tables" />
           <EntitySet Name="Games" EntityType="Self.Games" store:Type="Tables" />
           <EntitySet Name="GamesFinished" EntityType="Self.GamesFinished" store:Type="Tables" />
@@ -132,6 +140,7 @@
           <EntitySet Name="Groups" EntityType="Self.Group" />
           <EntitySet Name="Users" EntityType="Self.User" />
           <EntitySet Name="Nextgames" EntityType="WhoAmIBotSpace.DBModel.Nextgame" />
+          <EntitySet Name="Commands" EntityType="WhoAmIBotSpace.DBModel.Command" />
         </EntityContainer>
         <EntityType Name="Nextgame">
           <Key>
@@ -140,6 +149,13 @@
           <Property Name="Index" Type="Int64" Nullable="false" />
           <Property Name="Id" Type="Int64" />
           <Property Name="GroupId" Type="Int64" />
+        </EntityType>
+        <EntityType Name="Command">
+          <Key>
+            <PropertyRef Name="Trigger" />
+          </Key>
+          <Property Name="Trigger" Type="String" Nullable="false" MaxLength="2147483647" FixedLength="false" Unicode="true" />
+          <Property Name="Standalone" Type="Boolean" Nullable="false" />
         </EntityType>
       </Schema>
     </edmx:ConceptualModels>
@@ -208,6 +224,14 @@
                 <ScalarProperty Name="GroupId" ColumnName="GroupId" />
                 <ScalarProperty Name="Id" ColumnName="Id" />
                 <ScalarProperty Name="Index" ColumnName="Index" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="Commands">
+            <EntityTypeMapping TypeName="WhoAmIBotSpace.DBModel.Command">
+              <MappingFragment StoreEntitySet="Commands">
+                <ScalarProperty Name="Standalone" ColumnName="Standalone" />
+                <ScalarProperty Name="Trigger" ColumnName="Trigger" />
               </MappingFragment>
             </EntityTypeMapping>
           </EntitySetMapping>

@@ -8,19 +8,11 @@ using UpdateEventArgs = Telegram.Bot.Args.UpdateEventArgs;
 using File = System.IO.File;
 using Telegram.Bot.Types.Enums;
 using WhoAmIBotSpace.Classes;
-using Game = WhoAmIBotSpace.Classes.Game;
-using User = WhoAmIBotSpace.Classes.User;
-using Group = WhoAmIBotSpace.Classes.Group;
 using WhoAmIBotSpace.Helpers;
-using Newtonsoft.Json;
-using System.Threading;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
-using System.Net;
-using System.Text;
 using System.Linq;
-using System.Text.RegularExpressions;
-using Telegram.Bot.Types.InlineKeyboardButtons;
+using Newtonsoft.Json;
 
 namespace WhoAmIBotSpace
 {
@@ -57,7 +49,6 @@ namespace WhoAmIBotSpace
             if (!Directory.Exists(baseFilePath)) Directory.CreateDirectory(baseFilePath);
             if (!File.Exists(sqliteFilePath)) SQLiteConnection.CreateFile(sqliteFilePath);
             InitSqliteConn();
-            ReadCommands();
         }
 
         private void InitSqliteConn()
@@ -99,7 +90,34 @@ namespace WhoAmIBotSpace
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
-            //TODO: pipes.
+            if (e.Update.Type == UpdateType.CallbackQueryUpdate)
+            {
+                foreach (var node in Nodes)
+                {
+                    using (var sw = new StreamWriter(node.Pipe))
+                    {
+                        sw.WriteLine(JsonConvert.SerializeObject(e.Update));
+                        sw.Flush();
+                    }
+                }
+                return;
+            }
+            if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
+            {
+
+            }
+            if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage
+            && e.Update.Message.Text == "I hereby grant you permission." && e.Update.Message.From.Id == Flom)
+            {
+                using (var db = new WhoAmIBotContext())
+                {
+                    var msg = e.Update.Message;
+                    if (msg.ReplyToMessage == null) return;
+                    db.GlobalAdmins.Add(new GlobalAdmin() { Id = msg.ReplyToMessage.From.Id });
+                    db.SaveChanges();
+                    SendLangMessage(msg.Chat.Id, Strings.PowerGranted);
+                }
+            }
         }
         #endregion
         #region On callback query
@@ -108,24 +126,26 @@ namespace WhoAmIBotSpace
             if (!e.CallbackQuery.Data.Contains("@")
                 || !long.TryParse(e.CallbackQuery.Data.Substring(e.CallbackQuery.Data.IndexOf("@") + 1), out long id)
                 || e.CallbackQuery.Message == null) return;
-            var q = ExecuteSql("SELECT * FROM Games");
-            if (q.Exists(x => x.Count > 0 && x[0] == id.ToString())) return;
-            if (!gameQueries.Exists(x => e.CallbackQuery.Data.StartsWith(x))) return;
-            else
+            using (var db = new WhoAmIBotContext())
             {
-                Message cmsg = e.CallbackQuery.Message;
-                var query = ExecuteSql("SELECT seq FROM sqlite_sequence WHERE name = 'Games'");
-                long last = 0;
-                if (query.Count < 1) last = 0;
+                if (db.Games.Any(x => x.Id == id)) return;
+                if (!gameQueries.Exists(x => e.CallbackQuery.Data.StartsWith(x))) return;
                 else
                 {
-                    if (query[0].Count < 1) last = 0;
-                    else if (!long.TryParse(query[0][0], out last)) last = 0;
-                }
-                if (id < last + 1)
-                {
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.GameNoLongerRunning, e.CallbackQuery.From.Id));
-                    client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId, null);
+                    Message cmsg = e.CallbackQuery.Message;
+                    var query = ExecuteSql("SELECT seq FROM sqlite_sequence WHERE name = 'Games'");
+                    long last = 0;
+                    if (query.Count < 1) last = 0;
+                    else
+                    {
+                        if (query[0].Count < 1) last = 0;
+                        else if (!long.TryParse(query[0][0], out last)) last = 0;
+                    }
+                    if (id < last + 1)
+                    {
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.GameNoLongerRunning, e.CallbackQuery.From.Id));
+                        client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId, null);
+                    }
                 }
             }
         }
@@ -156,7 +176,7 @@ namespace WhoAmIBotSpace
             }
             return query;
         }
-        
+
         private string GetString(string key, long langFrom)
         {
             return GetString(key, LangCode(langFrom));
@@ -165,18 +185,22 @@ namespace WhoAmIBotSpace
         #region Lang code
         private string LangCode(long id)
         {
-            string key = "";
-            if (Groups.Exists(x => x.Id == id)) key = Groups.Find(x => x.Id == id).LangKey;
-            else if (Users.Exists(x => x.Id == id)) key = Users.Find(x => x.Id == id).LangKey;
-            else key = defaultLangCode;
-            var par = new Dictionary<string, object>() { { "key", key } };
-            var q = ExecuteSql("SELECT key FROM ExistingLanguages WHERE Key=@key", par);
-            if (q.Count > 0 && q[0].Count > 0) return q[0][0];
-            else
+            using (var db = new WhoAmIBotContext())
             {
-                q = ExecuteSql("SELECT key FROM existinglanguages WHERE key LIKE (SUBSTR((SELECT langkey FROM users LIMIT 1), 0, 3)||'-%')");
-                if (q.Count > 0 && q[0].Count > 0) return q[0][0];
-                else return defaultLangCode;
+                string key = "";
+                if (db.Groups.Any(x => x.Id == id)) key = db.Groups.Find(id).LangKey;
+                else if (db.Users.Any(x => x.Id == id)) key = db.Users.Find(id).LangKey;
+                else key = defaultLangCode;
+                var l = db.ExistingLanguages.Find(key);
+                if (l != null) return l.Key;
+                else
+                {
+                    var par = new Dictionary<string, object>() { { "id", id } };
+                    var q = ExecuteSql("SELECT key FROM existinglanguages WHERE key LIKE " +
+                        "(SUBSTR((SELECT langkey FROM users where id=@p0), 0, 3)||'-%')", par);
+                    if (q.Count > 0 && q[0].Count > 0) return q[0][0];
+                    else return defaultLangCode;
+                }
             }
         }
         #endregion

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -8,7 +9,7 @@ namespace WhoAmIBotSpace.Helpers
 {
     public static class Extensions
     {
-        public static string FullName(this User user)
+        public static string FullName(this Telegram.Bot.Types.User user)
         {
             return $"{user.FirstName} {user.LastName}".Trim();
         }
@@ -75,7 +76,7 @@ namespace WhoAmIBotSpace.Helpers
     {
         public CommDummyMsg(int from, long groupid)
         {
-            From = new User() { Id = from };
+            From = new Telegram.Bot.Types.User() { Id = from };
             Text = $"/communicate {groupid}";
             Chat = new Chat() { Type = ChatType.Private, Id = from };
         }

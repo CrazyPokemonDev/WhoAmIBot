@@ -12,6 +12,7 @@
         <EntityTypeShape EntityType="WhoAmIBotSpace.DBModel.Group" Width="1.5" PointX="4.75" PointY="0.75" IsExpanded="true" />
         <EntityTypeShape EntityType="WhoAmIBotSpace.DBModel.User" Width="1.5" PointX="4.75" PointY="3.75" IsExpanded="true" />
         <EntityTypeShape EntityType="WhoAmIBotSpace.DBModel.Nextgame" Width="1.5" PointX="6.75" PointY="1.375" />
+        <EntityTypeShape EntityType="WhoAmIBotSpace.DBModel.Command" Width="1.5" PointX="6.75" PointY="3.625" />
       </Diagram>
     </edmx:Diagrams>
   </edmx:Designer>
