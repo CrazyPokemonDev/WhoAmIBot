@@ -78,33 +78,33 @@ namespace WhoAmIBotSpace
                     if ((!d.StartsWith("cancelgameYes@") && !d.StartsWith("cancelgameNo@"))
                     || d.IndexOf("@") != d.LastIndexOf("@")
                     || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
-                    || grp != groupid || !Groups.Exists(x => x.Id == groupid)
+                    || grp != groupid || db.Groups.Any(x => x.Id == groupid)
                     || e.CallbackQuery.Message == null
                     || e.CallbackQuery.From.Id != chat) return;
-                    var par = new Dictionary<string, object>() { { "id", groupid } };
                     switch (d.Remove(d.IndexOf("@")))
                     {
                         case "cancelgameYes":
-                            Groups.Find(x => x.Id == groupid).CancelgameAdmin = true;
-                            par.Add("b", true);
-                            ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
+                            db.Groups.Find(groupid).CancelgameAdmin = true;
                             EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
                                 Strings.CancelgameA, null, GetString(Strings.True, groupid));
                             break;
                         case "cancelgameNo":
-                            Groups.Find(x => x.Id == groupid).CancelgameAdmin = false;
-                            par.Add("b", false);
-                            ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
+                            db.Groups.Find(groupid).CancelgameAdmin = false;
                             EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
                                 Strings.CancelgameA, null, GetString(Strings.False, groupid));
                             break;
                     }
+                    db.SaveChanges();
                 }
                 mre.Set();
             };
-            SendLangMessage(chat, Strings.CancelgameQ, ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, groupid), $"cancelgameYes@{groupid}",
-                GetString(Strings.No, groupid), $"cancelgameNo@{groupid}"),
-                GetString(Groups.Find(x => x.Id == groupid).CancelgameAdmin ? Strings.True : Strings.False, groupid));
+            using (var db = new WhoAmIBotContext())
+            {
+                if (!db.Groups.Any(x => x.Id == groupid)) return;
+                SendLangMessage(chat, Strings.CancelgameQ, ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, groupid), $"cancelgameYes@{groupid}",
+                    GetString(Strings.No, groupid), $"cancelgameNo@{groupid}"),
+                    GetString(db.Groups.Find(groupid).CancelgameAdmin ? Strings.True : Strings.False, groupid));
+            }
             try
             {
                 OnCallbackQuery += cHandler;
@@ -122,31 +122,32 @@ namespace WhoAmIBotSpace
             var mre = new ManualResetEvent(false);
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
-                var d = e.CallbackQuery.Data;
-                if (!d.StartsWith("joinTimeout:") || !d.Contains("@") || d.IndexOf("@") != d.LastIndexOf("@")
-                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
-                || grp != groupid || e.CallbackQuery.From.Id != chat
-                || e.CallbackQuery.Message == null
-                || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out int val)
-                || !Groups.Exists(x => x.Id == groupid)) return;
-                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
-                Groups.Find(x => x.Id == groupid).JoinTimeout = val;
-                var par = new Dictionary<string, object>()
+                using (var db = new WhoAmIBotContext())
                 {
-                    { "val", val },
-                    { "id", groupid }
-                };
-                ExecuteSql("UPDATE Groups SET JoinTimeout=@val WHERE id=@id", par);
-                EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
-                    Strings.JoinTimeoutA, null, val.ToString());
+                    var d = e.CallbackQuery.Data;
+                    if (!d.StartsWith("joinTimeout:") || !d.Contains("@") || d.IndexOf("@") != d.LastIndexOf("@")
+                    || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                    || grp != groupid || e.CallbackQuery.From.Id != chat
+                    || e.CallbackQuery.Message == null
+                    || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out int val)
+                    || !db.Groups.Any(x => x.Id == groupid)) return;
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                    db.Groups.Find(groupid).JoinTimeout = val;
+                    EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
+                        Strings.JoinTimeoutA, null, val.ToString());
+                }
             };
             var row = new InlineKeyboardButton[3];
             row[0] = new InlineKeyboardCallbackButton("2", $"joinTimeout:2@{groupid}");
             row[1] = new InlineKeyboardCallbackButton("5", $"joinTimeout:5@{groupid}");
             row[2] = new InlineKeyboardCallbackButton("10", $"joinTimeout:10@{groupid}");
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
-            SendLangMessage(chat, groupid, Strings.JoinTimeoutQ, markup,
-                maxIdleJoinTime.TotalMinutes.ToString(), Groups.Find(x => x.Id == groupid).JoinTimeout.ToString());
+            using (var db = new WhoAmIBotContext())
+            {
+                if (!db.Groups.Any(x => x.Id == groupid)) return;
+                SendLangMessage(chat, groupid, Strings.JoinTimeoutQ, markup,
+                    maxIdleJoinTime.TotalMinutes.ToString(), db.Groups.Find(groupid).JoinTimeout.ToString());
+            }
             try
             {
                 OnCallbackQuery += cHandler;
@@ -164,23 +165,20 @@ namespace WhoAmIBotSpace
             var mre = new ManualResetEvent(false);
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
-                var d = e.CallbackQuery.Data;
-                if (!d.StartsWith("gameTimeout:") || !d.Contains("@") || d.IndexOf("@") != d.LastIndexOf("@")
-                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
-                || grp != groupid || e.CallbackQuery.From.Id != chat
-                || e.CallbackQuery.Message == null
-                || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out int val)
-                || !Groups.Exists(x => x.Id == groupid)) return;
-                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
-                Groups.Find(x => x.Id == groupid).GameTimeout = val;
-                var par = new Dictionary<string, object>()
+                using (var db = new WhoAmIBotContext())
                 {
-                    { "val", val },
-                    { "id", groupid }
-                };
-                ExecuteSql("UPDATE Groups SET GameTimeout=@val WHERE id=@id", par);
-                EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
-                    Strings.GameTimeoutA, null, $"{val / 60}h");
+                    var d = e.CallbackQuery.Data;
+                    if (!d.StartsWith("gameTimeout:") || !d.Contains("@") || d.IndexOf("@") != d.LastIndexOf("@")
+                    || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                    || grp != groupid || e.CallbackQuery.From.Id != chat
+                    || e.CallbackQuery.Message == null
+                    || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out int val)
+                    || !db.Groups.Any(x => x.Id == groupid)) return;
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                    db.Groups.Find(groupid).GameTimeout = val;
+                    EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
+                        Strings.GameTimeoutA, null, $"{val / 60}h");
+                }
             };
             var row = new InlineKeyboardButton[4];
             row[0] = new InlineKeyboardCallbackButton("1h", $"gameTimeout:60@{groupid}");
@@ -188,8 +186,12 @@ namespace WhoAmIBotSpace
             row[2] = new InlineKeyboardCallbackButton("12h", $"gameTimeout:720@{groupid}");
             row[3] = new InlineKeyboardCallbackButton("24h", $"gameTimeout:1440@{groupid}");
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
-            SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
-                $"{maxIdleGameTime.TotalHours}h", $"{Groups.Find(x => x.Id == groupid).GameTimeout / 60}h");
+            using (var db = new WhoAmIBotContext())
+            {
+                if (!db.Groups.Any(x => x.Id == groupid)) return;
+                SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
+                    $"{maxIdleGameTime.TotalHours}h", $"{db.Groups.Find(groupid).GameTimeout / 60}h");
+            }
             try
             {
                 OnCallbackQuery += cHandler;
