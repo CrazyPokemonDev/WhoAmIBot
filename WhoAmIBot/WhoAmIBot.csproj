@@ -79,6 +79,7 @@
     <Compile Include="Classes\GameFinishedEventArgs.cs" />
     <Compile Include="Classes\Group.cs" />
     <Compile Include="Classes\LangFile.cs" />
+    <Compile Include="Classes\Node.cs" />
     <Compile Include="Classes\Player.cs" />
     <Compile Include="Classes\JString.cs" />
     <Compile Include="Classes\User.cs" />

@@ -34,15 +34,7 @@ namespace WhoAmIBotSpace
         private const string baseFilePath = "C:\\Olfi01\\WhoAmIBot\\";
         private const string sqliteFilePath = baseFilePath + "db.sqlite";
         private const string connectionString = "Data Source=\"" + sqliteFilePath + "\";";
-        private const string defaultLangCode = "en-US";
-        /*private const string yesEmoji = "✅";
-        private const string noEmoji = "❌";
-        private const string idkEmoji = "🤷‍♂";*/
-        private const int minPlayerCount = 2;
         private const long testingGroupId = -1001070844778;
-        private const string allLangSelector = "SELECT key, name FROM ExistingLanguages ORDER BY key";
-        private static readonly TimeSpan maxIdleJoinTime = TimeSpan.FromMinutes(10);
-        private static readonly TimeSpan maxIdleGameTime = TimeSpan.FromHours(24);
         private static readonly List<string> gameQueries = new List<string>()
         {
             "yes@",
@@ -51,22 +43,11 @@ namespace WhoAmIBotSpace
             "guess@",
             "giveup@"
         };
-        private static readonly Regex SelectLangRegex = new Regex(@"^lang:.+@-*\d+$");
         protected new static readonly Flom Flom = new Flom();
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
-        private Dictionary<string, Action<Message>> commands = new Dictionary<string, Action<Message>>();
-        private List<Game> GamesRunning = new List<Game>();
-        private List<Group> Groups = new List<Group>();
-        private List<User> Users = new List<User>();
-        private Dictionary<long, List<User>> Nextgame = new Dictionary<long, List<User>>();
-        private List<long> GlobalAdmins = new List<long>();
-        private bool Maintenance = false;
-        private List<Thread> currentThreads = new List<Thread>();
-        #endregion
-        #region Events
-        public event EventHandler<GameFinishedEventArgs> GameFinished;
+        private List<Node> Nodes = new List<Node>();
         #endregion
 
         #region Constructors and FlomBot stuff
@@ -82,8 +63,6 @@ namespace WhoAmIBotSpace
         {
             sqliteConn = new SQLiteConnection(connectionString);
             sqliteConn.Open();
-            ClearGames();
-            ReadGroupsAndUsers();
         }
 
         public override bool StartBot()
@@ -106,15 +85,9 @@ namespace WhoAmIBotSpace
 
         public override bool StopBot()
         {
-            foreach (Game g in GamesRunning)
+            foreach (var node in Nodes)
             {
-                SendLangMessage(g.GroupId, Strings.BotStopping);
-                g.Thread?.Abort();
-                g.InactivityTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-            }
-            foreach (var t in currentThreads)
-            {
-                t?.Abort();
+                node.Stop();
             }
             client.OnReceiveError -= Client_OnReceiveError;
             client.OnReceiveGeneralError -= Client_OnReceiveError;
@@ -125,65 +98,7 @@ namespace WhoAmIBotSpace
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
-#if DEBUG
-            do
-            {
-#else
-            try
-            {
-#endif
-                if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
-                {
-                    foreach (var entity in e.Update.Message.Entities)
-                    {
-                        if (entity.Offset != 0) continue;
-                        if (entity.Type == MessageEntityType.BotCommand)
-                        {
-                            string cmd = e.Update.Message.EntityValues[e.Update.Message.Entities.IndexOf(entity)];
-                            cmd = cmd.ToLower();
-                            cmd = cmd.Contains("@" + Username.ToLower()) ? cmd.Remove(cmd.IndexOf("@" + Username.ToLower())) : cmd;
-                            if (commands.ContainsKey(cmd))
-                            {
-                                Thread t = new Thread(() =>
-                                {
-                                    try
-                                    {
-                                        commands[cmd].Invoke(e.Update.Message);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        client.SendTextMessageAsync(Flom, $"Who am I bot\n{ex.Message}\n{ex.StackTrace}");
-                                    }
-                                });
-                                t.Start();
-                                currentThreads.Add(t);
-                                //commands[cmd].Invoke(e.Update.Message);
-                            }
-                        }
-                    }
-                    if (e.Update.Message.Text == "I hereby grant you permission." && e.Update.Message.From.Id == Flom)
-                    {
-                        var msg = e.Update.Message;
-                        if (msg.ReplyToMessage == null) return;
-                        GlobalAdmins.Add(msg.ReplyToMessage.From.Id);
-                        var par = new Dictionary<string, object>()
-                        {
-                            { "id", msg.ReplyToMessage.From.Id }
-                        };
-                        ExecuteSql("INSERT INTO GlobalAdmins VALUES(@id)", par);
-                        SendLangMessage(msg.Chat.Id, Strings.PowerGranted);
-                    }
-                }
-#if DEBUG
-            } while (false);
-#else
-            }
-            catch (Exception x)
-            {
-                client.SendTextMessageAsync(Flom,
-                    $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
-            }
-#endif
+            
         }
         #endregion
         #region On callback query
@@ -191,8 +106,9 @@ namespace WhoAmIBotSpace
         {
             if (!e.CallbackQuery.Data.Contains("@")
                 || !long.TryParse(e.CallbackQuery.Data.Substring(e.CallbackQuery.Data.IndexOf("@") + 1), out long id)
-                || e.CallbackQuery.Message == null
-                || GamesRunning.Exists(x => x.Id == id)) return;
+                || e.CallbackQuery.Message == null) return;
+            var q = ExecuteSql("SELECT * FROM Games");
+            if (q.Exists(x => x.Count > 0 && x[0] == id.ToString())) return;
             if (!gameQueries.Exists(x => e.CallbackQuery.Data.StartsWith(x))) return;
             else
             {
@@ -1621,8 +1537,6 @@ namespace WhoAmIBotSpace
         #endregion
         #endregion
 
-        
-
         #region Error handling
         private void Client_OnReceiveError(object sender, EventArgs ea)
         {
@@ -2046,42 +1960,6 @@ namespace WhoAmIBotSpace
             }
 
             return r;
-        }
-        #endregion
-
-        #region Clear Games
-        private void ClearGames()
-        {
-            ExecuteSql("DELETE FROM Games");
-        }
-        #endregion
-        #region Read Groups and Users
-        private void ReadGroupsAndUsers()
-        {
-            var query = ExecuteSql("SELECT Id, LangKey, Name, JoinTimeout, GameTimeout, CancelgameAdmin FROM Groups");
-            Groups.Clear();
-            foreach (var row in query)
-            {
-                if (row.Count == 0) continue;
-                Groups.Add(new Group(Convert.ToInt64(row[0].Trim()))
-                { LangKey = row[1].Trim(), Name = row[2].Trim(), JoinTimeout = Convert.ToInt32(row[3]),
-                GameTimeout = Convert.ToInt32(row[4]), CancelgameAdmin = Convert.ToBoolean(row[5])});
-            }
-            query = ExecuteSql("SELECT Id, LangKey, Name, Username FROM Users");
-            Users.Clear();
-            foreach (var row in query)
-            {
-                if (row.Count == 0) continue;
-                Users.Add(new User(Convert.ToInt64(row[0].Trim()))
-                { LangKey = row[1].Trim(), Name = row[2].Trim(), Username = row[3].Trim() });
-            }
-            query = ExecuteSql("SELECT Id FROM GlobalAdmins");
-            GlobalAdmins.Clear();
-            foreach (var row in query)
-            {
-                if (row.Count == 0) continue;
-                GlobalAdmins.Add(Convert.ToInt64(row[0]));
-            }
         }
         #endregion
         #endregion

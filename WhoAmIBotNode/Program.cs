@@ -56,13 +56,7 @@ namespace WhoAmIBotSpace
         #region Fields
         private static SQLiteConnection sqliteConn;
         private static Dictionary<string, Action<Message>> commands = new Dictionary<string, Action<Message>>();
-        private static List<Game> GamesRunning = new List<Game>();
-        private static List<Group> Groups = new List<Group>();
-        private static List<User> Users = new List<User>();
-        private static Dictionary<long, List<User>> Nextgame = new Dictionary<long, List<User>>();
-        private static List<long> GlobalAdmins = new List<long>();
         private static bool Maintenance = false;
-        private static List<Thread> currentThreads = new List<Thread>();
         private static TelegramBotClient client;
         private static bool running = true;
         #endregion
@@ -579,7 +573,7 @@ namespace WhoAmIBotSpace
             commands.Add("/stats", new Action<Message>(Stats_Command));
             commands.Add("/getlang", new Action<Message>(Getlang_Command));
             commands.Add("/uploadlang", new Action<Message>(Uploadlang_Command));
-            commands.Add("/maint", new Action<Message>(Maint_Command));
+            //commands.Add("/maint", new Action<Message>(Maint_Command));
             commands.Add("/help", new Action<Message>(Help_Command));
             commands.Add("/getgames", new Action<Message>(Getgames_Command));
             commands.Add("/getroles", new Action<Message>(Getroles_Command));
@@ -1026,7 +1020,7 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #region /maint
-        private static void Maint_Command(Message msg)
+        /*private static void Maint_Command(Message msg)
         {
             if (!GlobalAdmins.Contains(msg.From.Id))
             {
@@ -1055,7 +1049,7 @@ namespace WhoAmIBotSpace
                 Maintenance = false;
                 SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.MaintenanceOff);
             }
-        }
+        }*/
         #endregion
         #region /nextgame
         private static void Nextgame_Command(Message msg)
