@@ -235,13 +235,15 @@ namespace WhoAmIBotSpace
                         Groups.Find(x => x.Id == groupid).CancelgameAdmin = true;
                         par.Add("b", true);
                         ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
-                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done);
+                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, 
+                            Strings.CancelgameA, null, GetString(Strings.True, groupid));
                         break;
                     case "cancelgameNo":
                         Groups.Find(x => x.Id == groupid).CancelgameAdmin = false;
                         par.Add("b", false);
                         ExecuteSql("UPDATE Groups SET CancelgameAdmin=@b WHERE Id=@id", par);
-                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done);
+                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, 
+                            Strings.CancelgameA, null, GetString(Strings.False, groupid));
                         break;
                 }
                 mre.Set();
@@ -281,7 +283,8 @@ namespace WhoAmIBotSpace
                     { "id", groupid }
                 };
                 ExecuteSql("UPDATE Groups SET JoinTimeout=@val WHERE id=@id", par);
-                EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done, null);
+                EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, 
+                    Strings.JoinTimeoutA, null, val.ToString());
             };
             var row = new InlineKeyboardButton[3];
             row[0] = new InlineKeyboardCallbackButton("2", $"joinTimeout:2@{groupid}");
@@ -315,14 +318,15 @@ namespace WhoAmIBotSpace
                 || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out int val)
                 || !Groups.Exists(x => x.Id == groupid)) return;
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
-                Groups.Find(x => x.Id == groupid).JoinTimeout = val;
+                Groups.Find(x => x.Id == groupid).GameTimeout = val;
                 var par = new Dictionary<string, object>()
                 {
                     { "val", val },
                     { "id", groupid }
                 };
                 ExecuteSql("UPDATE Groups SET GameTimeout=@val WHERE id=@id", par);
-                EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done, null);
+                EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, 
+                    Strings.GameTimeoutA, null, $"{val / 60}h");
             };
             var row = new InlineKeyboardButton[4];
             row[0] = new InlineKeyboardCallbackButton("1h", $"gameTimeout:60@{groupid}");
@@ -331,7 +335,7 @@ namespace WhoAmIBotSpace
             row[3] = new InlineKeyboardCallbackButton("24h", $"gameTimeout:1440@{groupid}");
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
-                maxIdleGameTime.TotalMinutes.ToString(), Groups.Find(x => x.Id == groupid).JoinTimeout.ToString());
+                $"{maxIdleGameTime.TotalHours}h", $"{Groups.Find(x => x.Id == groupid).GameTimeout / 60}h");
             try
             {
                 client.OnCallbackQuery += cHandler;

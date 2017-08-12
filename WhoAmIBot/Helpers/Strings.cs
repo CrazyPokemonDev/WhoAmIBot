@@ -14,6 +14,7 @@
         public const string BotStopping = "BotStopping";
         public const string BotUnderMaintenance = "BotUnderMaintenance";
         public const string CancelgameAdmin = "CancelgameAdmin";
+        public const string CancelgameA = "CancelgameA";
         public const string CancelgameQ = "CancelgameQ";
         public const string ChooseRoleFor = "ChooseRoleFor";
         public const string Close = "Close";
@@ -31,6 +32,7 @@
         public const string GameRunning = "GameRunning";
         public const string GameTimedOut = "GameTimedOut";
         public const string GameTimeout = "GameTimeout";
+        public const string GameTimeoutA = "GameTimeoutA";
         public const string GameTimeoutQ = "GameTimeoutQ";
         public const string GamesFinished = "GamesFinished";
         public const string GameStarted = "GameStarted";
@@ -43,6 +45,7 @@
         public const string ItsYourTurnCantGiveUp = "ItsYourTurnCantGiveUp";
         public const string JoinedGamePM = "JoinedGamePM";
         public const string JoinTimeout = "JoinTimeout";
+        public const string JoinTimeoutA = "JoinTimeoutA";
         public const string JoinTimeoutQ = "JoinTimeoutQ";
         public const string LangInfo = "LangInfo";
         public const string LangSet = "LangSet";
