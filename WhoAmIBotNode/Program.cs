@@ -1377,68 +1377,73 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
-            if (GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, Strings.GameRunning);
-                return;
-            }
-            if (Users.Exists(x => x.Id == msg.From.Id))
-            {
-                var u = Users.Find(x => x.Id == msg.From.Id);
-                if (u.Name != msg.From.FullName() || u.Username != msg.From.Username)
+                if (db.Games.Any(x => x.GroupId == msg.Chat.Id))
                 {
-                    var par = new Dictionary<string, object>() { { "id", msg.From.Id },
-                    { "name", msg.From.FullName() }, { "username", msg.From.Username } };
-                    ExecuteSql("UPDATE Users SET Name=@name, Username=@username WHERE id=@id", par);
-                    u.Name = msg.From.FullName();
-                    u.Username = msg.From.Username;
+                    if (NodeGames.Exists(x => x.GroupId == msg.Chat.Id))
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.GameRunning);
+                    }
+                    return;
                 }
-            }
-            if (!Groups.Exists(x => x.Id == msg.Chat.Id))
-            {
-                var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "langCode", defaultLangCode },
-                    { "name", msg.Chat.Title } };
-                ExecuteSql("INSERT INTO Groups (Id, LangKey, Name) VALUES(@id, @langCode, @name)", par);
-                Groups.Add(new Group(msg.Chat.Id) { Name = msg.Chat.Title });
-            }
-            else
-            {
-                Group group = Groups.Find(x => x.Id == msg.Chat.Id);
-                if (group.Name != msg.Chat.Title)
+                if (db.Users.Any(x => x.Id == msg.From.Id))
                 {
-                    var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "name", msg.Chat.Title } };
-                    ExecuteSql("UPDATE Groups SET Name=@name WHERE id=@id", par);
-                    group.Name = msg.Chat.Title;
+                    var u = db.Users.Find(msg.From.Id);
+                    if (u.Name != msg.From.FullName() || u.Username != msg.From.Username)
+                    {
+                        u.Name = msg.From.FullName();
+                        u.Username = msg.From.Username;
+                        db.SaveChanges();
+                    }
                 }
-            }
-            var par2 = new Dictionary<string, object>() { { "id", msg.Chat.Id } };
-            ExecuteSql($"INSERT INTO Games (groupId) VALUES(@id)", par2);
-            string response = ExecuteSql("SELECT id FROM Games WHERE groupId=@id", par2)[0][0];
-            Game g = new Game(Convert.ToInt32(response), msg.Chat.Id, msg.Chat.Title, Groups.Find(x => x.Id == msg.Chat.Id));
-            GamesRunning.Add(g);
-            if (Nextgame.ContainsKey(msg.Chat.Id))
-            {
-                var toRem = new List<User>();
-                foreach (var u in Nextgame[msg.Chat.Id])
+                else
                 {
-                    SendLangMessage(u.Id, Strings.NewGameStarting, null, g.GroupName);
-                    toRem.Add(u);
+                    db.Users.Add(new User() { Id = msg.From.Id, LangKey = msg.From.LanguageCode,
+                        Name = msg.From.FullName(), Username = msg.From.Username });
+                    db.SaveChanges();
                 }
-                foreach (var u in toRem)
+                if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                 {
-                    Nextgame[msg.Chat.Id].Remove(u);
+                    db.Groups.Add(new Group() { Id = msg.Chat.Id, LangKey = defaultLangCode, Name = msg.Chat.Title });
+                    db.SaveChanges();
                 }
+                else
+                {
+                    Group group = db.Groups.Find(msg.Chat.Id);
+                    if (group.Name != msg.Chat.Title)
+                    {
+                        group.Name = msg.Chat.Title;
+                        db.SaveChanges();
+                    }
+                }
+                db.Games.Add(new Game() { GroupId = msg.Chat.Id });
+                db.SaveChanges();
+                var task = db.Games.SqlQuery("SELECT * FROM Games WHERE groupId=@p0", msg.Chat.Id).ToListAsync();
+                task.Wait();
+                NodeGame g = new NodeGame(task.Result.First().Id, msg.Chat.Id, msg.Chat.Title, db.Groups.Find(msg.Chat.Id));
+                NodeGames.Add(g);
+                if (db.Nextgames.Any(x => x.GroupId == msg.Chat.Id))
+                {
+                    var task2 = db.Nextgames.SqlQuery("SELECT * FROM Nextgame WHERE GroupId=@p0", msg.Chat.Id).ToListAsync();
+                    task2.Wait();
+                    foreach (var u in task2.Result)
+                    {
+                        SendLangMessage(u.Id, u.GroupId, Strings.NewGameStarting);
+                        db.Nextgames.Remove(db.Nextgames.Find(u.Index));
+                    }
+                }
+                SendLangMessage(msg.Chat.Id, Strings.GameStarted);
+                SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.PlayerList, null, out Message m, out var u1, "");
+                g.PlayerlistMessage = m;
+                AddPlayer(g, new NodePlayer(msg.From.Id, msg.From.FullName()));
+                Timer t = new Timer(x =>
+                {
+                    CancelGame(g);
+                    SendLangMessage(g.GroupId, Strings.GameTimedOut);
+                }, null, g.Group.JoinTimeout * 60 * 1000, Timeout.Infinite);
+                g.InactivityTimer = t;
             }
-            SendLangMessage(msg.Chat.Id, Strings.GameStarted);
-            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.PlayerList, null, out Message m, out var u1, "");
-            g.PlayerlistMessage = m;
-            AddPlayer(g, new NodePlayer(msg.From.Id, msg.From.FullName()));
-            Timer t = new Timer(x =>
-            {
-                CancelGame(g);
-                SendLangMessage(g.GroupId, Strings.GameTimedOut);
-            }, null, g.Group.JoinTimeout * 60 * 1000, Timeout.Infinite);
-            g.InactivityTimer = t;
         }
         #endregion
         #region /stats

@@ -13,7 +13,7 @@ namespace WhoAmIBotSpace.Classes
 {
     public class NodeGame
     {
-        public int Id { get; }
+        public long Id { get; }
         public long GroupId { get; }
         public string GroupName { get; }
         public List<NodePlayer> Players { get; } = new List<NodePlayer>();
@@ -26,7 +26,7 @@ namespace WhoAmIBotSpace.Classes
         public Timer InactivityTimer { get; set; }
         public NodePlayer Turn { get; set; }
         public NodeGroup Group { get; set; }
-        public NodeGame(int id, long groupId, string groupName, NodeGroup group)
+        public NodeGame(long id, long groupId, string groupName, NodeGroup group)
         {
             Id = id;
             GroupId = groupId;
