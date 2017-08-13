@@ -24,7 +24,7 @@ namespace WhoAmIBotSpace
     {
         #region Properties
         public static string Username { get; set; }
-        private static NodeState State { get; set; } = NodeState.Running;
+        private static NodeState State { get; set; } = NodeState.Primary;
         #endregion
         #region Constants
         private const string baseFilePath = "C:\\Olfi01\\WhoAmIBot\\";
@@ -581,7 +581,7 @@ namespace WhoAmIBotSpace
             commands.Add("/langinfo", new Action<Message>(Langinfo_Command));
             commands.Add("/backup", new Action<Message>(Backup_Command));
             commands.Add("/rate", new Action<Message>(Rate_Command));
-            commands.Add("/canceljoin", new Action<Message>(Canceljoin_Command));
+            //commands.Add("/canceljoin", new Action<Message>(Canceljoin_Command));
             commands.Add("/identify", new Action<Message>(Identify_Command));
             commands.Add("/ping", new Action<Message>(Ping_Command));
             commands.Add("/settings", new Action<Message>(Settings_Command));
@@ -628,7 +628,7 @@ namespace WhoAmIBotSpace
                         }
                     }
                 }
-                if (!db.Games.Any(x => x.GroupId == msg.Chat.Id) && State == NodeState.Running)
+                if (!db.Games.Any(x => x.GroupId == msg.Chat.Id) && State == NodeState.Primary)
                 {
                     SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                     return;
@@ -640,8 +640,16 @@ namespace WhoAmIBotSpace
                 NodeGame g = NodeGames.Find(x => x.Id == dbg.Id);
                 if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                 {
-                    db.Groups.Add(new Group() { Id = msg.Chat.Id, Name = msg.Chat.Title, LangKey = defaultLangCode,
-                    CancelgameAdmin = true, GameTimeout = (int)maxIdleGameTime.TotalMinutes, JoinTimeout = (int)maxIdleJoinTime.TotalMinutes });
+                    db.Groups.Add(new Group()
+                    {
+                        Id = msg.Chat.Id,
+                        Name = msg.Chat.Title,
+                        LangKey = defaultLangCode,
+                        CancelgameAdmin = true,
+                        GameTimeout = (int)maxIdleGameTime.TotalMinutes,
+                        JoinTimeout = (int)maxIdleJoinTime.TotalMinutes
+                    });
+                    db.SaveChanges();
                 }
                 if (!db.GlobalAdmins.Any(x => x.Id == msg.From.Id))
                 {
@@ -660,39 +668,49 @@ namespace WhoAmIBotSpace
                 }
                 if (!Help.Longer(g.Players, g.TotalPlayers).Exists(x => x.Id == msg.From.Id))
                 {
-                    SendLangMessage(msg.Chat.Id, Strings.NotInGame);
-                    return;
+                    var t3 = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
+                    t3.Wait();
+                    if (!(t3.Result.Status == ChatMemberStatus.Administrator || t3.Result.Status == ChatMemberStatus.Creator))
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.NotInGame);
+                        return;
+                    }
                 }
                 CancelGame(g);
                 SendLangMessage(msg.Chat.Id, Strings.GameCancelled);
-                db.SaveChanges();
             }
         }
         #endregion
         #region /canceljoin
-        private static void Canceljoin_Command(Message msg)
+        /*private static void Canceljoin_Command(Message msg)
         {
-            if (!GlobalAdmins.Contains(msg.From.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
-                return;
+                if (!db.GlobalAdmins.Any(x => x.Id == msg.From.Id))
+                {
+                    SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
+                    return;
+                }
+                foreach (var g in NodeGames.FindAll(x => x.State == GameState.Joining))
+                {
+                    CancelGame(g);
+                    client.SendTextMessageAsync(msg.Chat.Id, $"A game was cancelled in {g.GroupName} ({g.GroupId})");
+                    SendLangMessage(g.GroupId, Strings.GameCancelledByGlobalAdmin);
+                }
             }
-            foreach (var g in GamesRunning.FindAll(x => x.State == GameState.Joining))
-            {
-                CancelGame(g);
-                client.SendTextMessageAsync(msg.Chat.Id, $"A game was cancelled in {g.GroupName} ({g.GroupId})");
-                SendLangMessage(g.GroupId, Strings.GameCancelledByGlobalAdmin);
-            }
-        }
+        }*/
         #endregion
         #region /communicate
         private static void Communicate_Command(Message msg)
         {
-            if (msg.Chat.Type != ChatType.Private || !msg.Text.Contains(" ")) return;
-            if (!GlobalAdmins.Contains(msg.From.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, Strings.NoGlobalAdmin);
-                return;
+                if (msg.Chat.Type != ChatType.Private || !msg.Text.Contains(" ")) return;
+                if (!db.GlobalAdmins.Any(x => x.Id == msg.From.Id))
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.NoGlobalAdmin);
+                    return;
+                }
             }
             if (!long.TryParse(msg.Text.Substring(msg.Text.IndexOf(" ")), out long linked)) return;
             else
@@ -734,67 +752,81 @@ namespace WhoAmIBotSpace
         #region /getgames
         private static void Getgames_Command(Message msg)
         {
-            if (!GlobalAdmins.Contains(msg.From.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
-                return;
-            }
-            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) => { };
-            cHandler = (sender, e) =>
-            {
-                string data = e.CallbackQuery.Data;
-                if ((!data.StartsWith("cancel:") && !data.StartsWith("communicate:") && !data.StartsWith("close@"))
-                || !data.Contains("@") || data.IndexOf("@") != data.LastIndexOf("@")
-                || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long chatid)
-                || chatid != msg.Chat.Id || e.CallbackQuery.Message == null) return;
-                if (!GlobalAdmins.Contains(e.CallbackQuery.From.Id))
+                if (!db.GlobalAdmins.Any(x => x.Id == msg.From.Id))
                 {
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.NoGlobalAdmin, LangCode(msg.Chat.Id)));
+                    SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
                     return;
                 }
-                if (data.StartsWith("close@"))
+                EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) => { };
+                List<Message> sent = new List<Message>();
+                cHandler = (sender, e) =>
                 {
-                    client.EditMessageReplyMarkupAsync(e.CallbackQuery.Message.Chat.Id, e.CallbackQuery.Message.MessageId, null);
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
-                    OnCallbackQuery -= cHandler;
-                    return;
-                }
-                if (!long.TryParse(data.Remove(data.IndexOf("@")).Substring(data.IndexOf(":") + 1), out long groupid)) return;
-                var action = data.Remove(data.IndexOf(":"));
-                switch (action)
-                {
-                    case "cancel":
-                        if (!GamesRunning.Exists(x => x.GroupId == groupid))
+                    string data = e.CallbackQuery.Data;
+                    if ((!data.StartsWith("cancel:") && !data.StartsWith("communicate:") && !data.StartsWith("close@"))
+                    || !data.Contains("@") || data.IndexOf("@") != data.LastIndexOf("@")
+                    || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long chatid)
+                    || chatid != msg.Chat.Id || e.CallbackQuery.Message == null) return;
+                    if (!db.GlobalAdmins.Any(x => x.Id == e.CallbackQuery.From.Id))
+                    {
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.NoGlobalAdmin, LangCode(msg.Chat.Id)));
+                        return;
+                    }
+                    if (data.StartsWith("close@"))
+                    {
+                        foreach (var m in sent)
                         {
-                            client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "That game is no longer running.");
-                            return;
+                            client.EditMessageReplyMarkupAsync(m.Chat.Id, m.MessageId, null);
                         }
-                        Game g = GamesRunning.Find(x => x.GroupId == groupid);
-                        CancelGame(g);
-                        SendLangMessage(g.GroupId, Strings.GameCancelledByGlobalAdmin);
-                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.GameCancelled, e.CallbackQuery.From.Id));
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                        OnCallbackQuery -= cHandler;
                         return;
-                    case "communicate":
-                        Thread t = new Thread(() =>
-                        {
-                            try
+                    }
+                    if (!long.TryParse(data.Remove(data.IndexOf("@")).Substring(data.IndexOf(":") + 1), out long groupid)) return;
+                    var action = data.Remove(data.IndexOf(":"));
+                    switch (action)
+                    {
+                        case "cancel":
+                            if (!NodeGames.Exists(x => x.GroupId == groupid))
                             {
-                                commands["/communicate"].Invoke(new CommDummyMsg(from: e.CallbackQuery.From.Id, groupid: groupid));
+                                if (!db.Games.Any(x => x.GroupId == groupid) && State == NodeState.Primary)
+                                {
+                                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "That game is no longer running.");
+                                }
+                                return;
                             }
-                            catch (Exception ex)
+                            NodeGame g = NodeGames.Find(x => x.GroupId == groupid);
+                            CancelGame(g);
+                            SendLangMessage(g.GroupId, Strings.GameCancelledByGlobalAdmin);
+                            client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.GameCancelled, e.CallbackQuery.From.Id));
+                            return;
+                        case "communicate":
+                            Thread t = new Thread(() =>
                             {
-                                client.SendTextMessageAsync(Flom, $"Who am I bot\n{ex.Message}\n{ex.StackTrace}");
-                            }
-                        });
-                        t.Start();
-                        currentThreads.Add(t);
-                        return;
+                                try
+                                {
+                                    commands["/communicate"].Invoke(new CommDummyMsg(from: e.CallbackQuery.From.Id, groupid: groupid));
+                                }
+                                catch (Exception ex)
+                                {
+                                    client.SendTextMessageAsync(Flom, $"Who am I bot\n{ex.Message}\n{ex.StackTrace}");
+                                }
+                            });
+                            t.Start();
+                            currentThreads.Add(t);
+                            return;
+                    }
+                };
+                foreach (var s in string.Join("\n\n",
+                    NodeGames.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000))
+                {
+                    var t = client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(NodeGames, msg.Chat.Id));
+                    t.Wait();
+                    sent.Add(t.Result);
                 }
-            };
-            foreach (var s in string.Join("\n\n",
-                GamesRunning.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000))
-                client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(GamesRunning, msg.Chat.Id)).Wait();
-            OnCallbackQuery += cHandler;
+                OnCallbackQuery += cHandler;
+            }
         }
         #endregion
         #region /getlang
@@ -830,43 +862,49 @@ namespace WhoAmIBotSpace
             {
                 OnCallbackQuery -= cHandler;
             }
-            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, Strings.OneMoment, null, "", out var u2, out u);
+            EditLangMessage(msg.Chat.Id, msg.Chat.Id, sent.MessageId, Strings.OneMoment);
 
         }
         #endregion
         #region /getroles
         private static void Getroles_Command(Message msg)
         {
-            if (!msg.Chat.Type.IsGroup())
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
-                return;
+                if (!msg.Chat.Type.IsGroup())
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
+                    return;
+                }
+                if (!NodeGames.Exists(x => x.GroupId == msg.Chat.Id))
+                {
+                    if (!db.Games.Any(x => x.GroupId == msg.Chat.Id) && State == NodeState.Primary)
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
+                    }
+                    return;
+                }
+                NodeGame g = NodeGames.Find(x => x.GroupId == msg.Chat.Id);
+                if (!g.TotalPlayers.Exists(x => x.Id == msg.From.Id))
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.NotInGame);
+                    return;
+                }
+                var p = g.TotalPlayers.Find(x => x.Id == msg.From.Id);
+                if (!g.DictFull())
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.RolesNotSet);
+                    return;
+                }
+                string rl = "";
+                foreach (var kvp in g.RoleIdDict)
+                {
+                    if (kvp.Key != p.Id) rl += $"\n<b>{WebUtility.HtmlEncode(g.TotalPlayers.Find(x => x.Id == kvp.Key).Name)}:</b> " +
+                            $"<i>{WebUtility.HtmlEncode(kvp.Value)}</i>";
+                }
+                SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.RolesAre, null, rl);
+                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.SentPM);
             }
-            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
-            {
-                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
-                return;
-            }
-            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
-            if (!g.TotalPlayers.Exists(x => x.Id == msg.From.Id))
-            {
-                SendLangMessage(msg.Chat.Id, Strings.NotInGame);
-                return;
-            }
-            var p = g.TotalPlayers.Find(x => x.Id == msg.From.Id);
-            if (!g.DictFull())
-            {
-                SendLangMessage(msg.Chat.Id, Strings.RolesNotSet);
-                return;
-            }
-            string rl = "";
-            foreach (var kvp in g.RoleIdDict)
-            {
-                if (kvp.Key != p.Id) rl += $"\n<b>{WebUtility.HtmlEncode(g.TotalPlayers.Find(x => x.Id == kvp.Key).Name)}:</b> " +
-                        $"<i>{WebUtility.HtmlEncode(kvp.Value)}</i>";
-            }
-            SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.RolesAre, null, rl);
-            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.SentPM);
         }
         #endregion
         #region /giveup
@@ -877,63 +915,75 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
-            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
-                return;
+                if (!NodeGames.Exists(x => x.GroupId == msg.Chat.Id))
+                {
+                    if (!db.Games.Any(x => x.GroupId == msg.Chat.Id))
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
+                    }
+                    return;
+                }
+                NodeGame g = NodeGames.Find(x => x.GroupId == msg.Chat.Id);
+                if (!g.Players.Exists(x => x.Id == msg.From.Id && !x.GaveUp))
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.NotInGame);
+                    return;
+                }
+                var p = g.Players.Find(x => x.Id == msg.From.Id);
+                if (g.Turn == p)
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.ItsYourTurnCantGiveUp);
+                    return;
+                }
+                if (!g.DictFull())
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.RolesNotSet);
+                    return;
+                }
+                p.GaveUp = true;
+                SendLangMessage(msg.From.Id, g.GroupId, Strings.YouGaveUp);
+                var role = g.RoleIdDict.ContainsKey(msg.From.Id) ? g.RoleIdDict[msg.From.Id] : "failed to find role";
+                SendLangMessage(g.GroupId, Strings.GaveUp, null, p.Name, g.RoleIdDict[msg.From.Id]);
             }
-            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
-            if (!g.Players.Exists(x => x.Id == msg.From.Id && !x.GaveUp))
-            {
-                SendLangMessage(msg.Chat.Id, Strings.NotInGame);
-                return;
-            }
-            var p = g.Players.Find(x => x.Id == msg.From.Id);
-            if (g.Turn == p)
-            {
-                SendLangMessage(msg.Chat.Id, Strings.ItsYourTurnCantGiveUp);
-                return;
-            }
-            if (!g.DictFull())
-            {
-                SendLangMessage(msg.Chat.Id, Strings.RolesNotSet);
-                return;
-            }
-            p.GaveUp = true;
-            SendLangMessage(msg.From.Id, g.GroupId, Strings.YouGaveUp);
-            var role = g.RoleIdDict.ContainsKey(msg.From.Id) ? g.RoleIdDict[msg.From.Id] : "failed to find role";
-            SendLangMessage(g.GroupId, Strings.GaveUp, null, p.Name, g.RoleIdDict[msg.From.Id]);
         }
         #endregion
         #region /go
         private static void Go_Command(Message msg)
         {
-            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
-                return;
+                if (!NodeGames.Exists(x => x.GroupId == msg.Chat.Id))
+                {
+                    if (!db.Games.Any(x => x.GroupId == msg.Chat.Id))
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
+                    }
+                    return;
+                }
+                NodeGame g = NodeGames.Find(x => x.GroupId == msg.Chat.Id);
+                if (!g.Players.Exists(x => x.Id == msg.From.Id))
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.NotInGame);
+                    return;
+                }
+                if (g.Players.Count < minPlayerCount && msg.Chat.Id != testingGroupId)
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.NotEnoughPlayers);
+                    return;
+                }
+                if (g.State != GameState.Joining)
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.GameRunning);
+                    return;
+                }
+                ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
+                Thread t = new Thread(pts);
+                g.Thread = t;
+                g.InactivityTimer.Change(g.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
+                t.Start(g);
             }
-            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
-            if (!g.Players.Exists(x => x.Id == msg.From.Id))
-            {
-                SendLangMessage(msg.Chat.Id, Strings.NotInGame);
-                return;
-            }
-            if (g.Players.Count < minPlayerCount && msg.Chat.Id != testingGroupId)
-            {
-                SendLangMessage(msg.Chat.Id, Strings.NotEnoughPlayers);
-                return;
-            }
-            if (g.State != GameState.Joining)
-            {
-                SendLangMessage(msg.Chat.Id, Strings.GameRunning);
-                return;
-            }
-            ParameterizedThreadStart pts = new ParameterizedThreadStart(StartGameFlow);
-            Thread t = new Thread(pts);
-            g.Thread = t;
-            g.InactivityTimer.Change(GetGroup(g).GameTimeout * 60 * 1000, Timeout.Infinite);
-            t.Start(g);
         }
         #endregion
         #region /help
@@ -2092,7 +2142,7 @@ namespace WhoAmIBotSpace
 
     public enum NodeState
     {
-        Running,
+        Primary,
         Stopping,
         Stopped
     }
