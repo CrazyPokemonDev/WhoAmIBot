@@ -21,6 +21,7 @@ namespace WhoAmIBotSpace.Classes
     public enum NodeState
     {
         Running,
-        Stopping
+        Stopping,
+        Stopped
     }
 }

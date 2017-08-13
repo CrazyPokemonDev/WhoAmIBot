@@ -11,9 +11,6 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using WhoAmIBotSpace.Classes;
 using WhoAmIBotSpace.Helpers;
-using Game = WhoAmIBotSpace.Classes.NodeGame;
-using User = WhoAmIBotSpace.Classes.NodeUser;
-using Group = WhoAmIBotSpace.Classes.NodeGroup;
 using File = System.IO.File;
 using Telegram.Bot;
 using System.Net;
@@ -27,6 +24,7 @@ namespace WhoAmIBotSpace
     {
         #region Properties
         public static string Username { get; set; }
+        private static NodeState State { get; set; } = NodeState.Running;
         #endregion
         #region Constants
         private const string baseFilePath = "C:\\Olfi01\\WhoAmIBot\\";
@@ -59,9 +57,10 @@ namespace WhoAmIBotSpace
         private static TelegramBotClient client;
         private static bool running = true;
         private static List<Thread> currentThreads = new List<Thread>();
-        private static List<NodeGame> nodeGames = new List<NodeGame>();
+        private static List<NodeGame> NodeGames = new List<NodeGame>();
         #endregion
         #region Events
+        public static event EventHandler<GameFinishedEventArgs> GameFinished;
         public static event EventHandler<CallbackQueryEventArgs> OnCallbackQuery;
         public static event EventHandler<MessageEventArgs> OnMessage;
         #endregion
@@ -227,6 +226,15 @@ namespace WhoAmIBotSpace
             ClearGames();
             ReadGroupsAndUsers();
         }
+
+        private static void Dispose()
+        {
+            sqliteConn.Close();
+            foreach (Thread t in currentThreads)
+            {
+                t?.Abort();
+            }
+        }
         #endregion
 
         #region Main method
@@ -249,6 +257,7 @@ namespace WhoAmIBotSpace
                     }
                 }
             }
+            Dispose();
         }
         #endregion
 
@@ -265,6 +274,22 @@ namespace WhoAmIBotSpace
                 if (data.StartsWith("TOKEN:"))
                 {
                     client = new TelegramBotClient(data.Substring(data.IndexOf(":") + 1));
+                    return;
+                }
+                if (data.StartsWith("STOP"))
+                {
+                    State = NodeState.Stopping;
+                    EventHandler<GameFinishedEventArgs> gfHandler = (sender, e) => { };
+                    gfHandler = (sender, e) =>
+                    {
+                        if (NodeGames.Count < 1)
+                        {
+                            State = NodeState.Stopped;
+                            running = false;
+                            GameFinished -= gfHandler;
+                        }
+                    };
+                    GameFinished += gfHandler;
                     return;
                 }
                 #region On update
@@ -294,7 +319,6 @@ namespace WhoAmIBotSpace
                                 });
                                 t.Start();
                                 currentThreads.Add(t);
-                                //commands[cmd].Invoke(e.Update.Message);
                             }
                         }
                     }
@@ -593,23 +617,27 @@ namespace WhoAmIBotSpace
                         var t2 = db.Games.SqlQuery("SELECT * FROM Games WHERE Id=@p0 OR GroupId=@p0", id).ToListAsync();
                         t2.Wait();
                         var g2 = t2.Result.FirstOrDefault();
-                        if (g2 != null)
+                        if (!NodeGames.Exists(x => x.Id == g2.Id)) return;
+                        var g3 = NodeGames.Find(x => x.Id == g2.Id);
+                        if (g3 != null)
                         {
-                            CancelGame(g2);
+                            CancelGame(g3);
                             SendLangMessage(msg.Chat.Id, Strings.GameCancelled);
-                            SendLangMessage(g2.GroupId, Strings.GameCancelledByGlobalAdmin);
+                            SendLangMessage(g3.GroupId, Strings.GameCancelledByGlobalAdmin);
                             return;
                         }
                     }
                 }
-                if (!db.Games.Any(x => x.GroupId == msg.Chat.Id))
+                if (!db.Games.Any(x => x.GroupId == msg.Chat.Id) && State == NodeState.Running)
                 {
                     SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                     return;
                 }
                 var t = db.Games.SqlQuery("SELECT * FROM Games WHERE GroupId=@p0", msg.Chat.Id).ToListAsync();
                 t.Wait();
-                Game g = t.Result.First();
+                Game dbg = t.Result.First();
+                if (!NodeGames.Exists(x => x.Id == dbg.Id)) return;
+                NodeGame g = NodeGames.Find(x => x.Id == dbg.Id);
                 if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                 {
                     db.Groups.Add(new Group() { Id = msg.Chat.Id, Name = msg.Chat.Title, LangKey = defaultLangCode,
@@ -1912,7 +1940,7 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #region Cancel game
-        private static void CancelGame(Game g)
+        private static void CancelGame(NodeGame g)
         {
             var par = new Dictionary<string, object>() { { "id", g.Id } };
             ExecuteSql($"DELETE FROM Games WHERE Id=@id", par);
@@ -2060,5 +2088,12 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #endregion
+    }
+
+    public enum NodeState
+    {
+        Running,
+        Stopping,
+        Stopped
     }
 }
