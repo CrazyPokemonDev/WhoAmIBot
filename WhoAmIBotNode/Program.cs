@@ -919,7 +919,7 @@ namespace WhoAmIBotSpace
             {
                 if (!NodeGames.Exists(x => x.GroupId == msg.Chat.Id))
                 {
-                    if (!db.Games.Any(x => x.GroupId == msg.Chat.Id))
+                    if (!db.Games.Any(x => x.GroupId == msg.Chat.Id) && State == NodeState.Primary)
                     {
                         SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                     }
@@ -956,7 +956,7 @@ namespace WhoAmIBotSpace
             {
                 if (!NodeGames.Exists(x => x.GroupId == msg.Chat.Id))
                 {
-                    if (!db.Games.Any(x => x.GroupId == msg.Chat.Id))
+                    if (!db.Games.Any(x => x.GroupId == msg.Chat.Id) && State == NodeState.Primary)
                     {
                         SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                     }
@@ -1003,26 +1003,36 @@ namespace WhoAmIBotSpace
         #region /join
         private static void Join_Command(Message msg)
         {
-            if (Users.Exists(x => x.Id == msg.From.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                var u = Users.Find(x => x.Id == msg.From.Id);
-                if (u.Name != msg.From.FullName() || u.Username != msg.From.Username)
+                if (db.Users.Any(x => x.Id == msg.From.Id))
                 {
-                    var par = new Dictionary<string, object>() { { "id", msg.From.Id },
-                    { "name", msg.From.FullName() }, { "username", msg.From.Username } };
-                    ExecuteSql("UPDATE Users SET Name=@name, Username=@username WHERE id=@id", par);
-                    u.Name = msg.From.FullName();
-                    u.Username = msg.From.Username;
+                    var u = db.Users.Find(msg.From.Id);
+                    if (u.Name != msg.From.FullName() || u.Username != msg.From.Username)
+                    {
+                        u.Name = msg.From.FullName();
+                        u.Username = msg.From.Username;
+                        db.SaveChanges();
+                    }
                 }
+                else
+                {
+                    db.Users.Add(new User() { Id = msg.From.Id, LangKey = msg.From.LanguageCode,
+                        Name = msg.From.FullName(), Username = msg.From.Username });
+                    db.SaveChanges();
+                }
+                if (!NodeGames.Exists(x => x.GroupId == msg.Chat.Id))
+                {
+                    if (!db.Games.Any(x => x.GroupId == msg.Chat.Id) && State == NodeState.Primary)
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
+                    }
+                    return;
+                }
+                NodeGame g = NodeGames.Find(x => x.GroupId == msg.Chat.Id);
+                AddPlayer(g, new NodePlayer(msg.From.Id, msg.From.FullName()));
+                g.InactivityTimer.Change(g.Group.JoinTimeout * 60 * 1000, Timeout.Infinite);
             }
-            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
-            {
-                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
-                return;
-            }
-            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
-            AddPlayer(g, new NodePlayer(msg.From.Id, msg.From.FullName()));
-            g.InactivityTimer.Change(g.Group.JoinTimeout * 60 * 1000, Timeout.Infinite);
         }
         #endregion
         #region /langinfo
@@ -1128,14 +1138,16 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
-            if (Nextgame.ContainsKey(msg.Chat.Id) && Nextgame[msg.Chat.Id].Exists(x => x.Id == msg.From.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.AlreadyOnNextgameList);
-                return;
+                if (db.Nextgames.Any(x => x.GroupId == msg.Chat.Id && x.Id == msg.From.Id))
+                {
+                    SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.AlreadyOnNextgameList);
+                    return;
+                }
+                db.Nextgames.Add(new Nextgame() { Id = msg.From.Id, GroupId = msg.Chat.Id });
+                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.PutOnNextgameList);
             }
-            if (!Nextgame.ContainsKey(msg.Chat.Id)) Nextgame.Add(msg.Chat.Id, new List<User>());
-            Nextgame[msg.Chat.Id].Add(new User(msg.From.Id));
-            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.PutOnNextgameList);
         }
         #endregion
         #region /ping
@@ -1697,7 +1709,7 @@ namespace WhoAmIBotSpace
 
         #region Game Flow
         #region Add player
-        private static void AddPlayer(Game game, NodePlayer player)
+        private static void AddPlayer(NodeGame game, NodePlayer player)
         {
             if (game.State != GameState.Joining)
             {

@@ -8,7 +8,7 @@ namespace WhoAmIBotSpace.Helpers
 {
     public static class Extensions
     {
-        public static string FullName(this User user)
+        public static string FullName(this Telegram.Bot.Types.User user)
         {
             return $"{user.FirstName} {user.LastName}".Trim();
         }
