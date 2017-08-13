@@ -59,6 +59,7 @@ namespace WhoAmIBotSpace
         private static TelegramBotClient client;
         private static bool running = true;
         private static List<Thread> currentThreads = new List<Thread>();
+        private static List<NodeGame> nodeGames = new List<NodeGame>();
         #endregion
         #region Events
         public static event EventHandler<CallbackQueryEventArgs> OnCallbackQuery;
@@ -566,10 +567,13 @@ namespace WhoAmIBotSpace
         #region /backup
         private static void Backup_Command(Message msg)
         {
-            if (!GlobalAdmins.Contains(msg.From.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
-                return;
+                if (!db.GlobalAdmins.Any(x => x.Id == msg.From.Id))
+                {
+                    SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
+                    return;
+                }
             }
             const string temp = "temp.sqlite";
             if (File.Exists(temp)) File.Delete(temp);
@@ -580,55 +584,61 @@ namespace WhoAmIBotSpace
         #region /cancelgame
         private static void Cancelgame_Command(Message msg)
         {
-            if (msg.Text.Contains(" ") && GlobalAdmins.Contains(msg.From.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                if (long.TryParse(msg.Text.Substring(msg.Text.IndexOf(" ")), out long id))
+                if (msg.Text.Contains(" ") && db.GlobalAdmins.Any(x => x.Id == msg.From.Id))
                 {
-                    var g2 = GamesRunning.Find(x => x.GroupId == id || x.Id == id);
-                    if (g2 != null)
+                    if (long.TryParse(msg.Text.Substring(msg.Text.IndexOf(" ")), out long id))
                     {
-                        CancelGame(g2);
-                        SendLangMessage(msg.Chat.Id, Strings.GameCancelled);
-                        SendLangMessage(g2.GroupId, Strings.GameCancelledByGlobalAdmin);
+                        var t2 = db.Games.SqlQuery("SELECT * FROM Games WHERE Id=@p0 OR GroupId=@p0", id).ToListAsync();
+                        t2.Wait();
+                        var g2 = t2.Result.FirstOrDefault();
+                        if (g2 != null)
+                        {
+                            CancelGame(g2);
+                            SendLangMessage(msg.Chat.Id, Strings.GameCancelled);
+                            SendLangMessage(g2.GroupId, Strings.GameCancelledByGlobalAdmin);
+                            return;
+                        }
+                    }
+                }
+                if (!db.Games.Any(x => x.GroupId == msg.Chat.Id))
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
+                    return;
+                }
+                var t = db.Games.SqlQuery("SELECT * FROM Games WHERE GroupId=@p0", msg.Chat.Id).ToListAsync();
+                t.Wait();
+                Game g = t.Result.First();
+                if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
+                {
+                    db.Groups.Add(new Group() { Id = msg.Chat.Id, Name = msg.Chat.Title, LangKey = defaultLangCode,
+                    CancelgameAdmin = true, GameTimeout = (int)maxIdleGameTime.TotalMinutes, JoinTimeout = (int)maxIdleJoinTime.TotalMinutes });
+                }
+                if (!db.GlobalAdmins.Any(x => x.Id == msg.From.Id))
+                {
+                    bool cancancel = !db.Groups.Find(msg.Chat.Id).CancelgameAdmin;
+                    if (msg.Chat.Type.IsGroup())
+                    {
+                        var t3 = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
+                        t3.Wait();
+                        if (t3.Result.Status == ChatMemberStatus.Administrator || t3.Result.Status == ChatMemberStatus.Creator) cancancel = true;
+                    }
+                    if (!cancancel)
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.AdminOnly);
                         return;
                     }
                 }
-            }
-            if (!GamesRunning.Exists(x => x.GroupId == msg.Chat.Id))
-            {
-                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
-                return;
-            }
-            Game g = GamesRunning.Find(x => x.GroupId == msg.Chat.Id);
-            if (!Groups.Exists(x => x.Id == msg.Chat.Id))
-            {
-                var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "langCode", defaultLangCode },
-                    { "name", msg.Chat.Title } };
-                ExecuteSql("INSERT INTO Groups (Id, LangKey, Name) VALUES(@id, @langCode, @name)", par);
-                Groups.Add(new Group(msg.Chat.Id) { Name = msg.Chat.Title });
-            }
-            if (!GlobalAdmins.Contains(msg.From.Id))
-            {
-                bool cancancel = !Groups.Find(x => x.Id == msg.Chat.Id).CancelgameAdmin;
-                if (msg.Chat.Type.IsGroup())
+                if (!Help.Longer(g.Players, g.TotalPlayers).Exists(x => x.Id == msg.From.Id))
                 {
-                    var t = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
-                    t.Wait();
-                    if (t.Result.Status == ChatMemberStatus.Administrator || t.Result.Status == ChatMemberStatus.Creator) cancancel = true;
-                }
-                if (!cancancel)
-                {
-                    SendLangMessage(msg.Chat.Id, Strings.AdminOnly);
+                    SendLangMessage(msg.Chat.Id, Strings.NotInGame);
                     return;
                 }
+                CancelGame(g);
+                SendLangMessage(msg.Chat.Id, Strings.GameCancelled);
+                db.SaveChanges();
             }
-            if (!Help.Longer(g.Players, g.TotalPlayers).Exists(x => x.Id == msg.From.Id))
-            {
-                SendLangMessage(msg.Chat.Id, Strings.NotInGame);
-                return;
-            }
-            CancelGame(g);
-            SendLangMessage(msg.Chat.Id, Strings.GameCancelled);
         }
         #endregion
         #region /canceljoin
