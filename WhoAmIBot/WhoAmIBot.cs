@@ -111,7 +111,7 @@ namespace WhoAmIBotSpace
                     {
                         if (db.Commands.Any(x => x.Trigger == cmd && x.Standalone))
                         {
-                            var node = Nodes.FirstOrDefault(x => x.State == NodeState.Running);
+                            var node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
                             using (var sw = new StreamWriter(node.Pipe))
                             {
                                 sw.WriteLine(JsonConvert.SerializeObject(e.Update));

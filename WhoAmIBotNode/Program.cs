@@ -224,7 +224,6 @@ namespace WhoAmIBotSpace
             sqliteConn = new SQLiteConnection(connectionString);
             sqliteConn.Open();
             ClearGames();
-            ReadGroupsAndUsers();
         }
 
         private static void Dispose()
@@ -240,7 +239,6 @@ namespace WhoAmIBotSpace
         #region Main method
         static void Main(string[] args)
         {
-            Init();
             if (args.Length < 1) return;
             using (PipeStream pipeClient = new AnonymousPipeClientStream(PipeDirection.In, args[0]))
             {
@@ -249,6 +247,9 @@ namespace WhoAmIBotSpace
                     while (running)
                     {
                         var data = sr.ReadLine();
+#if DEBUG
+                        if (!string.IsNullOrEmpty(data)) Console.WriteLine(data);
+#endif
                         if (!string.IsNullOrEmpty(data))
                         {
                             var t = new Thread(() => HandleData(data));
@@ -274,22 +275,31 @@ namespace WhoAmIBotSpace
                 if (data.StartsWith("TOKEN:"))
                 {
                     client = new TelegramBotClient(data.Substring(data.IndexOf(":") + 1));
+                    Init();
                     return;
                 }
                 if (data.StartsWith("STOP"))
                 {
                     State = NodeState.Stopping;
-                    EventHandler<GameFinishedEventArgs> gfHandler = (sender, e) => { };
-                    gfHandler = (sender, e) =>
+                    if (NodeGames.Count > 0)
                     {
-                        if (NodeGames.Count < 1)
+                        EventHandler<GameFinishedEventArgs> gfHandler = (sender, e) => { };
+                        gfHandler = (sender, e) =>
                         {
-                            State = NodeState.Stopped;
-                            running = false;
-                            GameFinished -= gfHandler;
-                        }
-                    };
-                    GameFinished += gfHandler;
+                            if (NodeGames.Count < 1)
+                            {
+                                State = NodeState.Stopped;
+                                running = false;
+                                GameFinished -= gfHandler;
+                            }
+                        };
+                        GameFinished += gfHandler;
+                    }
+                    else
+                    {
+                        State = NodeState.Stopped;
+                        running = false;
+                    }
                     return;
                 }
                 #region On update
@@ -337,7 +347,7 @@ namespace WhoAmIBotSpace
             }
             catch (Exception x)
             {
-                client.SendTextMessageAsync(Flom,
+                client?.SendTextMessageAsync(Flom,
                     $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
             }
 #endif
@@ -530,7 +540,7 @@ namespace WhoAmIBotSpace
 #if DEBUG
         public static LangFile GetLangFile(string key, bool completify = true)
 #else
-        private LangFile GetLangFile(string key, bool completify = true)
+        private static LangFile GetLangFile(string key, bool completify = true)
 #endif
         {
             using (var db = new WhoAmIBotContext())
@@ -1017,8 +1027,13 @@ namespace WhoAmIBotSpace
                 }
                 else
                 {
-                    db.Users.Add(new User() { Id = msg.From.Id, LangKey = msg.From.LanguageCode,
-                        Name = msg.From.FullName(), Username = msg.From.Username });
+                    db.Users.Add(new User()
+                    {
+                        Id = msg.From.Id,
+                        LangKey = msg.From.LanguageCode,
+                        Name = msg.From.FullName(),
+                        Username = msg.From.Username
+                    });
                     db.SaveChanges();
                 }
                 if (!NodeGames.Exists(x => x.GroupId == msg.Chat.Id))
@@ -1222,8 +1237,13 @@ namespace WhoAmIBotSpace
                         case ChatType.Private:
                             if (!db.Users.Any(x => x.Id == e.CallbackQuery.From.Id))
                             {
-                                db.Users.Add(new User() { Id = e.CallbackQuery.From.Id, LangKey = key,
-                                    Name = e.CallbackQuery.From.FullName(), Username = e.CallbackQuery.From.Username });
+                                db.Users.Add(new User()
+                                {
+                                    Id = e.CallbackQuery.From.Id,
+                                    LangKey = key,
+                                    Name = e.CallbackQuery.From.FullName(),
+                                    Username = e.CallbackQuery.From.Username
+                                });
                                 db.SaveChanges();
                             }
                             else
@@ -1336,8 +1356,13 @@ namespace WhoAmIBotSpace
                 if (msg.Chat.Type != ChatType.Private) return;
                 if (!db.Users.Any(x => x.Id == msg.From.Id))
                 {
-                    var u = new User() { Id = msg.From.Id, LangKey = msg.From.LanguageCode,
-                        Name = msg.From.FullName(), Username = msg.From.Username };
+                    var u = new User()
+                    {
+                        Id = msg.From.Id,
+                        LangKey = msg.From.LanguageCode,
+                        Name = msg.From.FullName(),
+                        Username = msg.From.Username
+                    };
                     db.Users.Add(u);
                     db.SaveChanges();
                     if (string.IsNullOrEmpty(u.LangKey))
@@ -1399,8 +1424,13 @@ namespace WhoAmIBotSpace
                 }
                 else
                 {
-                    db.Users.Add(new User() { Id = msg.From.Id, LangKey = msg.From.LanguageCode,
-                        Name = msg.From.FullName(), Username = msg.From.Username });
+                    db.Users.Add(new User()
+                    {
+                        Id = msg.From.Id,
+                        LangKey = msg.From.LanguageCode,
+                        Name = msg.From.FullName(),
+                        Username = msg.From.Username
+                    });
                     db.SaveChanges();
                 }
                 if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
@@ -1463,7 +1493,10 @@ namespace WhoAmIBotSpace
         #region /sql
         private static void SQL_Command(Message msg)
         {
-            if (!GlobalAdmins.Contains(msg.From.Id)) return;
+            using (var db = new WhoAmIBotContext())
+            {
+                if (!db.GlobalAdmins.Any(x => x.Id == msg.From.Id)) return;
+            }
             try
             {
                 string commandText;
@@ -1490,10 +1523,13 @@ namespace WhoAmIBotSpace
         private static void Uploadlang_Command(Message msg)
         {
             if (msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.DocumentMessage) return;
-            if (!GlobalAdmins.Contains(msg.From.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                SendLangMessage(msg.Chat.Id, Strings.NoGlobalAdmin);
-                return;
+                if (!db.GlobalAdmins.Any(x => x.Id == msg.From.Id))
+                {
+                    SendLangMessage(msg.Chat.Id, Strings.NoGlobalAdmin);
+                    return;
+                }
             }
             var now = DateTime.Now;
             var path = $"{now.Hour}-{now.Minute}-{now.Second}-{now.Millisecond}.temp";
@@ -1517,9 +1553,12 @@ namespace WhoAmIBotSpace
                 };
                 EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
                 {
-                    if (!GlobalAdmins.Contains(e.CallbackQuery.From.Id)
-                    || e.CallbackQuery.Message.MessageId != sent.MessageId
-                    || e.CallbackQuery.Message.Chat.Id != sent.Chat.Id) return;
+                    using (var db = new WhoAmIBotContext())
+                    {
+                        if (!db.GlobalAdmins.Any(x => x.Id == e.CallbackQuery.From.Id)
+                        || e.CallbackQuery.Message.MessageId != sent.MessageId
+                        || e.CallbackQuery.Message.Chat.Id != sent.Chat.Id) return;
+                    }
                     if (e.CallbackQuery.Data == "yes") permit = true;
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     mre.Set();
@@ -1729,7 +1768,7 @@ namespace WhoAmIBotSpace
         private static void StartGameFlow(object gameObject)
         {
             if (!(gameObject is Game)) return;
-            Game game = (Game)gameObject;
+            NodeGame game = (NodeGame)gameObject;
             #region Preparation phase
             SendLangMessage(game.GroupId, Strings.GameFlowStarted);
             game.State = GameState.Running;
@@ -1980,15 +2019,18 @@ namespace WhoAmIBotSpace
             #endregion
             #region Finish game
             game.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            var par = new Dictionary<string, object>() { { "id", game.Id } };
-            ExecuteSql("DELETE FROM Games WHERE Id=@id", par);
-            long winnerId = game.Winner == null ? 0 : game.Winner.Id;
-            string winnerName = game.Winner == null ? GetString(Strings.Nobody, LangCode(game.GroupId)) : game.Winner.Name;
-            par = new Dictionary<string, object>() { { "groupid", game.GroupId }, { "winnerid", winnerId }, { "winnername", winnerName } };
-            ExecuteSql("INSERT INTO GamesFinished (groupId, winnerid, winnername) VALUES(@groupid, @winnerid, @winnername)", par);
-            SendLangMessage(game.GroupId, Strings.GameFinished, null, winnerName);
+            using (var db = new WhoAmIBotContext())
+            {
+                db.Games.Remove(db.Games.Find(game.Id));
+                db.SaveChanges();
+                long winnerId = game.Winner == null ? 0 : game.Winner.Id;
+                string winnerName = game.Winner == null ? GetString(Strings.Nobody, LangCode(game.GroupId)) : game.Winner.Name;
+                db.GamesFinisheds.Add(new GamesFinished() { GroupId = game.GroupId, WinnerId = winnerId, WinnerName = winnerName });
+                db.SaveChanges();
+                SendLangMessage(game.GroupId, Strings.GameFinished, null, winnerName);
+            }
             SendLangMessage(game.GroupId, Strings.RolesWere, null, game.GetRolesAsString());
-            GamesRunning.Remove(game);
+            NodeGames.Remove(game);
             GameFinished?.Invoke(null, new GameFinishedEventArgs(game));
             #endregion
         }
@@ -1996,10 +2038,13 @@ namespace WhoAmIBotSpace
         #region Cancel game
         private static void CancelGame(NodeGame g)
         {
-            var par = new Dictionary<string, object>() { { "id", g.Id } };
-            ExecuteSql($"DELETE FROM Games WHERE Id=@id", par);
+            using (var db = new WhoAmIBotContext())
+            {
+                db.Games.Remove(db.Games.Find(g.Id));
+                db.SaveChanges();
+            }
             g.Thread?.Abort();
-            GamesRunning.Remove(g);
+            NodeGames.Remove(g);
             GameFinished?.Invoke(null, new GameFinishedEventArgs(g));
         }
         #endregion
@@ -2105,40 +2150,6 @@ namespace WhoAmIBotSpace
         private static void ClearGames()
         {
             ExecuteSql("DELETE FROM Games");
-        }
-        #endregion
-        #region Read Groups and Users
-        private static void ReadGroupsAndUsers()
-        {
-            var query = ExecuteSql("SELECT Id, LangKey, Name, JoinTimeout, GameTimeout, CancelgameAdmin FROM Groups");
-            Groups.Clear();
-            foreach (var row in query)
-            {
-                if (row.Count == 0) continue;
-                Groups.Add(new Group(Convert.ToInt64(row[0].Trim()))
-                {
-                    LangKey = row[1].Trim(),
-                    Name = row[2].Trim(),
-                    JoinTimeout = Convert.ToInt32(row[3]),
-                    GameTimeout = Convert.ToInt32(row[4]),
-                    CancelgameAdmin = Convert.ToBoolean(row[5])
-                });
-            }
-            query = ExecuteSql("SELECT Id, LangKey, Name, Username FROM Users");
-            Users.Clear();
-            foreach (var row in query)
-            {
-                if (row.Count == 0) continue;
-                Users.Add(new User(Convert.ToInt64(row[0].Trim()))
-                { LangKey = row[1].Trim(), Name = row[2].Trim(), Username = row[3].Trim() });
-            }
-            query = ExecuteSql("SELECT Id FROM GlobalAdmins");
-            GlobalAdmins.Clear();
-            foreach (var row in query)
-            {
-                if (row.Count == 0) continue;
-                GlobalAdmins.Add(Convert.ToInt64(row[0]));
-            }
         }
         #endregion
         #endregion

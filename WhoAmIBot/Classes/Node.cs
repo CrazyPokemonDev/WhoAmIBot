@@ -15,12 +15,12 @@ namespace WhoAmIBotSpace.Classes
         }
 
         public AnonymousPipeServerStream Pipe { get; }
-        public NodeState State { get; set; } = NodeState.Running;
+        public NodeState State { get; set; } = NodeState.Primary;
     }
     
     public enum NodeState
     {
-        Running,
+        Primary,
         Stopping,
         Stopped
     }
