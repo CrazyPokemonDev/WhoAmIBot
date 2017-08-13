@@ -228,6 +228,7 @@ namespace WhoAmIBotSpace
 
         private static void Dispose()
         {
+            running = false;
             sqliteConn.Close();
             foreach (Thread t in currentThreads)
             {
@@ -247,9 +248,43 @@ namespace WhoAmIBotSpace
                     while (running)
                     {
                         var data = sr.ReadLine();
-#if DEBUG
+//#if DEBUG
                         if (!string.IsNullOrEmpty(data)) Console.WriteLine(data);
-#endif
+//#endif
+                        if (string.IsNullOrEmpty(data)) continue;
+                        if (data.StartsWith("TOKEN:"))
+                        {
+                            client = new TelegramBotClient(data.Substring(data.IndexOf(":") + 1));
+                            Init();
+                            Console.WriteLine($"Node: Username: {Username}");
+                            continue;
+                        }
+                        if (data.StartsWith("STOP"))
+                        {
+                            Console.WriteLine("stopping");
+                            State = NodeState.Stopping;
+                            if (NodeGames.Count > 0)
+                            {
+                                EventHandler<GameFinishedEventArgs> gfHandler = (sender, e) => { };
+                                gfHandler = (sender, e) =>
+                                {
+                                    if (NodeGames.Count < 1)
+                                    {
+                                        State = NodeState.Stopped;
+                                        running = false;
+                                        GameFinished -= gfHandler;
+                                    }
+                                };
+                                GameFinished += gfHandler;
+                            }
+                            else
+                            {
+                                State = NodeState.Stopped;
+                                running = false;
+                                Dispose();
+                            }
+                            continue;
+                        }
                         if (!string.IsNullOrEmpty(data))
                         {
                             var t = new Thread(() => HandleData(data));
@@ -272,36 +307,6 @@ namespace WhoAmIBotSpace
             try
             {
 #endif
-                if (data.StartsWith("TOKEN:"))
-                {
-                    client = new TelegramBotClient(data.Substring(data.IndexOf(":") + 1));
-                    Init();
-                    return;
-                }
-                if (data.StartsWith("STOP"))
-                {
-                    State = NodeState.Stopping;
-                    if (NodeGames.Count > 0)
-                    {
-                        EventHandler<GameFinishedEventArgs> gfHandler = (sender, e) => { };
-                        gfHandler = (sender, e) =>
-                        {
-                            if (NodeGames.Count < 1)
-                            {
-                                State = NodeState.Stopped;
-                                running = false;
-                                GameFinished -= gfHandler;
-                            }
-                        };
-                        GameFinished += gfHandler;
-                    }
-                    else
-                    {
-                        State = NodeState.Stopped;
-                        running = false;
-                    }
-                    return;
-                }
                 #region On update
                 var update = JsonConvert.DeserializeObject<Update>(data);
                 if (update.Type == UpdateType.MessageUpdate && update.Message.Type == MessageType.TextMessage)
@@ -349,6 +354,8 @@ namespace WhoAmIBotSpace
             {
                 client?.SendTextMessageAsync(Flom,
                     $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
+                if (client == null)
+                    Console.WriteLine($"An error occurred in Node: {x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
             }
 #endif
             #endregion
