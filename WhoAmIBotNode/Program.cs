@@ -245,18 +245,27 @@ namespace WhoAmIBotSpace
             {
                 using (var sr = new StreamReader(pipeClient))
                 {
+                    string data;
                     while (running)
                     {
-                        var data = sr.ReadLine();
-//#if DEBUG
+                        while ((data = sr.ReadLine()) == null);
+#if DEBUG
                         if (!string.IsNullOrEmpty(data)) Console.WriteLine(data);
-//#endif
+#endif
                         if (string.IsNullOrEmpty(data)) continue;
                         if (data.StartsWith("TOKEN:"))
                         {
                             client = new TelegramBotClient(data.Substring(data.IndexOf(":") + 1));
                             Init();
                             Console.WriteLine($"Node: Username: {Username}");
+                            continue;
+                        }
+                        if (data.StartsWith("PING:"))
+                        {
+                            data = data.Substring(5);
+                            var s = data.Split(':');
+                            var now = DateTime.Now;
+                            Console.WriteLine($"{now.Hour - Convert.ToInt64(s[0])}:{now.Minute - Convert.ToInt64(s[1])}:{now.Second - Convert.ToInt64(s[2])}:{now.Millisecond - Convert.ToInt64(s[3])}");
                             continue;
                         }
                         if (data.StartsWith("STOP"))
@@ -287,8 +296,7 @@ namespace WhoAmIBotSpace
                         }
                         if (!string.IsNullOrEmpty(data))
                         {
-                            var t = new Thread(() => HandleData(data));
-                            t.Start();
+                            HandleData(data);
                         }
                     }
                 }
@@ -307,7 +315,6 @@ namespace WhoAmIBotSpace
             try
             {
 #endif
-                #region On update
                 var update = JsonConvert.DeserializeObject<Update>(data);
                 if (update.Type == UpdateType.MessageUpdate && update.Message.Type == MessageType.TextMessage)
                 {
@@ -358,7 +365,6 @@ namespace WhoAmIBotSpace
                     Console.WriteLine($"An error occurred in Node: {x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
             }
 #endif
-            #endregion
         }
         #endregion
 
