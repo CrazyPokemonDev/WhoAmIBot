@@ -13,6 +13,8 @@ using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Linq;
 using Newtonsoft.Json;
+using System.Diagnostics;
+using System.Security.Permissions;
 
 namespace WhoAmIBotSpace
 {
@@ -56,7 +58,7 @@ namespace WhoAmIBotSpace
             sqliteConn = new SQLiteConnection(connectionString);
             sqliteConn.Open();
         }
-
+        
         public override bool StartBot()
         {
             try
@@ -67,6 +69,13 @@ namespace WhoAmIBotSpace
                 client.OnReceiveError += Client_OnReceiveError;
                 client.OnReceiveGeneralError += Client_OnReceiveError;
                 client.OnCallbackQuery += Client_OnCallbackQuery;
+                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WhoAmIBotNode\\default\\");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                var path = Path.Combine(dir, "WhoAmIBotNode.exe");
+                /*if (!File.Exists(path)) Process.Start(dir);*/
+                Node n = new Node(path);
+                n.Start(Token);
+                Nodes.Add(n);
             }
             catch
             {
@@ -94,11 +103,7 @@ namespace WhoAmIBotSpace
             {
                 foreach (var node in Nodes)
                 {
-                    using (var sw = new StreamWriter(node.Pipe))
-                    {
-                        sw.WriteLine(JsonConvert.SerializeObject(e.Update));
-                        sw.Flush();
-                    }
+                    node.Queue(JsonConvert.SerializeObject(e.Update));
                 }
                 return;
             }
@@ -112,22 +117,14 @@ namespace WhoAmIBotSpace
                         if (db.Commands.Any(x => x.Trigger == cmd && x.Standalone))
                         {
                             var node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
-                            using (var sw = new StreamWriter(node.Pipe))
-                            {
-                                sw.WriteLine(JsonConvert.SerializeObject(e.Update));
-                                sw.Flush();
-                            }
+                            node.Queue(JsonConvert.SerializeObject(e.Update));
                             return;
                         }
                     }
                 }
                 foreach (var node in Nodes)
                 {
-                    using (var sw = new StreamWriter(node.Pipe))
-                    {
-                        sw.WriteLine(JsonConvert.SerializeObject(e.Update));
-                        sw.Flush();
-                    }
+                    node.Queue(JsonConvert.SerializeObject(e.Update));
                 }
             }
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage
