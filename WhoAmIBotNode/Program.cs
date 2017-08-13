@@ -1331,36 +1331,36 @@ namespace WhoAmIBotSpace
         #region /start
         private static void Start_Command(Message msg)
         {
-            if (msg.Chat.Type != ChatType.Private) return;
-            if (!Users.Exists(x => x.Id == msg.From.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                var par = new Dictionary<string, object>() { { "id", msg.From.Id }, { "langcode", msg.From.LanguageCode },
-                    { "name", msg.From.FullName() }, { "username", msg.From.Username } };
-                ExecuteSql("INSERT INTO Users(Id, LangKey, Name, Username) VALUES(@id, @langcode, @name, @username)", par);
-                var u = new User(msg.From.Id) { LangKey = msg.From.LanguageCode };
-                Users.Add(u);
-                if (string.IsNullOrEmpty(u.LangKey))
+                if (msg.Chat.Type != ChatType.Private) return;
+                if (!db.Users.Any(x => x.Id == msg.From.Id))
                 {
-                    SendLangMessage(msg.Chat.Id, Strings.Welcome);
-                    Setlang_Command(msg);
+                    var u = new User() { Id = msg.From.Id, LangKey = msg.From.LanguageCode,
+                        Name = msg.From.FullName(), Username = msg.From.Username };
+                    db.Users.Add(u);
+                    db.SaveChanges();
+                    if (string.IsNullOrEmpty(u.LangKey))
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.Welcome);
+                        Setlang_Command(msg);
+                    }
+                    else
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.Welcome);
+                    }
                 }
                 else
                 {
+                    var u = db.Users.Find(msg.From.Id);
+                    if (u.Name != msg.From.FullName() || u.Username != msg.From.Username)
+                    {
+                        u.Name = msg.From.FullName();
+                        u.Username = msg.From.Username;
+                        db.SaveChanges();
+                    }
                     SendLangMessage(msg.Chat.Id, Strings.Welcome);
                 }
-            }
-            else
-            {
-                var u = Users.Find(x => x.Id == msg.From.Id);
-                if (u.Name != msg.From.FullName() || u.Username != msg.From.Username)
-                {
-                    var par = new Dictionary<string, object>() { { "id", msg.From.Id },
-                    { "name", msg.From.FullName() }, { "username", msg.From.Username } };
-                    ExecuteSql("UPDATE Users SET Name=@name, Username=@username WHERE id=@id", par);
-                    u.Name = msg.From.FullName();
-                    u.Username = msg.From.Username;
-                }
-                SendLangMessage(msg.Chat.Id, Strings.Welcome);
             }
         }
         #endregion
