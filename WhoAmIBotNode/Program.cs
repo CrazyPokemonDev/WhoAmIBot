@@ -1185,14 +1185,17 @@ namespace WhoAmIBotSpace
         #region /setlang
         private static void Setlang_Command(Message msg)
         {
-            if (!GlobalAdmins.Contains(msg.From.Id) && msg.Chat.Type.IsGroup())
+            using (var db = new WhoAmIBotContext())
             {
-                var t = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
-                t.Wait();
-                if (t.Result.Status != ChatMemberStatus.Administrator && t.Result.Status != ChatMemberStatus.Creator)
+                if (!db.GlobalAdmins.Any(x => x.Id == msg.From.Id) && msg.Chat.Type.IsGroup())
                 {
-                    SendLangMessage(msg.Chat.Id, Strings.AdminOnly);
-                    return;
+                    var t = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
+                    t.Wait();
+                    if (t.Result.Status != ChatMemberStatus.Administrator && t.Result.Status != ChatMemberStatus.Creator)
+                    {
+                        SendLangMessage(msg.Chat.Id, Strings.AdminOnly);
+                        return;
+                    }
                 }
             }
             ManualResetEvent mre = new ManualResetEvent(false);
@@ -1212,54 +1215,37 @@ namespace WhoAmIBotSpace
                         SendLangMessage(msg.Chat.Id, Strings.AdminOnly);
                     }
                 }
-                switch (msg.Chat.Type)
+                using (var db = new WhoAmIBotContext())
                 {
-                    case ChatType.Private:
-                        if (!Users.Exists(x => x.Id == e.CallbackQuery.From.Id))
-                        {
-                            Users.Add(new User(e.CallbackQuery.From.Id) { LangKey = key });
-                            var par = new Dictionary<string, object>()
+                    switch (msg.Chat.Type)
+                    {
+                        case ChatType.Private:
+                            if (!db.Users.Any(x => x.Id == e.CallbackQuery.From.Id))
                             {
-                                { "key", key },
-                                { "id", e.CallbackQuery.From.Id }
-                            };
-                            ExecuteSql("INSERT INTO Users VALUES(@id, @key)", par);
-                        }
-                        else
-                        {
-                            Users.Find(x => x.Id == e.CallbackQuery.From.Id).LangKey = key;
-                            var par = new Dictionary<string, object>()
+                                db.Users.Add(new User() { Id = e.CallbackQuery.From.Id, LangKey = key,
+                                    Name = e.CallbackQuery.From.FullName(), Username = e.CallbackQuery.From.Username });
+                                db.SaveChanges();
+                            }
+                            else
                             {
-                                { "key", key },
-                                { "id", e.CallbackQuery.From.Id }
-                            };
-                            ExecuteSql("UPDATE Users SET LangKey=@key WHERE Id=@id", par);
-                        }
-                        break;
-                    case ChatType.Group:
-                    case ChatType.Supergroup:
-                        if (!Groups.Exists(x => x.Id == msg.Chat.Id))
-                        {
-                            Groups.Add(new Group(msg.From.Id) { LangKey = key, Name = msg.Chat.Title });
-                            var par = new Dictionary<string, object>()
+                                db.Users.Find(e.CallbackQuery.From.Id).LangKey = key;
+                                db.SaveChanges();
+                            }
+                            break;
+                        case ChatType.Group:
+                        case ChatType.Supergroup:
+                            if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                             {
-                                { "key", key },
-                                { "id", msg.Chat.Id },
-                                { "set", true }
-                            };
-                            ExecuteSql("INSERT INTO Groups(id, langKey, langSet) VALUES(@id, @key, @set)", par);
-                        }
-                        else
-                        {
-                            Groups.Find(x => x.Id == msg.Chat.Id).LangKey = key;
-                            var par = new Dictionary<string, object>()
+                                db.Groups.Add(new Group() { Id = msg.Chat.Id, LangKey = key, Name = msg.Chat.Title });
+                                db.SaveChanges();
+                            }
+                            else
                             {
-                                { "key", key },
-                                { "id", msg.Chat.Id }
-                            };
-                            ExecuteSql("UPDATE Groups SET LangKey=@key WHERE Id=@id", par);
-                        }
-                        break;
+                                db.Groups.Find(msg.Chat.Id).LangKey = key;
+                                db.SaveChanges();
+                            }
+                            break;
+                    }
                 }
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 mre.Set();
@@ -1287,12 +1273,13 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
-            if (!Groups.Exists(x => x.Id == msg.Chat.Id))
+            using (var db = new WhoAmIBotContext())
             {
-                var par = new Dictionary<string, object>() { { "id", msg.Chat.Id }, { "langCode", defaultLangCode },
-                    { "name", msg.Chat.Title } };
-                ExecuteSql("INSERT INTO Groups (Id, LangKey, Name) VALUES(@id, @langCode, @name)", par);
-                Groups.Add(new Group(msg.Chat.Id) { Name = msg.Chat.Title });
+                if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
+                {
+                    db.Groups.Add(new Group() { Id = msg.Chat.Id, Name = msg.Chat.Title, LangKey = defaultLangCode });
+                    db.SaveChanges();
+                }
             }
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) => { };
             cHandler = (sender, e) =>
