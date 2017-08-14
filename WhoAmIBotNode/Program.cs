@@ -1371,7 +1371,7 @@ namespace WhoAmIBotSpace
         {
             /*var now = DateTime.Now.ToLocalTime();
             var span = now.Subtract(msg.Date.ToLocalTime());*/
-            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, DateTime.Now.ToShortTimeString()/*span.TotalSeconds.ToString()*/);
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, msg.Date.ToLongTimeString()/*span.TotalSeconds.ToString()*/);
         }
         #endregion
         #region /rate
