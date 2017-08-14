@@ -17,6 +17,7 @@ using System.Net;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.InlineKeyboardButtons;
 using System.Text;
+using System.Reflection;
 
 namespace WhoAmIBotSpace
 {
@@ -840,6 +841,7 @@ namespace WhoAmIBotSpace
             commands.Add("/identify", new Action<Message>(Identify_Command));
             commands.Add("/ping", new Action<Message>(Ping_Command));
             commands.Add("/settings", new Action<Message>(Settings_Command));
+            commands.Add("/nodes", new Action<Message>(Nodes_Command));
         }
         #endregion
 
@@ -1366,6 +1368,13 @@ namespace WhoAmIBotSpace
             }
             AddNextgame(msg.From.Id, msg.Chat.Id);
             SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.PutOnNextgameList);
+        }
+        #endregion
+        #region /nodes
+        private static void Nodes_Command(Message msg)
+        {
+            if (!GlobalAdminExists(msg.From.Id)) return;
+            client.SendTextMessageAsync(msg.Chat.Id, Assembly.GetExecutingAssembly().Location).Wait();
         }
         #endregion
         #region /ping
