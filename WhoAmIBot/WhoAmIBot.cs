@@ -41,7 +41,7 @@ namespace WhoAmIBotSpace
         protected new static readonly Flom Flom = new Flom();
         private static readonly string appDataBaseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "WhoAmIBot\\");
-        private const string dateTimeFileFormat = "yyyy-MM-dd-hh-mm-ss";
+        private const string dateTimeFileFormat = "yyyy-MM-dd-HH-mm-ss";
         private static readonly string defaultNodeDirectory = Path.Combine(appDataBaseDir, "default\\");
         private static readonly string gitNodeDirectory = Path.Combine(appDataBaseDir, "git\\");
         #endregion
