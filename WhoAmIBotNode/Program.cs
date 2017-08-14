@@ -1056,6 +1056,7 @@ namespace WhoAmIBotSpace
             foreach (var s in string.Join("\n\n",
                 NodeGames.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000))
             {
+                if (string.IsNullOrWhiteSpace(s)) continue;
                 var t = client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(NodeGames, msg.Chat.Id));
                 t.Wait();
                 sent.Add(t.Result);
