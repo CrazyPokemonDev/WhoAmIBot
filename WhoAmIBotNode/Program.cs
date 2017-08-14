@@ -1372,7 +1372,7 @@ namespace WhoAmIBotSpace
             DateTime thisTime = DateTime.Now;
             bool isDaylight = TimeZoneInfo.Local.IsDaylightSavingTime(thisTime);
             var now = DateTime.Now.ToUniversalTime();
-            var span = now.Subtract(msg.Date.Subtract(TimeSpan.FromHours(isDaylight ? 4 : 2)).ToUniversalTime());
+            var span = now.Subtract(msg.Date.ToUniversalTime().Subtract(TimeSpan.FromHours(isDaylight ? 4 : 2)));
             SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, span.TotalSeconds.ToString());
         }
         #endregion
