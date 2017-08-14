@@ -943,6 +943,7 @@ namespace WhoAmIBotSpace
         #region /communicate
         private static void Communicate_Command(Message msg)
         {
+            if (State != NodeState.Primary) return;
             if (msg.Chat.Type != ChatType.Private || !msg.Text.Contains(" ")) return;
             if (!GlobalAdminExists(msg.From.Id))
             {
