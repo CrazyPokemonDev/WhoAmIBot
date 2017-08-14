@@ -185,6 +185,11 @@ namespace WhoAmIBotSpace
         {
             while (Nodes.Count > 0)
             {
+                if (Nodes[0].State == NodeState.Stopped)
+                {
+                    Nodes.Remove(Nodes[0]);
+                    continue;
+                }
                 Nodes[0].Stop();
             }
             client.OnReceiveError -= Client_OnReceiveError;
