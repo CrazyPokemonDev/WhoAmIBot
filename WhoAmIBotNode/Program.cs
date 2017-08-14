@@ -1369,9 +1369,11 @@ namespace WhoAmIBotSpace
         #region /ping
         private static void Ping_Command(Message msg)
         {
+            DateTime thisTime = DateTime.Now;
+            bool isDaylight = TimeZoneInfo.Local.IsDaylightSavingTime(thisTime);
             var now = DateTime.Now.ToUniversalTime();
-            var span = now.Subtract(msg.Date.ToUniversalTime());
-            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, $"now: {now.ToLongTimeString()}, tg: {msg.Date.ToLongTimeString()}"/*span.TotalSeconds.ToString()*/);
+            var span = now.Subtract(msg.Date.Subtract(TimeSpan.FromHours(isDaylight ? 4 : 2)).ToUniversalTime());
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, span.TotalSeconds.ToString());
         }
         #endregion
         #region /rate
