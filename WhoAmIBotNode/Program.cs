@@ -186,7 +186,7 @@ namespace WhoAmIBotSpace
             else return q[0][0];
         }
 
-        private static T GetValue<T>(string table, string column, object identifier, string identifierName = "Id")
+        /*private static T GetValue<T>(string table, string column, object identifier, string identifierName = "Id")
         {
             var par = new Dictionary<string, object>()
             {
@@ -197,33 +197,39 @@ namespace WhoAmIBotSpace
             if (q.Count < 1 || q[0].Count < 1) throw new HelperException($"Did not find anything. Query: {query}");
             try
             {
+                if (typeof(T) == typeof(int))
+                    return (T)(object)Convert.ToInt32(q[0][0]);
+                if (typeof(T) == typeof(long))
+                    return (T)(object)Convert.ToInt64(q[0][0]);
+                if (typeof(T) == typeof(bool))
+                    return (T)(object)Convert.ToBoolean(q[0][0]);
                 return (T)(object)q[0][0];
             }
             catch
             {
                 throw new HelperException($"Query {query} not able to cast to type {typeof(T).FullName}");
             }
-        }
+        }*/
 
         private static string GetGroupValue(string column, long id)
         {
             return GetValue("Groups", column, id, "Id");
         }
 
-        private static T GetGroupValue<T>(string column, long id)
+        /*private static T GetGroupValue<T>(string column, long id)
         {
             return GetValue<T>("Groups", column, id, "Id");
-        }
+        }*/
 
         private static string GetUserValue(string column, long id)
         {
             return GetValue("Users", column, id, "Id");
         }
 
-        private static T GetUserValue<T>(string column, long id)
+        /*private static T GetUserValue<T>(string column, long id)
         {
             return GetValue<T>("Users", column, id, "Id");
-        }
+        }*/
 
         private static string GetGameValue(string column, long id, GameIdType git)
         {
@@ -237,10 +243,10 @@ namespace WhoAmIBotSpace
                     idName = "Id";
                     break;
             }
-            return GetValue("Users", column, id, idName);
+            return GetValue("Games", column, id, idName);
         }
 
-        private static T GetGameValue<T>(string column, long id, GameIdType git)
+        /*private static T GetGameValue<T>(string column, long id, GameIdType git)
         {
             string idName = "Id";
             switch (git)
@@ -253,7 +259,7 @@ namespace WhoAmIBotSpace
                     break;
             }
             return GetValue<T>("Users", column, id, idName);
-        }
+        }*/
         #endregion
         #region Add
         private static void AddGroup(long id, string name, string langKey = defaultLangCode)
@@ -312,7 +318,7 @@ namespace WhoAmIBotSpace
         #region Get
         private static NodeUser GetNodeUser(long userid)
         {
-            return new NodeUser(GetUserValue<long>("Id", userid))
+            return new NodeUser(Convert.ToInt64(GetUserValue("Id", userid)))
             {
                 LangKey = GetUserValue("LangKey", userid),
                 Name = GetUserValue("Name", userid),
@@ -355,7 +361,7 @@ namespace WhoAmIBotSpace
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, Strings.CancelgameQ, ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, groupid), $"cancelgameYes@{groupid}",
                 GetString(Strings.No, groupid), $"cancelgameNo@{groupid}"),
-                GetString(GetGroupValue<bool>("CancelgameAdmin", groupid) ? Strings.True : Strings.False, groupid));
+                GetString(Convert.ToBoolean(GetGroupValue("CancelgameAdmin", groupid)) ? Strings.True : Strings.False, groupid));
             try
             {
                 OnCallbackQuery += cHandler;
@@ -430,7 +436,7 @@ namespace WhoAmIBotSpace
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
-                $"{maxIdleGameTime.TotalHours}h", $"{GetGroupValue<long>("GameTimeout", groupid) / 60}h");
+                $"{maxIdleGameTime.TotalHours}h", $"{Convert.ToInt64(GetGroupValue("GameTimeout", groupid)) / 60}h");
             try
             {
                 OnCallbackQuery += cHandler;
@@ -878,7 +884,7 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                 return;
             }
-            var gId2 = GetGameValue<long>("Id", msg.Chat.Id, GameIdType.GroupId);
+            var gId2 = Convert.ToInt64(GetGameValue("Id", msg.Chat.Id, GameIdType.GroupId));
             if (!NodeGames.Exists(x => x.Id == gId2)) return;
             NodeGame g = NodeGames.Find(x => x.Id == gId2);
             if (!GroupExists(msg.Chat.Id))
@@ -887,7 +893,7 @@ namespace WhoAmIBotSpace
             }
             if (!GlobalAdminExists(msg.From.Id))
             {
-                bool cancancel = !GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id);
+                bool cancancel = !Convert.ToBoolean(GetGroupValue("CancelgameAdmin", msg.Chat.Id));
                 if (msg.Chat.Type.IsGroup())
                 {
                     var t3 = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
@@ -1602,14 +1608,14 @@ namespace WhoAmIBotSpace
                 }
             }
             AddGame(msg.Chat.Id);
-            NodeGame g = new NodeGame(GetGameValue<long>("Id", msg.Chat.Id, GameIdType.GroupId), msg.Chat.Id,
+            NodeGame g = new NodeGame(Convert.ToInt64(GetGameValue("Id", msg.Chat.Id, GameIdType.GroupId)), msg.Chat.Id,
                 msg.Chat.Title, new NodeGroup(msg.Chat.Id)
                 {
                     Name = GetGroupValue("Name", msg.Chat.Id),
                     LangKey = GetGroupValue("LangKey", msg.Chat.Id),
-                    CancelgameAdmin = GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id),
-                    GameTimeout = GetGroupValue<int>("GameTimeout", msg.Chat.Id),
-                    JoinTimeout = GetGroupValue<int>("JoinTimeout", msg.Chat.Id)
+                    CancelgameAdmin = Convert.ToBoolean(GetGroupValue("CancelgameAdmin", msg.Chat.Id)),
+                    GameTimeout = Convert.ToInt32(GetGroupValue("GameTimeout", msg.Chat.Id)),
+                    JoinTimeout = Convert.ToInt32(GetGroupValue("JoinTimeout", msg.Chat.Id))
                 });
             NodeGames.Add(g);
             if (NextgameExists(msg.Chat.Id))

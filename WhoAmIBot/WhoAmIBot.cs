@@ -151,6 +151,7 @@ namespace WhoAmIBotSpace
         {
             sqliteConn = new SQLiteConnection(connectionString);
             sqliteConn.Open();
+            ExecuteSql("DELETE FROM Games");
         }
 
         public override bool StartBot()
