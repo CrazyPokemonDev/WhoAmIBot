@@ -2205,6 +2205,7 @@ namespace WhoAmIBotSpace
             };
             ExecuteSql("DELETE FROM Games WHERE Id=@id", par);
             g.Thread?.Abort();
+            g.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
             NodeGames.Remove(g);
             GameFinished?.Invoke(null, new GameFinishedEventArgs(g));
         }
