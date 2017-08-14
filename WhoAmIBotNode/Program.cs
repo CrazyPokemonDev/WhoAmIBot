@@ -65,6 +65,19 @@ namespace WhoAmIBotSpace
         public static event EventHandler<MessageEventArgs> OnMessage;
         #endregion
 
+        #region Helpers
+        private static bool GroupExists(long groupid)
+        {
+            var par = new Dictionary<string, object>()
+                {
+                    { "id", groupid }
+                };
+            var q = ExecuteSql("SELECT id FROM Groups WHERE Id=@id", par);
+            if (q.Count < 1 || q[0].Count < 1 || q[0][0] != groupid.ToString()) return false;
+            else return true;
+        }
+        #endregion
+
         #region Settings
         #region Cancelgame
         private static void SetCancelgame(long groupid, long chat)
@@ -72,39 +85,45 @@ namespace WhoAmIBotSpace
             var mre = new ManualResetEvent(false);
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
-                using (var db = new WhoAmIBotContext())
+                var d = e.CallbackQuery.Data;
+                if ((!d.StartsWith("cancelgameYes@") && !d.StartsWith("cancelgameNo@"))
+                || d.IndexOf("@") != d.LastIndexOf("@")
+                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                || grp != groupid
+                || e.CallbackQuery.Message == null
+                || e.CallbackQuery.From.Id != chat) return;
+                var par = new Dictionary<string, object>()
                 {
-                    var d = e.CallbackQuery.Data;
-                    if ((!d.StartsWith("cancelgameYes@") && !d.StartsWith("cancelgameNo@"))
-                    || d.IndexOf("@") != d.LastIndexOf("@")
-                    || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
-                    || grp != groupid || db.Groups.Any(x => x.Id == groupid)
-                    || e.CallbackQuery.Message == null
-                    || e.CallbackQuery.From.Id != chat) return;
-                    switch (d.Remove(d.IndexOf("@")))
-                    {
-                        case "cancelgameYes":
-                            db.Groups.Find(groupid).CancelgameAdmin = true;
-                            EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
-                                Strings.CancelgameA, null, GetString(Strings.True, groupid));
-                            break;
-                        case "cancelgameNo":
-                            db.Groups.Find(groupid).CancelgameAdmin = false;
-                            EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
-                                Strings.CancelgameA, null, GetString(Strings.False, groupid));
-                            break;
-                    }
-                    db.SaveChanges();
+                    { "id", groupid }
+                };
+                if (!GroupExists(groupid)) return;
+                switch (d.Remove(d.IndexOf("@")))
+                {
+                    case "cancelgameYes":
+                        par.Add("val", true);
+                        ExecuteSql("UPDATE Groups SET CancelgameAdmin=@val WHERE Id=@id", par);
+                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
+                            Strings.CancelgameA, null, GetString(Strings.True, groupid));
+                        break;
+                    case "cancelgameNo":
+                        par.Add("val", false);
+                        ExecuteSql("UPDATE Groups SET CancelgameAdmin=@val WHERE Id=@id", par);
+                        EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
+                            Strings.CancelgameA, null, GetString(Strings.False, groupid));
+                        break;
                 }
                 mre.Set();
             };
-            using (var db = new WhoAmIBotContext())
+            if (!GroupExists(groupid)) return;
+            var par2 = new Dictionary<string, object>()
             {
-                if (!db.Groups.Any(x => x.Id == groupid)) return;
-                SendLangMessage(chat, Strings.CancelgameQ, ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, groupid), $"cancelgameYes@{groupid}",
-                    GetString(Strings.No, groupid), $"cancelgameNo@{groupid}"),
-                    GetString(db.Groups.Find(groupid).CancelgameAdmin ? Strings.True : Strings.False, groupid));
-            }
+                { "id", groupid }
+            };
+            var q2 = ExecuteSql("SELECT CancelgameAdmin FROM Groups WHERE Id=@id", par2);
+            if (q2.Count < 1 || q2[0].Count < 1 || !bool.TryParse(q2[0][0], out bool cgAdmin)) return;
+            SendLangMessage(chat, Strings.CancelgameQ, ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, groupid), $"cancelgameYes@{groupid}",
+                GetString(Strings.No, groupid), $"cancelgameNo@{groupid}"),
+                GetString(cgAdmin ? Strings.True : Strings.False, groupid));
             try
             {
                 OnCallbackQuery += cHandler;
@@ -1197,7 +1216,11 @@ namespace WhoAmIBotSpace
         #region /setdb
         private static void Setdb_Command(Message msg)
         {
-            if (msg.From.Id != Flom || msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.DocumentMessage) return;
+            if (msg.From.Id != Flom || msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.DocumentMessage)
+            {
+                Console.WriteLine("Someone tried to set db");
+                return;
+            }
             sqliteConn.Close();
             sqliteConn.Dispose();
             File.Delete(sqliteFilePath);
@@ -1271,8 +1294,15 @@ namespace WhoAmIBotSpace
                         case ChatType.Supergroup:
                             if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                             {
-                                db.Groups.Add(new Group() { Id = msg.Chat.Id, LangKey = key, Name = msg.Chat.Title,
-                                    CancelgameAdmin = true, JoinTimeout = 10, GameTimeout = 1440 });
+                                db.Groups.Add(new Group()
+                                {
+                                    Id = msg.Chat.Id,
+                                    LangKey = key,
+                                    Name = msg.Chat.Title,
+                                    CancelgameAdmin = true,
+                                    JoinTimeout = 10,
+                                    GameTimeout = 1440
+                                });
                                 db.SaveChanges();
                             }
                             else
@@ -1313,8 +1343,15 @@ namespace WhoAmIBotSpace
             {
                 if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                 {
-                    db.Groups.Add(new Group() { Id = msg.Chat.Id, Name = msg.Chat.Title, LangKey = defaultLangCode,
-                        CancelgameAdmin = true, JoinTimeout = 10, GameTimeout = 1440 });
+                    db.Groups.Add(new Group()
+                    {
+                        Id = msg.Chat.Id,
+                        Name = msg.Chat.Title,
+                        LangKey = defaultLangCode,
+                        CancelgameAdmin = true,
+                        JoinTimeout = 10,
+                        GameTimeout = 1440
+                    });
                     db.SaveChanges();
                 }
             }
@@ -1452,8 +1489,15 @@ namespace WhoAmIBotSpace
                 }
                 if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                 {
-                    db.Groups.Add(new Group() { Id = msg.Chat.Id, LangKey = defaultLangCode, Name = msg.Chat.Title,
-                        CancelgameAdmin = true, GameTimeout = 1440, JoinTimeout = 10 });
+                    db.Groups.Add(new Group()
+                    {
+                        Id = msg.Chat.Id,
+                        LangKey = defaultLangCode,
+                        Name = msg.Chat.Title,
+                        CancelgameAdmin = true,
+                        GameTimeout = 1440,
+                        JoinTimeout = 10
+                    });
                     db.SaveChanges();
                 }
                 else
