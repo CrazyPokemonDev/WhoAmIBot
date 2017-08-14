@@ -1465,7 +1465,10 @@ namespace WhoAmIBotSpace
                         db.SaveChanges();
                     }
                 }
-                db.Games.Add(new Game() { GroupId = msg.Chat.Id });
+                var q = ExecuteSql("SELECT seq FROM sqlite_sequence WHERE name=Games");
+                if (q.Count > 0 && q[0].Count > 0 && long.TryParse(q[0][0], out long resid))
+                    db.Games.Add(new Game() { GroupId = msg.Chat.Id, Id = resid + 1 });
+                else db.Games.Add(new Game() { GroupId = msg.Chat.Id });
                 db.SaveChanges();
                 var task = db.Games.SqlQuery("SELECT * FROM Games WHERE groupId=@p0", msg.Chat.Id).ToListAsync();
                 task.Wait();
@@ -2043,7 +2046,9 @@ namespace WhoAmIBotSpace
                 db.SaveChanges();
                 long winnerId = game.Winner == null ? 0 : game.Winner.Id;
                 string winnerName = game.Winner == null ? GetString(Strings.Nobody, LangCode(game.GroupId)) : game.Winner.Name;
-                db.GamesFinisheds.Add(new GamesFinished() { GroupId = game.GroupId, WinnerId = winnerId, WinnerName = winnerName });
+                var t = db.GamesFinisheds.SqlQuery("SELECT * FROM Gamesfinished ORDER BY Id DESC LIMIT 1").ToListAsync();
+                t.Wait();
+                db.GamesFinisheds.Add(new GamesFinished() { GroupId = game.GroupId, WinnerId = winnerId, WinnerName = winnerName, Id = t.Result[0].Id + 1 });
                 db.SaveChanges();
                 SendLangMessage(game.GroupId, Strings.GameFinished, null, winnerName);
             }
