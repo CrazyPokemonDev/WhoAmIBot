@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Classes\Args.cs" />
+    <Compile Include="Classes\HelperException.cs" />
     <Compile Include="Classes\NodeGame.cs" />
     <Compile Include="Classes\GameFinishedEventArgs.cs" />
     <Compile Include="Classes\NodeGroup.cs" />
