@@ -1373,7 +1373,7 @@ namespace WhoAmIBotSpace
             bool isDaylight = TimeZoneInfo.Local.IsDaylightSavingTime(thisTime);
             var now = DateTime.Now.ToUniversalTime();
             var span = now.Subtract(msg.Date.Subtract(TimeSpan.FromHours(isDaylight ? 2 : 1)).ToUniversalTime());
-            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, span.TotalSeconds.ToString());
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, Math.Abs(span.TotalSeconds).ToString());
         }
         #endregion
         #region /rate
