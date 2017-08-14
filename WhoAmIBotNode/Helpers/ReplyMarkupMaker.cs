@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Telegram.Bot.Types;
+﻿using System.Collections.Generic;
 using Telegram.Bot.Types.InlineKeyboardButtons;
 using Telegram.Bot.Types.ReplyMarkups;
-using Game = WhoAmIBotSpace.Classes.Game;
+using WhoAmIBotSpace.Classes;
 
 namespace WhoAmIBotSpace.Helpers
 {
@@ -85,7 +80,7 @@ namespace WhoAmIBotSpace.Helpers
         }
         #endregion
         #region Get Games
-        public static IReplyMarkup InlineGetGames(List<Game> games, long chatid)
+        public static IReplyMarkup InlineGetGames(List<NodeGame> games, long chatid)
         {
             var rows = new List<InlineKeyboardButton[]>();
             foreach (var g in games)
