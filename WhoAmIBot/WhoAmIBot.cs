@@ -39,6 +39,11 @@ namespace WhoAmIBotSpace
             "giveup@"
         };
         protected new static readonly Flom Flom = new Flom();
+        private static readonly string appDataBaseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "WhoAmIBot\\");
+        private const string dateTimeFileFormat = "yyyy-MM-dd-hh-mm-ss";
+        private static readonly string defaultNodeDirectory = Path.Combine(appDataBaseDir, "default\\");
+        private static readonly string gitNodeDirectory = Path.Combine(appDataBaseDir, "git\\");
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
@@ -69,11 +74,13 @@ namespace WhoAmIBotSpace
                 client.OnReceiveError += Client_OnReceiveError;
                 client.OnReceiveGeneralError += Client_OnReceiveError;
                 client.OnCallbackQuery += Client_OnCallbackQuery;
-                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WhoAmIBotNode\\default\\");
+                client.OnCallbackQuery += Client_OnCallbackQueryUpdateChecker;
+                var dir = defaultNodeDirectory;
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, "WhoAmIBotNode.exe");
                 /*if (!File.Exists(path)) Process.Start(dir);*/
                 Node n = new Node(path);
+                n.NodeStopped += (sender, node) => Nodes.Remove(n);
                 n.Start(Token);
                 Nodes.Add(n);
             }
@@ -93,6 +100,7 @@ namespace WhoAmIBotSpace
             client.OnReceiveError -= Client_OnReceiveError;
             client.OnReceiveGeneralError -= Client_OnReceiveError;
             client.OnCallbackQuery -= Client_OnCallbackQuery;
+            client.OnCallbackQuery -= Client_OnCallbackQueryUpdateChecker;
             return base.StopBot();
         }
         #endregion
@@ -109,23 +117,39 @@ namespace WhoAmIBotSpace
             }
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
             {
-                if (e.Update.Message.Entities.Count > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand)
+                if (e.Update.Message.Entities.Count > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand
+                    && e.Update.Message.Entities[0].Offset == 0)
                 {
                     var cmd = e.Update.Message.EntityValues[0];
+                    cmd = cmd.ToLower();
+                    cmd = cmd.Contains($"@{Username.ToLower()}") ? cmd.Remove(cmd.IndexOf($"@{Username.ToLower()}")) : cmd;
+                    if (cmd == "/update")
+                    {
+                        using (var db = new WhoAmIBotContext())
+                        {
+                            if (db.GlobalAdmins.Any(x => x.Id == e.Update.Message.From.Id))
+                            {
+                                var t = client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Updating...");
+                                t.Wait();
+                                Update(t.Result);
+                                return;
+                            }
+                        }
+                    }
                     using (var db = new WhoAmIBotContext())
                     {
                         if (db.Commands.Any(x => x.Trigger == cmd && x.Standalone))
                         {
                             var node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
-                            node.Queue(JsonConvert.SerializeObject(e.Update));
+                            node?.Queue(JsonConvert.SerializeObject(e.Update));
                             return;
                         }
                     }
                 }
-                foreach (var node in Nodes)
-                {
-                    node.Queue(JsonConvert.SerializeObject(e.Update));
-                }
+            }
+            foreach (var node in Nodes)
+            {
+                node.Queue(JsonConvert.SerializeObject(e.Update));
             }
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage
             && e.Update.Message.Text == "I hereby grant you permission." && e.Update.Message.From.Id == Flom)
@@ -169,6 +193,86 @@ namespace WhoAmIBotSpace
                     }
                 }
             }
+        }
+
+        private void Client_OnCallbackQueryUpdateChecker(object sender, CallbackQueryEventArgs e)
+        {
+            if ((e.CallbackQuery.Data != "update" && e.CallbackQuery.Data != "dontUpdate")
+                || e.CallbackQuery.From.Id != Flom || e.CallbackQuery.Message == null) return;
+            Message cmsg = e.CallbackQuery.Message;
+            switch (e.CallbackQuery.Data)
+            {
+                case "update":
+                    var t = client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Update routine started...");
+                    t.Wait();
+                    cmsg = t.Result;
+                    Update(cmsg);
+                    break;
+                case "dontUpdate":
+                    client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Okay, no work for me :)");
+                    break;
+            }
+        }
+        #endregion
+
+        #region Updater
+        private void Update(Message toEdit)
+        {
+            var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nPulling git...");
+            t.Wait();
+            toEdit = t.Result;
+            if (!Directory.Exists(appDataBaseDir)) Directory.CreateDirectory(appDataBaseDir);
+            if (!Directory.Exists(gitNodeDirectory)) Directory.CreateDirectory(gitNodeDirectory);
+            string firstDir = Path.Combine(gitNodeDirectory, "first.bat");
+            if (!File.Exists(firstDir)) File.Copy("Updater\\first.bat", firstDir);
+            string runDir = Path.Combine(gitNodeDirectory, "run.bat");
+            if (!File.Exists(runDir)) File.Copy("Updater\\run.bat", runDir);
+            Process first = new Process();
+            first.StartInfo.FileName = firstDir;
+            first.StartInfo.UseShellExecute = false;
+            first.StartInfo.WorkingDirectory = Path.GetDirectoryName(firstDir);
+            first.Start();
+            first.WaitForExit();
+            Process run = new Process();
+            run.StartInfo.FileName = runDir;
+            run.StartInfo.UseShellExecute = false;
+            run.StartInfo.WorkingDirectory = Path.GetDirectoryName(runDir);
+            run.Start();
+            run.WaitForExit();
+            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nCopying files to node directory...");
+            t.Wait();
+            toEdit = t.Result;
+            string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotNode_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
+            if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
+            string gitDirToCopy = Path.Combine(gitNodeDirectory, "WhoAmIBot\\WhoAmIBotNode\\bin\\Release");
+            DeepCopy(new DirectoryInfo(gitDirToCopy), new DirectoryInfo(newDir));
+            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + $"\nStarting node at {newDir}...");
+            t.Wait();
+            toEdit = t.Result;
+            Node n = new Node(Path.Combine(newDir, "WhoAmIBotNode.exe"));
+            foreach (var sNode in Nodes.FindAll(x => x.State == NodeState.Primary))
+            {
+                sNode.SoftStop();
+            }
+            n.Start(Token);
+            Nodes.Add(n);
+            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nFinished.");
+            t.Wait();
+            toEdit = t.Result;
+        }
+
+        public static void DeepCopy(DirectoryInfo source, DirectoryInfo target)
+        {
+            if (target.FullName.Contains(source.FullName))
+                throw new Exception("Cannot perform DeepCopy: Ancestry conflict detected");
+            // Recursively call the DeepCopy Method for each Directory
+            foreach (DirectoryInfo dir in source.GetDirectories())
+                DeepCopy(dir, target.CreateSubdirectory(dir.Name));
+
+            // Go ahead and copy each file in "source" to the "target" directory
+            foreach (FileInfo file in source.GetFiles())
+                file.CopyTo(Path.Combine(target.FullName, file.Name));
+
         }
         #endregion
 

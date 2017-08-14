@@ -15,6 +15,7 @@ namespace WhoAmIBotSpace.Classes
         public string Path { get; set; }
         private List<string> queue = new List<string>();
         private Thread QThread;
+        public event EventHandler<Node> NodeStopped;
         
         public Node(string path)
         {
@@ -49,6 +50,14 @@ namespace WhoAmIBotSpace.Classes
             {
                 Console.WriteLine("Node at {1}:\nFailed to kill process with error: {0}", x.Message, Path);
             }
+            State = NodeState.Stopped;
+            NodeStopped?.Invoke(this, this);
+        }
+
+        public void SoftStop()
+        {
+            Queue("STOP");
+            State = NodeState.Stopping;
         }
 
         private void Queue_Thread()
@@ -72,6 +81,7 @@ namespace WhoAmIBotSpace.Classes
             {
                 Console.WriteLine("Queue thread of node at {0} stopped.", Path);
                 State = NodeState.Stopped;
+                NodeStopped?.Invoke(this, this);
             }
         }
 

@@ -290,7 +290,6 @@ namespace WhoAmIBotSpace
                             {
                                 State = NodeState.Stopped;
                                 running = false;
-                                Dispose();
                             }
                             continue;
                         }
