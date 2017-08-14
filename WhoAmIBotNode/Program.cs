@@ -248,7 +248,7 @@ namespace WhoAmIBotSpace
                     string data;
                     while (running)
                     {
-                        while ((data = sr.ReadLine()) == null);
+                        while ((data = sr.ReadLine()) == null) ;
 #if DEBUG
                         if (!string.IsNullOrEmpty(data)) Console.WriteLine(data);
 #endif
@@ -781,15 +781,18 @@ namespace WhoAmIBotSpace
                     SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
                     return;
                 }
-                EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) => { };
-                List<Message> sent = new List<Message>();
-                cHandler = (sender, e) =>
+            }
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) => { };
+            List<Message> sent = new List<Message>();
+            cHandler = (sender, e) =>
+            {
+                string data = e.CallbackQuery.Data;
+                if ((!data.StartsWith("cancel:") && !data.StartsWith("communicate:") && !data.StartsWith("close@"))
+                || !data.Contains("@") || data.IndexOf("@") != data.LastIndexOf("@")
+                || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long chatid)
+                || chatid != msg.Chat.Id || e.CallbackQuery.Message == null) return;
+                using (var db = new WhoAmIBotContext())
                 {
-                    string data = e.CallbackQuery.Data;
-                    if ((!data.StartsWith("cancel:") && !data.StartsWith("communicate:") && !data.StartsWith("close@"))
-                    || !data.Contains("@") || data.IndexOf("@") != data.LastIndexOf("@")
-                    || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long chatid)
-                    || chatid != msg.Chat.Id || e.CallbackQuery.Message == null) return;
                     if (!db.GlobalAdmins.Any(x => x.Id == e.CallbackQuery.From.Id))
                     {
                         client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.NoGlobalAdmin, LangCode(msg.Chat.Id)));
@@ -839,16 +842,16 @@ namespace WhoAmIBotSpace
                             currentThreads.Add(t);
                             return;
                     }
-                };
-                foreach (var s in string.Join("\n\n",
-                    NodeGames.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000))
-                {
-                    var t = client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(NodeGames, msg.Chat.Id));
-                    t.Wait();
-                    sent.Add(t.Result);
                 }
-                OnCallbackQuery += cHandler;
+            };
+            foreach (var s in string.Join("\n\n",
+                NodeGames.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000))
+            {
+                var t = client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(NodeGames, msg.Chat.Id));
+                t.Wait();
+                sent.Add(t.Result);
             }
+            OnCallbackQuery += cHandler;
         }
         #endregion
         #region /getlang
@@ -1268,7 +1271,8 @@ namespace WhoAmIBotSpace
                         case ChatType.Supergroup:
                             if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                             {
-                                db.Groups.Add(new Group() { Id = msg.Chat.Id, LangKey = key, Name = msg.Chat.Title });
+                                db.Groups.Add(new Group() { Id = msg.Chat.Id, LangKey = key, Name = msg.Chat.Title,
+                                    CancelgameAdmin = true, JoinTimeout = 10, GameTimeout = 1440 });
                                 db.SaveChanges();
                             }
                             else
@@ -1309,7 +1313,8 @@ namespace WhoAmIBotSpace
             {
                 if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                 {
-                    db.Groups.Add(new Group() { Id = msg.Chat.Id, Name = msg.Chat.Title, LangKey = defaultLangCode });
+                    db.Groups.Add(new Group() { Id = msg.Chat.Id, Name = msg.Chat.Title, LangKey = defaultLangCode,
+                        CancelgameAdmin = true, JoinTimeout = 10, GameTimeout = 1440 });
                     db.SaveChanges();
                 }
             }
@@ -1447,7 +1452,8 @@ namespace WhoAmIBotSpace
                 }
                 if (!db.Groups.Any(x => x.Id == msg.Chat.Id))
                 {
-                    db.Groups.Add(new Group() { Id = msg.Chat.Id, LangKey = defaultLangCode, Name = msg.Chat.Title });
+                    db.Groups.Add(new Group() { Id = msg.Chat.Id, LangKey = defaultLangCode, Name = msg.Chat.Title,
+                        CancelgameAdmin = true, GameTimeout = 1440, JoinTimeout = 10 });
                     db.SaveChanges();
                 }
                 else
@@ -1779,7 +1785,7 @@ namespace WhoAmIBotSpace
         #region Start game flow
         private static void StartGameFlow(object gameObject)
         {
-            if (!(gameObject is Game)) return;
+            if (!(gameObject is NodeGame)) return;
             NodeGame game = (NodeGame)gameObject;
             #region Preparation phase
             SendLangMessage(game.GroupId, Strings.GameFlowStarted);

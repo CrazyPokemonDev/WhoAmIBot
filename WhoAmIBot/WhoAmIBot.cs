@@ -93,9 +93,9 @@ namespace WhoAmIBotSpace
 
         public override bool StopBot()
         {
-            foreach (var node in Nodes)
+            while (Nodes.Count > 0)
             {
-                node.Stop();
+                Nodes[0].Stop();
             }
             client.OnReceiveError -= Client_OnReceiveError;
             client.OnReceiveGeneralError -= Client_OnReceiveError;
