@@ -1369,9 +1369,9 @@ namespace WhoAmIBotSpace
         #region /ping
         private static void Ping_Command(Message msg)
         {
-            var now = DateTime.Now.ToLocalTime();
-            var span = now.Subtract(msg.Date.ToLocalTime());
-            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, span.TotalSeconds.ToString());
+            /*var now = DateTime.Now.ToLocalTime();
+            var span = now.Subtract(msg.Date.ToLocalTime());*/
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, DateTime.Now.ToShortTimeString()/*span.TotalSeconds.ToString()*/);
         }
         #endregion
         #region /rate
