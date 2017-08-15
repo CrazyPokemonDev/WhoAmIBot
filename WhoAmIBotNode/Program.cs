@@ -788,7 +788,7 @@ namespace WhoAmIBotSpace
             var cmd = new SQLiteCommand($"SELECT Id FROM Games WHERE GroupId=@id", sqliteConn);
             cmd.Parameters.AddWithValue("id", -1001070844778);
             var res = cmd.ExecuteScalar();
-            client.SendTextMessageAsync(Flom, res.ToString());
+            client.SendTextMessageAsync(Flom, ((long)res).ToString());
         }
         #endregion
         #region /backup
