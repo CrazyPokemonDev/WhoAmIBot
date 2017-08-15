@@ -783,7 +783,7 @@ namespace WhoAmIBotSpace
         #region /test
         private static void Test_Command(Message msg)
         {
-            client.SendTextMessageAsync(Flom, GetGroupValue<bool>("cancelgameadmin", msg.Chat.Id).ToString());
+            client.SendTextMessageAsync(Flom, GetGroupValue<string>("Name", msg.Chat.Id));
         }
         #endregion
         #region /backup
