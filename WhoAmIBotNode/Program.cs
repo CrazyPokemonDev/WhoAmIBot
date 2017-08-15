@@ -258,7 +258,7 @@ namespace WhoAmIBotSpace
                 {
                     LangKey = (string)reader["LangKey"],
                     Name = (string)reader["Name"],
-                    Username = (string)reader["Username"]
+                    Username = reader["Username"].ToString()
                 };
             }
         }
