@@ -210,7 +210,7 @@ namespace WhoAmIBotSpace
         #region Add
         private static void AddGroup(long id, string name, string langKey = defaultLangCode)
         {
-            var cmd = new SQLiteCommand("INSERT INTO Groups(Id, Name, LangKey) VALUES(@id, @name, @langKey)", sqliteConn);
+            var cmd = new SQLiteCommand("INSERT INTO Groups(Id, Name, LangKey, JoinTimeout, GameTimeout) VALUES(@id, @name, @langKey, 10, 1440)", sqliteConn);
             cmd.Parameters.AddRange(new SQLiteParameter[]
             { new SQLiteParameter("id", id),new SQLiteParameter("name", name), new SQLiteParameter("langKey", langKey) });
             cmd.ExecuteNonQuery();
