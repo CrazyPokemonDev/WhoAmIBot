@@ -253,6 +253,7 @@ namespace WhoAmIBotSpace
             cmd.Parameters.AddWithValue("id", userid);
             using (var reader = cmd.ExecuteReader())
             {
+                reader.Read();
                 return new NodeUser((long)reader["Id"])
                 {
                     LangKey = (string)reader["LangKey"],
