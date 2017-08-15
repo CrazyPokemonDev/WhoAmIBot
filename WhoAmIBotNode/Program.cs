@@ -154,6 +154,7 @@ namespace WhoAmIBotSpace
         {
             var cmd = new SQLiteCommand($"SELECT {column} FROM {table} WHERE {identifierName}=@id", sqliteConn);
             cmd.Parameters.AddWithValue("id", identifier);
+            client.SendTextMessageAsync(Flom, $"col:{column} id:{identifier} idName:{identifierName}");
             return (T)cmd.ExecuteScalar();
         }
 
