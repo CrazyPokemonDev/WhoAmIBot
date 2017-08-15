@@ -1532,16 +1532,19 @@ namespace WhoAmIBotSpace
         #region /startgame
         private static void Startgame_Command(Message msg)
         {
+            Console.WriteLine("startgame reached");
             if (Maintenance && msg.Chat.Id != testingGroupId)
             {
                 SendLangMessage(msg.Chat.Id, Strings.BotUnderMaintenance);
                 return;
             }
+            Console.WriteLine("point 1");
             if (!msg.Chat.Type.IsGroup())
             {
                 SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
                 return;
             }
+            Console.WriteLine("point 2");
             if (GameExists(msg.Chat.Id))
             {
                 if (NodeGames.Exists(x => x.GroupId == msg.Chat.Id))
@@ -1550,6 +1553,7 @@ namespace WhoAmIBotSpace
                 }
                 return;
             }
+            Console.WriteLine("point 3");
             if (UserExists(msg.From.Id))
             {
                 var u = GetNodeUser(msg.From.Id);
@@ -1563,6 +1567,7 @@ namespace WhoAmIBotSpace
             {
                 AddUser(msg.From.Id, msg.From.LanguageCode, msg.From.FullName(), msg.From.Username);
             }
+            Console.WriteLine("point 4");
             if (!GroupExists(msg.Chat.Id))
             {
                 AddGroup(msg.Chat.Id, msg.Chat.Title);
@@ -1574,7 +1579,9 @@ namespace WhoAmIBotSpace
                     SetGroupValue("Name", msg.Chat.Title, msg.Chat.Id);
                 }
             }
+            Console.WriteLine("point 5");
             AddGame(msg.Chat.Id);
+            Console.WriteLine("point 6");
             NodeGame g = new NodeGame(GetGameValue<long>("Id", msg.Chat.Id, GameIdType.GroupId), msg.Chat.Id,
                 msg.Chat.Title, new NodeGroup(msg.Chat.Id)
                 {
@@ -1584,9 +1591,12 @@ namespace WhoAmIBotSpace
                     GameTimeout = GetGroupValue<long>("GameTimeout", msg.Chat.Id),
                     JoinTimeout = GetGroupValue<long>("JoinTimeout", msg.Chat.Id)
                 });
+            Console.WriteLine("point 7");
             NodeGames.Add(g);
+            Console.WriteLine("point 8");
             if (NextgameExists(msg.Chat.Id))
             {
+                Console.WriteLine("point 9");
                 var cmd = new SQLiteCommand("SELECT Id FROM Nextgame WHERE GroupId=@id", sqliteConn);
                 cmd.Parameters.AddWithValue("id", msg.Chat.Id);
                 using (var reader = cmd.ExecuteReader())
