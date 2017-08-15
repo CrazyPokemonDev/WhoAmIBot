@@ -152,12 +152,11 @@ namespace WhoAmIBotSpace
 
         private static T GetValue<T>(string table, string column, object identifier, string identifierName = "Id")
         {
-            var cmd = new SQLiteCommand($"SELECT {column} FROM {table} WHERE {identifierName}=@id", sqliteConn);
+            string cmdt = $"SELECT {column} FROM {table} WHERE {identifierName}=@id";
+            client.SendTextMessageAsync(Flom, cmdt).Wait();
+            var cmd = new SQLiteCommand(cmdt, sqliteConn);
             cmd.Parameters.AddWithValue("id", identifier);
-            client.SendTextMessageAsync(Flom, $"table: {table} col:{column} id:{identifier} idName:{identifierName}").Wait();
-            var res = cmd.ExecuteScalar();
-            client.SendTextMessageAsync(Flom, res.ToString()).Wait();
-            return (T)res;
+            return (T)cmd.ExecuteScalar();
         }
 
         private static object GetGroupValue(string column, long id)
