@@ -776,14 +776,22 @@ namespace WhoAmIBotSpace
             commands.Add("/ping", new Action<Message>(Ping_Command));
             commands.Add("/settings", new Action<Message>(Settings_Command));
             commands.Add("/nodes", new Action<Message>(Nodes_Command));
-            //commands.Add("/test", new Action<Message>(Test_Command));
+            commands.Add("/test", new Action<Message>(Test_Command));
         }
         #endregion
 
         #region /test
         private static void Test_Command(Message msg)
         {
-            client.SendTextMessageAsync(msg.From.Id, GetNodeUser(msg.From.Id).Username);
+            NodeGame g = new NodeGame(GetGameValue<long>("Id", msg.Chat.Id, GameIdType.GroupId), msg.Chat.Id,
+                msg.Chat.Title, new NodeGroup(msg.Chat.Id)
+                {
+                    /*Name = GetGroupValue<string>("Name", msg.Chat.Id),
+                    LangKey = GetGroupValue<string>("LangKey", msg.Chat.Id),
+                    CancelgameAdmin = GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id),
+                    GameTimeout = GetGroupValue<long>("GameTimeout", msg.Chat.Id),
+                    JoinTimeout = GetGroupValue<long>("JoinTimeout", msg.Chat.Id)*/
+                });
         }
         #endregion
         #region /backup
