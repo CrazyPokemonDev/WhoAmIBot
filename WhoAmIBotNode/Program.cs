@@ -776,7 +776,7 @@ namespace WhoAmIBotSpace
             commands.Add("/ping", new Action<Message>(Ping_Command));
             commands.Add("/settings", new Action<Message>(Settings_Command));
             commands.Add("/nodes", new Action<Message>(Nodes_Command));
-            commands.Add("/test", new Action<Message>(Test_Command));
+            //commands.Add("/test", new Action<Message>(Test_Command));
         }
         #endregion
 
