@@ -279,9 +279,6 @@ namespace WhoAmIBotSpace
             switch (e.CallbackQuery.Data)
             {
                 case "update":
-                    var t = client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Update routine started...");
-                    t.Wait();
-                    cmsg = t.Result;
                     Update(cmsg);
                     break;
                 case "dontUpdate":
