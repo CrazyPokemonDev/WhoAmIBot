@@ -242,7 +242,7 @@ namespace WhoAmIBotSpace
         private static void AddGameFinished(long groupid, long winnerid, string winnername)
         {
             var cmd = new SQLiteCommand("INSERT INTO GamesFinished(GroupId, WinnerId, WinnerName) VALUES(@id, @winnerid, @winnername)", sqliteConn);
-            cmd.Parameters.AddRange(new SQLiteParameter[] 
+            cmd.Parameters.AddRange(new SQLiteParameter[]
             { new SQLiteParameter("id", groupid), new SQLiteParameter("winnerid", winnerid), new SQLiteParameter("winnername", winnername) });
             cmd.ExecuteNonQuery();
         }
@@ -784,7 +784,11 @@ namespace WhoAmIBotSpace
         private static void Test_Command(Message msg)
         {
             //client.SendTextMessageAsync(msg.From.Id, GetNodeUser(msg.From.Id).ToString());
-            try { Startgame_Command(msg); } catch(Exception x) { client.SendTextMessageAsync(Flom, $"{x}:{x.Message}\n{x.StackTrace}"); }
+            try { Startgame_Command(msg); }
+            catch (Exception x)
+            {
+                client.SendTextMessageAsync(Flom, $"{x}:{x.Message}\n{x.StackTrace}").Wait();
+            }
         }
         #endregion
         #region /backup
@@ -1834,7 +1838,7 @@ namespace WhoAmIBotSpace
                                 { "value", js.Value }
                             };
                             var cmd3 = new SQLiteCommand(sqliteConn);
-                            cmd3.Parameters.AddRange(new SQLiteParameter[] 
+                            cmd3.Parameters.AddRange(new SQLiteParameter[]
                             { new SQLiteParameter("key", js.Key), new SQLiteParameter("value", js.Value) });
                             if (query.Exists(x => x.Key == js.Key))
                             {
