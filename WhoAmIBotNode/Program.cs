@@ -783,7 +783,7 @@ namespace WhoAmIBotSpace
         #region /test
         private static void Test_Command(Message msg)
         {
-            //client.SendTextMessageAsync(msg.From.Id, GetNodeUser(msg.From.Id).ToString());
+            client.SendTextMessageAsync(msg.From.Id, GetNodeUser(msg.From.Id).Username);
         }
         #endregion
         #region /backup
