@@ -337,7 +337,7 @@ namespace WhoAmIBotSpace
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.JoinTimeoutQ, markup,
-                maxIdleJoinTime.TotalMinutes.ToString(), GetGroupValue<long>("JoinTimeout", groupid).ToString());
+                maxIdleJoinTime.TotalMinutes.ToString(), GetGroupValue<int>("JoinTimeout", groupid).ToString());
             try
             {
                 OnCallbackQuery += cHandler;
@@ -375,7 +375,7 @@ namespace WhoAmIBotSpace
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
-                $"{maxIdleGameTime.TotalHours}h", $"{GetGroupValue<long>("GameTimeout", groupid) / 60}h");
+                $"{maxIdleGameTime.TotalHours}h", $"{GetGroupValue<int>("GameTimeout", groupid) / 60}h");
             try
             {
                 OnCallbackQuery += cHandler;
@@ -784,10 +784,7 @@ namespace WhoAmIBotSpace
         #region /test
         private static void Test_Command(Message msg)
         {
-            var cmd = new SQLiteCommand($"SELECT Id FROM Games WHERE GroupId=@id", sqliteConn);
-            cmd.Parameters.AddWithValue("id", -1001070844778);
-            var res = cmd.ExecuteScalar();
-            client.SendTextMessageAsync(Flom, ((long)res).ToString());
+            
         }
         #endregion
         #region /backup
@@ -1592,8 +1589,8 @@ namespace WhoAmIBotSpace
                     Name = GetGroupValue<string>("Name", msg.Chat.Id),
                     LangKey = GetGroupValue<string>("LangKey", msg.Chat.Id),
                     CancelgameAdmin = GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id),
-                    GameTimeout = GetGroupValue<long>("GameTimeout", msg.Chat.Id),
-                    JoinTimeout = GetGroupValue<long>("JoinTimeout", msg.Chat.Id)
+                    GameTimeout = GetGroupValue<int>("GameTimeout", msg.Chat.Id),
+                    JoinTimeout = GetGroupValue<int>("JoinTimeout", msg.Chat.Id)
                 });
             Console.WriteLine("point 7");
             NodeGames.Add(g);
