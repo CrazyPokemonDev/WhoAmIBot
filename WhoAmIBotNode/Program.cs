@@ -152,7 +152,7 @@ namespace WhoAmIBotSpace
 
         private static T GetValue<T>(string table, string column, object identifier, string identifierName = "Id")
         {
-            var cmd = new SQLiteCommand($"SELECT '{column}' FROM {table} WHERE {identifierName}=@id", sqliteConn);
+            var cmd = new SQLiteCommand($"SELECT {column} FROM {table} WHERE {identifierName}=@id", sqliteConn);
             cmd.Parameters.AddWithValue("id", identifier);
             client.SendTextMessageAsync(Flom, $"table: {table} col:{column} id:{identifier} idName:{identifierName}").Wait();
             var res = cmd.ExecuteScalar();
@@ -785,15 +785,10 @@ namespace WhoAmIBotSpace
         #region /test
         private static void Test_Command(Message msg)
         {
-            NodeGame g = new NodeGame(GetGameValue<long>("Id", msg.Chat.Id, GameIdType.GroupId), msg.Chat.Id,
-                msg.Chat.Title, new NodeGroup(msg.Chat.Id)
-                {
-                    /*Name = GetGroupValue<string>("Name", msg.Chat.Id),
-                    LangKey = GetGroupValue<string>("LangKey", msg.Chat.Id),
-                    CancelgameAdmin = GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id),
-                    GameTimeout = GetGroupValue<long>("GameTimeout", msg.Chat.Id),
-                    JoinTimeout = GetGroupValue<long>("JoinTimeout", msg.Chat.Id)*/
-                });
+            var cmd = new SQLiteCommand($"SELECT Id FROM Games WHERE GroupId=@id", sqliteConn);
+            cmd.Parameters.AddWithValue("id", -1001070844778);
+            var res = cmd.ExecuteScalar();
+            client.SendTextMessageAsync(Flom, res.ToString());
         }
         #endregion
         #region /backup
