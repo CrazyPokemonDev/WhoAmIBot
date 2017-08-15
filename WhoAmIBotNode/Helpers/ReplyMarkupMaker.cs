@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Data.SQLite;
 using Telegram.Bot.Types.InlineKeyboardButtons;
 using Telegram.Bot.Types.ReplyMarkups;
 using WhoAmIBotSpace.Classes;
@@ -37,16 +38,17 @@ namespace WhoAmIBotSpace.Helpers
         }
         #endregion
         #region Choose language
-        public static IReplyMarkup InlineChooseLanguage(List<List<string>> grid, long chatId)
+        public static IReplyMarkup InlineChooseLanguage(SQLiteCommand cmd, long chatId)
         {
             List<List<InlineKeyboardButton>> bGrid = new List<List<InlineKeyboardButton>>();
-            foreach (var row in grid)
+            using (var reader = cmd.ExecuteReader())
             {
-                var l = new List<InlineKeyboardButton>();
-                string key = row[0];
-                string name = row[1];
-                l.Add(new InlineKeyboardCallbackButton(name, $"lang:{key}@{chatId}"));
-                bGrid.Add(l);
+                while (reader.Read())
+                {
+                    var l = new List<InlineKeyboardButton>();
+                    l.Add(new InlineKeyboardCallbackButton((string)reader["name"], $"lang:{reader["key"]}@{chatId}"));
+                    bGrid.Add(l);
+                }
             }
             var aGrid = new List<InlineKeyboardButton[]>();
             for (int i = 0; i < bGrid.Count; i++)

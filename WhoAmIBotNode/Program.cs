@@ -77,91 +77,59 @@ namespace WhoAmIBotSpace
         #region Exists
         private static bool GroupExists(long groupid)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", groupid }
-            };
-            var q = ExecuteSql("SELECT id FROM Groups WHERE Id=@id", par);
-            if (q.Count < 1 || q[0].Count < 1 || q[0][0] != groupid.ToString()) return false;
-            else return true;
+            SQLiteCommand cmd = new SQLiteCommand("SELECT id FROM Groups WHERE Id=@id", sqliteConn);
+            cmd.Parameters.Add(new SQLiteParameter("id", groupid));
+            return cmd.ExecuteScalar() != null;
         }
 
         private static bool UserExists(long userid)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", userid }
-            };
-            var q = ExecuteSql("SELECT id FROM Users WHERE Id=@id", par);
-            if (q.Count < 1 || q[0].Count < 1 || q[0][0] != userid.ToString()) return false;
-            else return true;
+            SQLiteCommand cmd = new SQLiteCommand("SELECT id FROM Users WHERE Id=@id", sqliteConn);
+            cmd.Parameters.Add(new SQLiteParameter("id", userid));
+            return cmd.ExecuteScalar() != null;
         }
 
         private static bool LangKeyExists(string key)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "key", key }
-            };
-            var q = ExecuteSql("SELECT Key FROM ExistingLanguages WHERE Key=@key", par);
-            if (q.Count < 1 || q[0].Count < 1 || q[0][0] != key) return false;
-            else return true;
+            SQLiteCommand cmd = new SQLiteCommand("SELECT Key FROM ExistingLanguages WHERE Key=@key", sqliteConn);
+            cmd.Parameters.Add(new SQLiteParameter("key", key));
+            return cmd.ExecuteScalar() != null;
         }
 
         private static bool GlobalAdminExists(long id)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", id }
-            };
-            var q = ExecuteSql("SELECT Id FROM GlobalAdmins WHERE Id=@id", par);
-            if (q.Count < 1 || q[0].Count < 1 || q[0][0] != id.ToString()) return false;
-            else return true;
+            SQLiteCommand cmd = new SQLiteCommand("SELECT Id FROM GlobalAdmins WHERE Id=@id", sqliteConn);
+            cmd.Parameters.Add(new SQLiteParameter("id", id));
+            return cmd.ExecuteScalar() != null;
         }
 
         private static bool GameExists(long groupid)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", groupid }
-            };
-            var q = ExecuteSql("SELECT GroupId FROM Games WHERE GroupId=@id", par);
-            if (q.Count < 1 || q[0].Count < 1 || q[0][0] != groupid.ToString()) return false;
-            else return true;
+            SQLiteCommand cmd = new SQLiteCommand("SELECT GroupId FROM Games WHERE GroupId=@id", sqliteConn);
+            cmd.Parameters.Add(new SQLiteParameter("id", groupid));
+            return cmd.ExecuteScalar() != null;
         }
 
         private static bool NextgameExists(long id, long groupId)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", id },
-                { "groupid", groupId }
-            };
-            var q = ExecuteSql("SELECT Id, GroupId FROM Nextgame WHERE Id=@id AND GroupId=@groupid", par);
-            if (q.Count < 1 || q[0].Count < 2 || q[0][0] != id.ToString() || q[0][1] != groupId.ToString()) return false;
-            else return true;
+            SQLiteCommand cmd = new SQLiteCommand("SELECT Id, GroupId FROM Nextgame WHERE Id=@id AND GroupId=@groupid", sqliteConn);
+            cmd.Parameters.AddRange(new SQLiteParameter[] { new SQLiteParameter("id", id), new SQLiteParameter("groupid", groupId) });
+            return cmd.ExecuteScalar() != null;
         }
 
         private static bool NextgameExists(long groupId)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "groupid", groupId }
-            };
-            var q = ExecuteSql("SELECT GroupId FROM Nextgame WHERE GroupId=@groupid", par);
-            if (q.Count < 1 || q[0].Count < 1 || q[0][0] != groupId.ToString()) return false;
-            else return true;
+            SQLiteCommand cmd = new SQLiteCommand("SELECT GroupId FROM Nextgame WHERE GroupId=@groupid", sqliteConn);
+            cmd.Parameters.Add(new SQLiteParameter("groupid", groupId));
+            return cmd.ExecuteScalar() != null;
         }
         #endregion
         #region Set Value
         private static void SetValue(string table, string column, object value, object identifier, string identifierName = "Id")
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", identifier },
-                { "val", value }
-            };
-            ExecuteSql($"UPDATE {table} SET {column}=@val WHERE {identifierName}=@id", par);
+            var cmd = new SQLiteCommand($"UPDATE {table} SET {column}=@val WHERE {identifierName}=@id", sqliteConn);
+            cmd.Parameters.AddRange(new SQLiteParameter[] { new SQLiteParameter("val", value), new SQLiteParameter("id", identifier) });
+            cmd.ExecuteNonQuery();
         }
 
         private static void SetGroupValue(string column, object value, long id)
@@ -175,64 +143,41 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #region Get Value
-        private static string GetValue(string table, string column, object identifier, string identifierName = "Id")
+        private static object GetValue(string table, string column, object identifier, string identifierName = "Id")
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", identifier }
-            };
-            string query = $"SELECT {column} FROM {table} WHERE {identifierName}=@id";
-            var q = ExecuteSql(query, par);
-            if (q.Count < 1 || q[0].Count < 1) throw new HelperException($"Did not find anything. Query: {query}");
-            else return q[0][0];
+            var cmd = new SQLiteCommand($"SELECT {column} FROM {table} WHERE {identifierName}=@id", sqliteConn);
+            cmd.Parameters.AddWithValue("id", identifier);
+            return cmd.ExecuteScalar();
         }
 
-        /*private static T GetValue<T>(string table, string column, object identifier, string identifierName = "Id")
+        private static T GetValue<T>(string table, string column, object identifier, string identifierName = "Id")
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", identifier }
-            };
-            string query = $"SELECT {column} FROM {table} WHERE {identifierName}=@id";
-            var q = ExecuteSql(query, par);
-            if (q.Count < 1 || q[0].Count < 1) throw new HelperException($"Did not find anything. Query: {query}");
-            try
-            {
-                if (typeof(T) == typeof(int))
-                    return (T)(object)Convert.ToInt32(q[0][0]);
-                if (typeof(T) == typeof(long))
-                    return (T)(object)Convert.ToInt64(q[0][0]);
-                if (typeof(T) == typeof(bool))
-                    return (T)(object)Convert.ToBoolean(q[0][0]);
-                return (T)(object)q[0][0];
-            }
-            catch
-            {
-                throw new HelperException($"Query {query} not able to cast to type {typeof(T).FullName}");
-            }
-        }*/
+            var cmd = new SQLiteCommand($"SELECT {column} FROM {table} WHERE {identifierName}=@id", sqliteConn);
+            cmd.Parameters.AddWithValue("id", identifier);
+            return (T)cmd.ExecuteScalar();
+        }
 
-        private static string GetGroupValue(string column, long id)
+        private static object GetGroupValue(string column, long id)
         {
             return GetValue("Groups", column, id, "Id");
         }
 
-        /*private static T GetGroupValue<T>(string column, long id)
+        private static T GetGroupValue<T>(string column, long id)
         {
             return GetValue<T>("Groups", column, id, "Id");
-        }*/
+        }
 
-        private static string GetUserValue(string column, long id)
+        private static object GetUserValue(string column, long id)
         {
             return GetValue("Users", column, id, "Id");
         }
 
-        /*private static T GetUserValue<T>(string column, long id)
+        private static T GetUserValue<T>(string column, long id)
         {
             return GetValue<T>("Users", column, id, "Id");
-        }*/
+        }
 
-        private static string GetGameValue(string column, long id, GameIdType git)
+        private static object GetGameValue(string column, long id, GameIdType git)
         {
             string idName = "Id";
             switch (git)
@@ -247,7 +192,7 @@ namespace WhoAmIBotSpace
             return GetValue("Games", column, id, idName);
         }
 
-        /*private static T GetGameValue<T>(string column, long id, GameIdType git)
+        private static T GetGameValue<T>(string column, long id, GameIdType git)
         {
             string idName = "Id";
             switch (git)
@@ -259,72 +204,62 @@ namespace WhoAmIBotSpace
                     idName = "Id";
                     break;
             }
-            return GetValue<T>("Users", column, id, idName);
-        }*/
+            return GetValue<T>("Games", column, id, idName);
+        }
         #endregion
         #region Add
         private static void AddGroup(long id, string name, string langKey = defaultLangCode)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", id },
-                { "name", name },
-                { "langKey", langKey }
-            };
-            ExecuteSql("INSERT INTO Groups(Id, Name, LangKey) VALUES(@id, @name, @langKey)", par);
+            var cmd = new SQLiteCommand("INSERT INTO Groups(Id, Name, LangKey) VALUES(@id, @name, @langKey)", sqliteConn);
+            cmd.Parameters.AddRange(new SQLiteParameter[]
+            { new SQLiteParameter("id", id),new SQLiteParameter("name", name), new SQLiteParameter("langKey", langKey) });
+            cmd.ExecuteNonQuery();
         }
 
         private static void AddUser(long id, string langKey, string name, string username)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", id },
-                { "name", name },
-                { "langKey", langKey },
-                { "username", username }
-            };
-            ExecuteSql("INSERT INTO Users(Id, LangKey, Name, Username) VALUES(@id, @langKey, @name, @username)", par);
+            var cmd = new SQLiteCommand("INSERT INTO Users(Id, LangKey, Name, Username) VALUES(@id, @langKey, @name, @username)", sqliteConn);
+            cmd.Parameters.AddRange(new SQLiteParameter[] { new SQLiteParameter("id", id), new SQLiteParameter("name", name),
+                new SQLiteParameter("langKey", langKey), new SQLiteParameter("username", username) });
+            cmd.ExecuteNonQuery();
         }
 
         private static void AddNextgame(long id, long groupid)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", id },
-                { "groupid", groupid }
-            };
-            ExecuteSql("INSERT INTO Nextgame(Id, GroupId) VALUES(@id, @groupid)", par);
+            var cmd = new SQLiteCommand("INSERT INTO Nextgame(Id, GroupId) VALUES(@id, @groupid)", sqliteConn);
+            cmd.Parameters.AddRange(new SQLiteParameter[] { new SQLiteParameter("id", id), new SQLiteParameter("groupid", groupid) });
+            cmd.ExecuteNonQuery();
         }
 
         private static void AddGame(long groupid)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", groupid }
-            };
-            ExecuteSql("INSERT INTO Games(GroupId) VALUES (@id)", par);
+            var cmd = new SQLiteCommand("INSERT INTO Games(GroupId) VALUES(@id)", sqliteConn);
+            cmd.Parameters.AddWithValue("id", groupid);
+            cmd.ExecuteNonQuery();
         }
 
         private static void AddGameFinished(long groupid, long winnerid, string winnername)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", groupid },
-                { "winnerid", winnerid },
-                { "winnername", winnername }
-            };
-            ExecuteSql("INSERT INTO GamesFinished(GroupId, WinnerId, WinnerName) VALUES(@id, @winnerid, @winnername)", par);
+            var cmd = new SQLiteCommand("INSERT INTO GamesFinished(GroupId, WinnerId, WinnerName) VALUES(@id, @winnerid, @winnername)", sqliteConn);
+            cmd.Parameters.AddRange(new SQLiteParameter[] 
+            { new SQLiteParameter("id", groupid), new SQLiteParameter("winnerid", winnerid), new SQLiteParameter("winnername", winnername) });
+            cmd.ExecuteNonQuery();
         }
         #endregion
         #region Get
         private static NodeUser GetNodeUser(long userid)
         {
-            return new NodeUser(Convert.ToInt64(GetUserValue("Id", userid)))
+            var cmd = new SQLiteCommand("SELECT * FROM Users WHERE Id=@id", sqliteConn);
+            cmd.Parameters.AddWithValue("id", userid);
+            using (var reader = cmd.ExecuteReader())
             {
-                LangKey = GetUserValue("LangKey", userid),
-                Name = GetUserValue("Name", userid),
-                Username = GetUserValue("Username", userid)
-            };
+                return new NodeUser((long)reader["Id"])
+                {
+                    LangKey = (string)reader["LangKey"],
+                    Name = (string)reader["Name"],
+                    Username = (string)reader["Username"]
+                };
+            }
         }
         #endregion
         #endregion
@@ -362,7 +297,7 @@ namespace WhoAmIBotSpace
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, Strings.CancelgameQ, ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, groupid), $"cancelgameYes@{groupid}",
                 GetString(Strings.No, groupid), $"cancelgameNo@{groupid}"),
-                GetString(Convert.ToBoolean(GetGroupValue("CancelgameAdmin", groupid)) ? Strings.True : Strings.False, groupid));
+                GetString(GetGroupValue<bool>("CancelgameAdmin", groupid) ? Strings.True : Strings.False, groupid));
             try
             {
                 OnCallbackQuery += cHandler;
@@ -399,7 +334,7 @@ namespace WhoAmIBotSpace
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.JoinTimeoutQ, markup,
-                maxIdleJoinTime.TotalMinutes.ToString(), GetGroupValue("JoinTimeout", groupid));
+                maxIdleJoinTime.TotalMinutes.ToString(), GetGroupValue<long>("JoinTimeout", groupid).ToString());
             try
             {
                 OnCallbackQuery += cHandler;
@@ -437,7 +372,7 @@ namespace WhoAmIBotSpace
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
-                $"{maxIdleGameTime.TotalHours}h", $"{Convert.ToInt64(GetGroupValue("GameTimeout", groupid)) / 60}h");
+                $"{maxIdleGameTime.TotalHours}h", $"{GetGroupValue<long>("GameTimeout", groupid) / 60}h");
             try
             {
                 OnCallbackQuery += cHandler;
@@ -502,17 +437,17 @@ namespace WhoAmIBotSpace
                             Console.WriteLine($"Node: Username: {Username}");
                             continue;
                         }
-                        if (data.StartsWith("PING:"))
+                        /*if (data.StartsWith("PING:"))
                         {
                             data = data.Substring(5);
                             var s = data.Split(':');
                             var now = DateTime.Now;
                             Console.WriteLine($"{now.Hour - Convert.ToInt64(s[0])}:{now.Minute - Convert.ToInt64(s[1])}:{now.Second - Convert.ToInt64(s[2])}:{now.Millisecond - Convert.ToInt64(s[3])}");
                             continue;
-                        }
+                        }*/
                         if (data.StartsWith("STOP"))
                         {
-                            Console.WriteLine("stopping");
+                            Console.WriteLine("Stopping node at " + Assembly.GetExecutingAssembly().Location);
                             State = NodeState.Stopping;
                             if (NodeGames.Count > 0)
                             {
@@ -612,26 +547,21 @@ namespace WhoAmIBotSpace
         #region Get string
         private static string GetString(string key, string langCode)
         {
-            var par = new Dictionary<string, object>() { { "key", key } };
-            var q = ExecuteSql($"SELECT value FROM '{langCode}' WHERE key=@key", par);
-            string query = "";
-            if (q.Count < 1 || q[0].Count < 1 || q[0][0].StartsWith("SQL logic error or missing database"))
+            var cmd = new SQLiteCommand($"SELECT value FROM '{langCode}' WHERE key=@key", sqliteConn);
+            cmd.Parameters.AddWithValue("key", key);
+            try
             {
-                q = ExecuteSql($"SELECT value FROM '{defaultLangCode}' WHERE key=@key", par);
-                if (q.Count < 1 || q[0].Count < 1)
-                {
-                    query = $"String {key} missing. Inform @Olfi01.";
-                }
-                else
-                {
-                    query = q[0][0];
-                }
+                var res = cmd.ExecuteScalar();
+                if (res == null) throw new Exception("value not found");
+                else return (string)res;
             }
-            else
+            catch
             {
-                query = q[0][0];
+                var cmd2 = new SQLiteCommand($"SELECT value FROM '{defaultLangCode}' WHERE key=@key", sqliteConn);
+                cmd2.Parameters.AddWithValue("key", key);
+                var res = cmd.ExecuteScalar();
+                return res != null ? (string)res : $"String {key} missing. Inform @Olfi01.";
             }
-            return query;
         }
 
         private static string GetString(string key, long langFrom)
@@ -643,17 +573,17 @@ namespace WhoAmIBotSpace
         private static string LangCode(long id)
         {
             string key = "";
-            if (GroupExists(id)) key = GetGroupValue("LangKey", id);
-            else if (UserExists(id)) key = GetUserValue("LangKey", id);
+            if (GroupExists(id)) key = GetGroupValue<string>("LangKey", id);
+            else if (UserExists(id)) key = GetUserValue<string>("LangKey", id);
             else key = defaultLangCode;
             if (LangKeyExists(key)) return key;
             else
             {
-                var par = new Dictionary<string, object>() { { "id", id } };
-                var q = ExecuteSql("SELECT key FROM existinglanguages WHERE key LIKE " +
-                    "(SUBSTR((SELECT langkey FROM users where id=@p0), 0, 3)||'-%')", par);
-                if (q.Count > 0 && q[0].Count > 0) return q[0][0];
-                else return defaultLangCode;
+                var cmd = new SQLiteCommand("SELECT key FROM existinglanguages WHERE key LIKE" +
+                    " (SUBSTR((SELECT langkey FROM users where id=@p0), 0, 3)||'-%')", sqliteConn);
+                cmd.Parameters.AddWithValue("id", id);
+                var res = cmd.ExecuteScalar();
+                return res != null ? (string)res : defaultLangCode;
             }
         }
         #endregion
@@ -792,7 +722,7 @@ namespace WhoAmIBotSpace
         private static LangFile GetLangFile(string key, bool completify = true)
 #endif
         {
-            var langName = GetValue("ExistingLanguages", "Name", key, "Key");
+            var langName = GetValue<string>("ExistingLanguages", "Name", key, "Key");
             LangFile lf = new LangFile()
             {
                 LangKey = key,
@@ -802,11 +732,13 @@ namespace WhoAmIBotSpace
             string command = $"SELECT Key, Value FROM '{key}'";
             if (completify) command = $"SELECT key, value FROM '{key}' UNION ALL" +
                     $" SELECT key, value FROM '{defaultLangCode}' WHERE key NOT IN (SELECT key FROM '{key}')";
-            var query = ExecuteSql(command, null);
-            foreach (var row in query)
+            var cmd = new SQLiteCommand(command, sqliteConn);
+            using (var reader = cmd.ExecuteReader())
             {
-                if (row.Count < 2) continue;
-                lf.Strings.Add(new JString(row[0], row[1]));
+                while (reader.Read())
+                {
+                    lf.Strings.Add(new JString((string)reader["key"], (string)reader["value"]));
+                }
             }
             return lf;
         }
@@ -871,8 +803,9 @@ namespace WhoAmIBotSpace
                     {
                         { "id", id }
                     };
-                    var q = ExecuteSql("SELECT Id FROM Games WHERE Id=@id OR GroupId=@id", par);
-                    if (q.Count < 1 || q[0].Count < 1 || !long.TryParse(q[0][0], out long gId)) return;
+                    var cmd = new SQLiteCommand("SELECT Id FROM Games WHERE Id=@id OR GroupId=@id", sqliteConn);
+                    cmd.Parameters.AddWithValue("id", id);
+                    var gId = (long)cmd.ExecuteScalar();
                     if (!NodeGames.Exists(x => x.Id == gId)) return;
                     var g3 = NodeGames.Find(x => x.Id == gId);
                     CancelGame(g3);
@@ -886,7 +819,7 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
                 return;
             }
-            var gId2 = Convert.ToInt64(GetGameValue("Id", msg.Chat.Id, GameIdType.GroupId));
+            var gId2 = GetGameValue<long>("Id", msg.Chat.Id, GameIdType.GroupId);
             if (!NodeGames.Exists(x => x.Id == gId2)) return;
             NodeGame g = NodeGames.Find(x => x.Id == gId2);
             if (!GroupExists(msg.Chat.Id))
@@ -895,7 +828,7 @@ namespace WhoAmIBotSpace
             }
             if (!GlobalAdminExists(msg.From.Id))
             {
-                bool cancancel = !Convert.ToBoolean(GetGroupValue("CancelgameAdmin", msg.Chat.Id));
+                bool cancancel = !GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id);
                 if (msg.Chat.Type.IsGroup())
                 {
                     var t3 = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
@@ -1089,7 +1022,7 @@ namespace WhoAmIBotSpace
                 mre.Set();
             };
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.SelectLanguage,
-                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector, null), msg.Chat.Id),
+                ReplyMarkupMaker.InlineChooseLanguage(new SQLiteCommand(allLangSelector, sqliteConn), msg.Chat.Id),
                 out Message sent, out var u);
             try
             {
@@ -1273,20 +1206,32 @@ namespace WhoAmIBotSpace
                 var atI = data.IndexOf("@");
                 var dpI = data.IndexOf(":");
                 var key = data.Remove(atI).Substring(dpI + 1);
-                var query = ExecuteSql($"SELECT Key, Value FROM '{key}'", null);
-                var query2 = ExecuteSql($"SELECT key, value FROM '{defaultLangCode}'", null);
-                var missing = new List<string>();
-                foreach (var row in query2)
+                var cmd = new SQLiteCommand($"SELECT Key, Value FROM '{key}'", sqliteConn);
+                var query = new List<JString>();
+                using (var reader = cmd.ExecuteReader())
                 {
-                    if (!query.Exists(x => x[0] == row[0])) missing.Add(row[0]);
-                }
-                foreach (var s in query)
-                {
-                    if (!query2.Exists(x => x[0] == s[0]))
+                    while (reader.Read())
                     {
-                        Console.WriteLine(s[0]);
+                        query.Add(new JString((string)reader["Key"], (string)reader["Value"]));
                     }
-                    var enStr = query2.Find(x => x[0] == s[0])[1];
+                }
+                var cmdDefault = new SQLiteCommand($"SELECT key, value FROM '{defaultLangCode}'", sqliteConn);
+                var queryDefault = new List<JString>();
+                using (var reader = cmdDefault.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        query.Add(new JString((string)reader["Key"], (string)reader["Value"]));
+                    }
+                }
+                var missing = new List<string>();
+                foreach (var js in queryDefault)
+                {
+                    if (!query.Exists(x => x.Key == js.Key)) missing.Add(js.Key);
+                }
+                foreach (var js in query)
+                {
+                    var enStr = queryDefault.Find(x => x.Key == js.Key).Value;
                     int extras = 0;
                     while (true)
                     {
@@ -1294,9 +1239,9 @@ namespace WhoAmIBotSpace
                         if (enStr.Contains(tag))
                         {
                             extras++;
-                            if (!s[1].Contains(tag))
+                            if (!js.Value.Contains(tag))
                             {
-                                missing.Add($"{tag} in {s[0]}");
+                                missing.Add($"{tag} in {js.Key}");
                             }
                         }
                         else break;
@@ -1307,7 +1252,7 @@ namespace WhoAmIBotSpace
                 mre.Set();
             };
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.SelectLanguage,
-                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector, null), msg.Chat.Id),
+                ReplyMarkupMaker.InlineChooseLanguage(new SQLiteCommand(allLangSelector, sqliteConn), msg.Chat.Id),
                 out sent, out var u1);
             try
             {
@@ -1473,7 +1418,7 @@ namespace WhoAmIBotSpace
                 mre.Set();
             };
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.SelectLanguage,
-                ReplyMarkupMaker.InlineChooseLanguage(ExecuteSql(allLangSelector, null), msg.Chat.Id),
+                ReplyMarkupMaker.InlineChooseLanguage(new SQLiteCommand(allLangSelector, sqliteConn), msg.Chat.Id),
                 out Message sent, out string useless);
             try
             {
@@ -1615,34 +1560,32 @@ namespace WhoAmIBotSpace
             }
             else
             {
-                if (GetGroupValue("Name", msg.Chat.Id) != msg.Chat.Title)
+                if (GetGroupValue<string>("Name", msg.Chat.Id) != msg.Chat.Title)
                 {
                     SetGroupValue("Name", msg.Chat.Title, msg.Chat.Id);
                 }
             }
             AddGame(msg.Chat.Id);
-            NodeGame g = new NodeGame(Convert.ToInt64(GetGameValue("Id", msg.Chat.Id, GameIdType.GroupId)), msg.Chat.Id,
+            NodeGame g = new NodeGame(GetGameValue<long>("Id", msg.Chat.Id, GameIdType.GroupId), msg.Chat.Id,
                 msg.Chat.Title, new NodeGroup(msg.Chat.Id)
                 {
-                    Name = GetGroupValue("Name", msg.Chat.Id),
-                    LangKey = GetGroupValue("LangKey", msg.Chat.Id),
-                    CancelgameAdmin = Convert.ToBoolean(GetGroupValue("CancelgameAdmin", msg.Chat.Id)),
-                    GameTimeout = Convert.ToInt32(GetGroupValue("GameTimeout", msg.Chat.Id)),
-                    JoinTimeout = Convert.ToInt32(GetGroupValue("JoinTimeout", msg.Chat.Id))
+                    Name = GetGroupValue<string>("Name", msg.Chat.Id),
+                    LangKey = GetGroupValue<string>("LangKey", msg.Chat.Id),
+                    CancelgameAdmin = GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id),
+                    GameTimeout = GetGroupValue<long>("GameTimeout", msg.Chat.Id),
+                    JoinTimeout = GetGroupValue<long>("JoinTimeout", msg.Chat.Id)
                 });
             NodeGames.Add(g);
             if (NextgameExists(msg.Chat.Id))
             {
-                var par = new Dictionary<string, object>()
+                var cmd = new SQLiteCommand("SELECT Id FROM Nextgame WHERE GroupId=@id", sqliteConn);
+                cmd.Parameters.AddWithValue("id", msg.Chat.Id);
+                using (var reader = cmd.ExecuteReader())
                 {
-                    { "id", msg.Chat.Id }
-                };
-                var q = ExecuteSql("SELECT Id FROM Nextgame WHERE GroupId=@id", par);
-                foreach (var row in q)
-                {
-                    SendLangMessage(Convert.ToInt64(row[0]), msg.Chat.Id, Strings.NewGameStarting);
+                    SendLangMessage((int)reader["Id"], msg.Chat.Id, Strings.NewGameStarting);
                 }
-                ExecuteSql("DELETE FROM Nextgame WHERE GroupId = @id", par);
+                var cmd2 = new SQLiteCommand("DELETE FROM Nextgame WHERE GroupId = @id", sqliteConn);
+                cmd2.Parameters.AddWithValue("id", msg.Chat.Id);
             }
             SendLangMessage(msg.Chat.Id, Strings.GameStarted);
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.PlayerList, null, out Message m, out var u1, "");
@@ -1664,9 +1607,9 @@ namespace WhoAmIBotSpace
                 { "id", msg.From.Id }
             };
             string winCount = "";
-            var q = ExecuteSql("SELECT COUNT(*) FROM GamesFinished WHERE WinnerId=@id", par);
-            if (q.Count < 1 || q[0].Count < 1) winCount = "0";
-            else winCount = q[0][0];
+            var cmd = new SQLiteCommand("DELETE FROM Nextgame WHERE GroupId = @id", sqliteConn);
+            cmd.Parameters.AddWithValue("id", msg.From.Id);
+            winCount = ((int)cmd.ExecuteScalar()).ToString() ?? "0";
             SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Stats, null, msg.From.FullName(), winCount);
         }
         #endregion
@@ -1720,11 +1663,6 @@ namespace WhoAmIBotSpace
                 Message sent = null;
                 bool permit = false;
                 //check if lang exists
-                var par = new Dictionary<string, object>()
-                {
-                    { "key", lf.LangKey },
-                    { "name", lf.Name }
-                };
                 EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
                 {
                     if (!GlobalAdminExists(e.CallbackQuery.From.Id)
@@ -1734,27 +1672,34 @@ namespace WhoAmIBotSpace
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     mre.Set();
                 };
-                var query = ExecuteSql("SELECT * FROM ExistingLanguages WHERE Key=@key", par);
+                var cmd = new SQLiteCommand("SELECT key FROM ExistingLanguages WHERE Key=@key", sqliteConn);
+                cmd.Parameters.AddWithValue("key", lf.LangKey);
+                var res = cmd.ExecuteScalar();
                 string yes = GetString(Strings.Yes, LangCode(msg.Chat.Id));
                 string no = GetString(Strings.No, LangCode(msg.Chat.Id));
-                if (query.Count == 0)
+                if (res == null)
                 {
                     //create new language
-                    var query2 = ExecuteSql($"SELECT key, value FROM '{defaultLangCode}'", null);
-                    var missing = new List<string>();
-                    foreach (var row in query2)
+                    var cmdDefault = new SQLiteCommand($"SELECT key, value FROM '{defaultLangCode}'", sqliteConn);
+                    var queryDefault = new List<JString>();
+                    using (var reader = cmdDefault.ExecuteReader())
                     {
-                        if (!lf.Strings.Exists(x => x.Key == row[0])) missing.Add(row[0]);
+                        while (reader.Read()) queryDefault.Add(new JString((string)reader["key"], (string)reader["value"]));
+                    }
+                    var missing = new List<string>();
+                    foreach (var js in queryDefault)
+                    {
+                        if (!lf.Strings.Exists(x => x.Key == js.Key)) missing.Add(js.Key);
                     }
                     var toRemove = new List<JString>();
                     foreach (var js in lf.Strings)
                     {
-                        if (!query2.Exists(x => x[0] == js.Key))
+                        if (!queryDefault.Exists(x => x.Key == js.Key))
                         {
                             toRemove.Add(js);
                             continue;
                         }
-                        var enStr = query2.Find(x => x[0] == js.Key)[1];
+                        var enStr = queryDefault.Find(x => x.Key == js.Key).Value;
                         int extras = 0;
                         while (true)
                         {
@@ -1789,45 +1734,56 @@ namespace WhoAmIBotSpace
                     }
                     if (permit)
                     {
-                        ExecuteSql("INSERT INTO ExistingLanguages(Key, Name) VALUES(@key, @name)", par);
-                        ExecuteSql($"CREATE TABLE '{lf.LangKey}'(Key varchar primary key, Value varchar)", par);
+                        var cmd2 = new SQLiteCommand("INSERT INTO ExistingLanguages(Key, Name) VALUES(@key, @name)", sqliteConn);
+                        SQLiteParameter[] par = new SQLiteParameter[]
+                        { new SQLiteParameter("key", lf.LangKey), new SQLiteParameter("name", lf.Name)};
+                        cmd2.Parameters.AddRange(par);
+                        cmd2.ExecuteNonQuery();
+                        new SQLiteCommand($"CREATE TABLE '{lf.LangKey}'(Key varchar primary key, Value varchar)", sqliteConn).ExecuteNonQuery();
                         foreach (var js in lf.Strings)
                         {
-                            if (!query2.Exists(x => x[0] == js.Key)) continue;
+                            if (!queryDefault.Exists(x => x.Key == js.Key)) continue;
                             if (missing.Exists(x => x.EndsWith(js.Key))) continue;
-                            var par1 = new Dictionary<string, object>()
-                            {
-                                { "key", js.Key },
-                                { "value", js.Value }
-                            };
-                            ExecuteSql($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)", par1);
+                            var cmd3 = new SQLiteCommand($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)");
+                            cmd3.Parameters.AddRange(par);
+                            cmd3.ExecuteNonQuery();
                         }
                     }
                 }
                 else
                 {
                     //update old lang
-                    query = ExecuteSql($"SELECT Key, Value FROM '{lf.LangKey}'", null);
-                    var query2 = ExecuteSql($"SELECT key, value FROM '{defaultLangCode}'", null);
+                    var cmd2 = new SQLiteCommand($"SELECT Key, Value FROM '{lf.LangKey}'", sqliteConn);
+                    var query = new List<JString>();
+                    using (var reader = cmd2.ExecuteReader())
+                    {
+                        while (reader.Read()) query.Add(new JString((string)reader["key"], (string)reader["value"]));
+                    }
+                    var cmdDefault = new SQLiteCommand($"SELECT key, value FROM '{defaultLangCode}'", sqliteConn);
+                    var queryDefault = new List<JString>();
+                    using (var reader = cmdDefault.ExecuteReader())
+                    {
+                        while (reader.Read()) queryDefault.Add(new JString((string)reader["key"], (string)reader["value"]));
+                    }
                     var missing = new List<string>();
                     int added = 0;
                     int changed = 0;
                     var deleted = new List<string>();
-                    foreach (var row in query2)
+                    foreach (var js in queryDefault)
                     {
-                        if (!lf.Strings.Exists(x => x.Key == row[0])) missing.Add(row[0]);
+                        if (!lf.Strings.Exists(x => x.Key == js.Key)) missing.Add(js.Key);
                     }
                     var toRemove = new List<JString>();
                     foreach (var js in lf.Strings)
                     {
-                        if (!query2.Exists(x => x[0] == js.Key) && lf.LangKey != defaultLangCode)
+                        if (!queryDefault.Exists(x => x.Key == js.Key) && lf.LangKey != defaultLangCode)
                         {
                             toRemove.Add(js);
                             continue;
                         }
-                        if (!query.Exists(x => x[0] == js.Key)) added++;
-                        else if (query.Find(x => x[0] == js.Key)[1] != js.Value) changed++;
-                        var enStr = query2.Exists(x => x[0] == js.Key) ? query2.Find(x => x[0] == js.Key)[1] : "";
+                        if (!query.Exists(x => x.Key == js.Key)) added++;
+                        else if (query.Find(x => x.Key == js.Key).Value != js.Value) changed++;
+                        var enStr = queryDefault.Exists(x => x.Key == js.Key) ? queryDefault.Find(x => x.Key == js.Key).Value : "";
                         int extras = 0;
                         while (true)
                         {
@@ -1844,7 +1800,7 @@ namespace WhoAmIBotSpace
                             else break;
                         }
                     }
-                    foreach (var row in query) if (!lf.Strings.Exists(x => x.Key == row[0])) deleted.Add(row[0]);
+                    foreach (var row in query) if (!lf.Strings.Exists(x => x.Key == row.Key)) deleted.Add(row.Key);
                     foreach (var js in toRemove) lf.Strings.Remove(js);
                     SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.UpdateLang,
                         ReplyMarkupMaker.InlineYesNo(yes, "yes", no, "no"), out sent, out var u, lf.LangKey, lf.Name,
@@ -1867,30 +1823,30 @@ namespace WhoAmIBotSpace
                                 { "key", js.Key },
                                 { "value", js.Value }
                             };
-                            if (query.Exists(x => x.Count > 0 && x[0] == js.Key))
+                            var cmd3 = new SQLiteCommand(sqliteConn);
+                            cmd3.Parameters.AddRange(new SQLiteParameter[] 
+                            { new SQLiteParameter("key", js.Key), new SQLiteParameter("value", js.Value) });
+                            if (query.Exists(x => x.Key == js.Key))
                             {
-                                ExecuteSql($"UPDATE '{lf.LangKey}' SET Value=@value WHERE Key=@key", par1);
+                                cmd3.CommandText = $"UPDATE '{lf.LangKey}' SET Value=@value WHERE Key=@key";
                             }
                             else
                             {
-                                ExecuteSql($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)", par1);
+                                cmd3.CommandText = $"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)";
                             }
+                            cmd3.ExecuteNonQuery();
                         }
                         foreach (var js in toRemove)
                         {
-                            var par1 = new Dictionary<string, object>()
-                            {
-                                { "key", js.Key },
-                            };
-                            ExecuteSql($"DELETE FROM '{lf.LangKey}' WHERE key=@key", par1);
+                            var cmd3 = new SQLiteCommand($"DELETE FROM '{lf.LangKey}' WHERE key=@key", sqliteConn);
+                            cmd3.Parameters.AddWithValue("key", js.Key);
+                            cmd3.ExecuteNonQuery();
                         }
                         foreach (var key in deleted)
                         {
-                            var par1 = new Dictionary<string, object>()
-                            {
-                                { "key", key },
-                            };
-                            ExecuteSql($"DELETE FROM '{lf.LangKey}' WHERE key=@key", par1);
+                            var cmd3 = new SQLiteCommand($"DELETE FROM '{lf.LangKey}' WHERE key=@key", sqliteConn);
+                            cmd3.Parameters.AddWithValue("key", key);
+                            cmd3.ExecuteNonQuery();
                         }
                     }
                 }
@@ -2190,11 +2146,9 @@ namespace WhoAmIBotSpace
             #endregion
             #region Finish game
             game.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            var par = new Dictionary<string, object>()
-            {
-                { "id", game.Id }
-            };
-            ExecuteSql("DELETE FROM Games WHERE Id=@id", par);
+            var cmd = new SQLiteCommand("DELETE FROM Games WHERE Id=@id", sqliteConn);
+            cmd.Parameters.AddWithValue("id", game.Id);
+            cmd.ExecuteNonQuery();
             long winnerId = game.Winner == null ? 0 : game.Winner.Id;
             string winnerName = game.Winner == null ? GetString(Strings.Nobody, LangCode(game.GroupId)) : game.Winner.Name;
             AddGameFinished(game.GroupId, winnerId, winnerName);
@@ -2208,11 +2162,9 @@ namespace WhoAmIBotSpace
         #region Cancel game
         private static void CancelGame(NodeGame g)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", g.Id }
-            };
-            ExecuteSql("DELETE FROM Games WHERE Id=@id", par);
+            var cmd = new SQLiteCommand("DELETE FROM Games WHERE Id=@id", sqliteConn);
+            cmd.Parameters.AddWithValue("id", g.Id);
+            cmd.ExecuteNonQuery();
             g.Thread?.Abort();
             g.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
             NodeGames.Remove(g);
@@ -2223,58 +2175,6 @@ namespace WhoAmIBotSpace
 
         #region SQLite
         #region Execute SQLite Query
-        private static List<List<string>> ExecuteSql(string commandText, Dictionary<string, object> parameters, bool checkPars = true)
-        {
-            List<List<string>> r = new List<List<string>>();
-            using (var trans = sqliteConn.BeginTransaction())
-            {
-                using (var comm = new SQLiteCommand(commandText, sqliteConn, trans))
-                {
-                    if (parameters != null)
-                    {
-                        foreach (var kvp in parameters)
-                        {
-                            comm.Parameters.Add(new SQLiteParameter(kvp.Key, kvp.Value));
-                        }
-                    }
-                    else if (commandText.Contains("@") && checkPars) client.SendTextMessageAsync(Flom, $"Missing parameters in {commandText}");
-                    try
-                    {
-                        using (var reader = comm.ExecuteReader())
-                        {
-                            /*if (!raw)
-                            {
-                                if (reader.RecordsAffected >= 0) r += $"_{reader.RecordsAffected} records affected_\n";
-                                for (int i = 0; i < reader.FieldCount; i++)
-                                {
-                                    r += $"{reader.GetName(i)} ({reader.GetFieldType(i).Name})";
-                                    if (i < reader.FieldCount - 1) r += " | ";
-                                }
-                                r += "\n\n";
-                            }*/
-                            while (reader.HasRows)
-                            {
-                                var row = new List<string>();
-                                if (!reader.Read()) break;
-                                for (int i = 0; i < reader.FieldCount; i++)
-                                {
-                                    row.Add(reader.GetValue(i).ToString());
-                                }
-                                r.Add(row);
-                            }
-                        }
-                    }
-                    catch (SQLiteException x)
-                    {
-                        r = new List<List<string>>() { new List<string>() { x.Message } };
-                    }
-                }
-                trans.Commit();
-            }
-
-            return r;
-        }
-
         private static string ExecuteSqlRaw(string commandText)
         {
             string r = "";
@@ -2315,6 +2215,58 @@ namespace WhoAmIBotSpace
 
             return r;
         }
+
+        /*private static List<List<string>> ExecuteSql(string commandText, Dictionary<string, object> parameters, bool checkPars = true)
+        {
+            List<List<string>> r = new List<List<string>>();
+            using (var trans = sqliteConn.BeginTransaction())
+            {
+                using (var comm = new SQLiteCommand(commandText, sqliteConn, trans))
+                {
+                    if (parameters != null)
+                    {
+                        foreach (var kvp in parameters)
+                        {
+                            comm.Parameters.Add(new SQLiteParameter(kvp.Key, kvp.Value));
+                        }
+                    }
+                    else if (commandText.Contains("@") && checkPars) client.SendTextMessageAsync(Flom, $"Missing parameters in {commandText}");
+                    try
+                    {
+                        using (var reader = comm.ExecuteReader())
+                        {
+                            if (!raw)
+                            {
+                                if (reader.RecordsAffected >= 0) r += $"_{reader.RecordsAffected} records affected_\n";
+                                for (int i = 0; i < reader.FieldCount; i++)
+                                {
+                                    r += $"{reader.GetName(i)} ({reader.GetFieldType(i).Name})";
+                                    if (i < reader.FieldCount - 1) r += " | ";
+                                }
+                                r += "\n\n";
+                            }
+                            while (reader.HasRows)
+                            {
+                                var row = new List<string>();
+                                if (!reader.Read()) break;
+                                for (int i = 0; i < reader.FieldCount; i++)
+                                {
+                                    row.Add(reader.GetValue(i).ToString());
+                                }
+                                r.Add(row);
+                            }
+                        }
+                    }
+                    catch (SQLiteException x)
+                    {
+                        r = new List<List<string>>() { new List<string>() { x.Message } };
+                    }
+                }
+                trans.Commit();
+            }
+
+            return r;
+        }*/
         #endregion
         #endregion
     }
