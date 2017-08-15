@@ -299,7 +299,7 @@ namespace WhoAmIBotSpace
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, Strings.CancelgameQ, ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, groupid), $"cancelgameYes@{groupid}",
                 GetString(Strings.No, groupid), $"cancelgameNo@{groupid}"),
-                GetString(GetGroupValue<bool>("CancelgameAdmin", groupid) ? Strings.True : Strings.False, groupid));
+                GetString(Convert.ToBoolean(GetGroupValue("CancelgameAdmin", groupid)) ? Strings.True : Strings.False, groupid));
             try
             {
                 OnCallbackQuery += cHandler;
@@ -830,7 +830,7 @@ namespace WhoAmIBotSpace
             }
             if (!GlobalAdminExists(msg.From.Id))
             {
-                bool cancancel = !GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id);
+                bool cancancel = !Convert.ToBoolean(GetGroupValue("CancelgameAdmin", msg.Chat.Id));
                 if (msg.Chat.Type.IsGroup())
                 {
                     var t3 = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
@@ -1573,7 +1573,7 @@ namespace WhoAmIBotSpace
                 {
                     Name = GetGroupValue<string>("Name", msg.Chat.Id),
                     LangKey = GetGroupValue<string>("LangKey", msg.Chat.Id),
-                    CancelgameAdmin = GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id),
+                    CancelgameAdmin = Convert.ToBoolean(GetGroupValue("CancelgameAdmin", msg.Chat.Id)),
                     GameTimeout = GetGroupValue<long>("GameTimeout", msg.Chat.Id),
                     JoinTimeout = GetGroupValue<long>("JoinTimeout", msg.Chat.Id)
                 });
