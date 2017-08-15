@@ -202,6 +202,7 @@ namespace WhoAmIBotSpace
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
+            if (e.Update.Message.NewChatPhoto != null) return; //workaround for the bug
             if (e.Update.Type == UpdateType.CallbackQueryUpdate)
             {
                 foreach (var node in Nodes)
