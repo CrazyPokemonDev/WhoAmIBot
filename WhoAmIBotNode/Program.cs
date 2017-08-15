@@ -784,7 +784,7 @@ namespace WhoAmIBotSpace
         private static void Test_Command(Message msg)
         {
             //client.SendTextMessageAsync(msg.From.Id, GetNodeUser(msg.From.Id).ToString());
-            Startgame_Command(msg);
+            try { Startgame_Command(msg); } catch(Exception x) { client.SendTextMessageAsync(Flom, $"{x}:{x.Message}\n{x.StackTrace}"); }
         }
         #endregion
         #region /backup
