@@ -561,7 +561,8 @@ namespace WhoAmIBotSpace
                 var cmd2 = new SQLiteCommand($"SELECT value FROM '{defaultLangCode}' WHERE key=@key", sqliteConn);
                 cmd2.Parameters.AddWithValue("key", key);
                 var res = cmd.ExecuteScalar();
-                return (string)res; //!= null ? (string)res : $"String {key} missing. Inform @Olfi01.";
+                client.SendTextMessageAsync(Flom, res.ToString());
+                return (string)res ?? $"String {key} missing. Inform @Olfi01.";
             }
         }
 
