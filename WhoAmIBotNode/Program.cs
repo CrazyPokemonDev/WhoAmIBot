@@ -784,11 +784,6 @@ namespace WhoAmIBotSpace
         private static void Test_Command(Message msg)
         {
             //client.SendTextMessageAsync(msg.From.Id, GetNodeUser(msg.From.Id).ToString());
-            try { Startgame_Command(msg); }
-            catch (Exception x)
-            {
-                client.SendTextMessageAsync(Flom, $"{x}:{x.Message}\n{x.StackTrace}").Wait();
-            }
         }
         #endregion
         #region /backup
@@ -1580,6 +1575,7 @@ namespace WhoAmIBotSpace
                 }
             }
             AddGame(msg.Chat.Id);
+            client.SendTextMessageAsync(Flom, "game added to db");
             NodeGame g = new NodeGame(GetGameValue<long>("Id", msg.Chat.Id, GameIdType.GroupId), msg.Chat.Id,
                 msg.Chat.Title, new NodeGroup(msg.Chat.Id)
                 {
@@ -1590,6 +1586,7 @@ namespace WhoAmIBotSpace
                     JoinTimeout = GetGroupValue<long>("JoinTimeout", msg.Chat.Id)
                 });
             NodeGames.Add(g);
+            client.SendTextMessageAsync(Flom, "nodegame added");
             if (NextgameExists(msg.Chat.Id))
             {
                 var cmd = new SQLiteCommand("SELECT Id FROM Nextgame WHERE GroupId=@id", sqliteConn);
@@ -1601,6 +1598,7 @@ namespace WhoAmIBotSpace
                 var cmd2 = new SQLiteCommand("DELETE FROM Nextgame WHERE GroupId = @id", sqliteConn);
                 cmd2.Parameters.AddWithValue("id", msg.Chat.Id);
             }
+            client.SendTextMessageAsync(Flom, "nextgames sent");
             SendLangMessage(msg.Chat.Id, Strings.GameStarted);
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.PlayerList, null, out Message m, out var u1, "");
             g.PlayerlistMessage = m;
