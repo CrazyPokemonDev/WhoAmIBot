@@ -2068,6 +2068,7 @@ namespace WhoAmIBotSpace
                     endloop = true;
                     SendLangMessage(game.GroupId, Strings.GaveUp, null, e.Player.Name, game.RoleIdDict[e.Player.Id]);
                     turn++;
+                    game.Players.Remove(game.Players.Find(x => x.Id == e.Player.Id));
                     mre.Set();
                 };
                 #region Guess handler
