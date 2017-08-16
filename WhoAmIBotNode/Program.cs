@@ -1592,7 +1592,7 @@ namespace WhoAmIBotSpace
                 using (var reader = cmd.ExecuteReader())
                 {
                     reader.Read();
-                    SendLangMessage((int)reader["Id"], msg.Chat.Id, Strings.NewGameStarting);
+                    SendLangMessage((long)reader["Id"], msg.Chat.Id, Strings.NewGameStarting);
                 }
                 var cmd2 = new SQLiteCommand("DELETE FROM Nextgame WHERE GroupId = @id", sqliteConn);
                 cmd2.Parameters.AddWithValue("id", msg.Chat.Id);
