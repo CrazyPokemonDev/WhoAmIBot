@@ -256,9 +256,9 @@ namespace WhoAmIBotSpace
                 reader.Read();
                 return new NodeUser((long)reader["Id"])
                 {
-                    LangKey = (string)reader["LangKey"],
-                    Name = (string)reader["Name"],
-                    Username = reader["Username"].ToString()
+                    LangKey = reader["LangKey"] is DBNull ? null : (string)reader["LangKey"],
+                    Name = reader["Name"] is DBNull ? null : (string)reader["Name"],
+                    Username = reader["Username"] is DBNull ? null : (string)reader["Username"]
                 };
             }
         }
@@ -1591,6 +1591,7 @@ namespace WhoAmIBotSpace
                 cmd.Parameters.AddWithValue("id", msg.Chat.Id);
                 using (var reader = cmd.ExecuteReader())
                 {
+                    reader.Read();
                     SendLangMessage((int)reader["Id"], msg.Chat.Id, Strings.NewGameStarting);
                 }
                 var cmd2 = new SQLiteCommand("DELETE FROM Nextgame WHERE GroupId = @id", sqliteConn);
