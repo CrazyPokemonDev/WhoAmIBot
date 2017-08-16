@@ -1616,11 +1616,11 @@ namespace WhoAmIBotSpace
             {
                 { "id", msg.From.Id }
             };
-            int winCount = 0;
+            long winCount = 0;
             var cmd = new SQLiteCommand("SELECT count(*) FROM GamesFinished WHERE Winnerid=@id", sqliteConn);
             cmd.Parameters.AddWithValue("id", msg.From.Id);
             var res = cmd.ExecuteScalar();
-            winCount = res == null ? 0 : (int)res;
+            winCount = res == null ? 0 : (long)res;
             SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Stats, null, msg.From.FullName(), winCount.ToString());
         }
         #endregion
