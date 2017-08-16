@@ -927,7 +927,7 @@ namespace WhoAmIBotSpace
                     };
                     var cmd = new SQLiteCommand("SELECT Id FROM Games WHERE Id=@id OR GroupId=@id", sqliteConn);
                     cmd.Parameters.AddWithValue("id", id);
-                    var gId = (long)cmd.ExecuteScalar();
+                    var gId = (long)(cmd.ExecuteScalar() ?? 0);
                     if (!NodeGames.Exists(x => x.Id == gId)) return;
                     var g3 = NodeGames.Find(x => x.Id == gId);
                     CancelGame(g3);
