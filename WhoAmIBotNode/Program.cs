@@ -791,8 +791,6 @@ namespace WhoAmIBotSpace
         #region /afk
         private static void Afk_Command(Message msg)
         {
-            SendLangMessage(msg.Chat.Id, Strings.NotImplemented);
-            return;
             if (!msg.Chat.Type.IsGroup())
             {
                 if (State == NodeState.Primary)
@@ -815,6 +813,11 @@ namespace WhoAmIBotSpace
             if (!g.Players.Exists(x => x.Id == msg.ReplyToMessage.From.Id))
             {
                 SendLangMessage(msg.Chat.Id, Strings.PlayerNotInGame);
+                return;
+            }
+            if (!g.DictFull())
+            {
+                SendLangMessage(msg.Chat.Id, Strings.RolesNotSet);
                 return;
             }
             var t = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
@@ -1158,7 +1161,6 @@ namespace WhoAmIBotSpace
             }
             p.GaveUp = true;
             SendLangMessage(msg.From.Id, g.GroupId, Strings.YouGaveUp);
-            var role = g.RoleIdDict.ContainsKey(msg.From.Id) ? g.RoleIdDict[msg.From.Id] : "failed to find role";
             SendLangMessage(g.GroupId, Strings.GaveUp, null, p.Name, g.RoleIdDict[msg.From.Id]);
         }
         #endregion
@@ -2009,12 +2011,21 @@ namespace WhoAmIBotSpace
             }
             #endregion
             int turn = 0;
+            NodePlayer atTurn = null;
+            EventHandler <AfkEventArgs> afkGlobal = (sender, e) =>
+            {
+                if (e.Game.Id != game.Id || (atTurn != null && e.Player.Id == atTurn.Id)) return;
+                var p = game.Players.Find(x => x.Id == e.Player.Id);
+                p.GaveUp = true;
+                SendLangMessage(game.GroupId, Strings.GaveUp, null, e.Player.Name, game.RoleIdDict[e.Player.Id]);
+            };
+            OnAfk += afkGlobal;
             #region Player turns
             while (true)
             {
                 // do players turns until everything is finished, then break;
                 if (turn >= game.Players.Count) turn = 0;
-                NodePlayer atTurn = game.Players[turn];
+                atTurn = game.Players[turn];
                 game.Turn = atTurn;
                 if (atTurn.GaveUp)
                 {
@@ -2045,6 +2056,13 @@ namespace WhoAmIBotSpace
                 };
                 bool guess = false;
                 bool endloop = false;
+                EventHandler<AfkEventArgs> afkHandler = (sender, e) =>
+                {
+                    if (e.Game.Id != game.Id || e.Player.Id != atTurn.Id) return;
+                    endloop = true;
+                    SendLangMessage(game.GroupId, Strings.GaveUp, null, e.Player.Name, game.RoleIdDict[e.Player.Id]);
+                    mre.Set();
+                };
                 #region Guess handler
                 EventHandler<MessageEventArgs> guessHandler = (sender, e) =>
                 {
@@ -2112,12 +2130,14 @@ namespace WhoAmIBotSpace
                 {
                     OnMessage += qHandler;
                     OnCallbackQuery += c1Handler;
+                    OnAfk += afkHandler;
                     mre.WaitOne();
                 }
                 finally
                 {
                     OnMessage -= qHandler;
                     OnCallbackQuery -= c1Handler;
+                    OnAfk -= afkHandler;
                 }
                 mre.Reset();
                 game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
@@ -2126,11 +2146,13 @@ namespace WhoAmIBotSpace
                     try
                     {
                         OnMessage += guessHandler;
+                        OnAfk += afkHandler;
                         mre.WaitOne();
                     }
                     finally
                     {
                         OnMessage -= guessHandler;
+                        OnAfk -= afkHandler;
                     }
                 }
                 if (game.Players.Count < 1) break;
@@ -2190,11 +2212,13 @@ namespace WhoAmIBotSpace
                 try
                 {
                     OnCallbackQuery += cHandler;
+                    OnAfk += afkHandler;
                     mre.WaitOne();
                 }
                 finally
                 {
                     OnCallbackQuery -= cHandler;
+                    OnAfk -= afkHandler;
                 }
                 game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
                 if (game.Players.Count < 1) break;
@@ -2202,6 +2226,7 @@ namespace WhoAmIBotSpace
             }
             #endregion
             #region Finish game
+            OnAfk -= afkGlobal;
             game.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
             var cmd = new SQLiteCommand("DELETE FROM Games WHERE Id=@id", sqliteConn);
             cmd.Parameters.AddWithValue("id", game.Id);
