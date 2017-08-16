@@ -42,6 +42,7 @@
         public const string Guess = "Guess";
         public const string Help = "Help";
         public const string Idk = "Idk";
+        public const string IsPlayerAfk = "IsPlayerAfk";
         public const string ItsYourTurnCantGiveUp = "ItsYourTurnCantGiveUp";
         public const string JoinedGamePM = "JoinedGamePM";
         public const string JoinTimeout = "JoinTimeout";
@@ -60,6 +61,7 @@
         public const string NoGameRunning = "NoGameRunning";
         public const string NoGlobalAdmin = "NoGlobalAdmin";
         public const string NotEnoughPlayers = "NotEnoughPlayers";
+        public const string NotEnoughPlayersAgreed = "NotEnoughPlayersAgreed";
         public const string NotImplemented = "NotImplemented";
         public const string NotInGame = "NotInGame";
         public const string NotInPrivate = "NotInPrivate";
@@ -91,6 +93,7 @@
         public const string True = "True";
         public const string UpdateLang = "UpdateLang";
         public const string UploadCancelled = "UploadCancelled";
+        public const string VotedAlready = "VotedAlready";
         public const string Welcome = "Welcome";
         public const string Yes = "Yes";
         public const string YouGaveUp = "YouGaveUp";

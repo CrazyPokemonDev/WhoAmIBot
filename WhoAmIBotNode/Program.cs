@@ -827,11 +827,60 @@ namespace WhoAmIBotSpace
                 OnAfk?.Invoke(null, new AfkEventArgs(g, g.Players.Find(x => x.Id == msg.ReplyToMessage.From.Id)));
                 return;
             }
+            NodePlayer p = g.Players.Find(x => x.Id == msg.ReplyToMessage.From.Id);
             ManualResetEvent mre = new ManualResetEvent(false);
+            List<long> voted = new List<long>();
+            int msgId = 0;
+            int playersVotedYes = 0;
+            bool isAfk = false;
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
-
+                var data = e.CallbackQuery.Data;
+                if (!data.Contains("@") || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long pId)
+                || pId != p.Id || e.CallbackQuery.Message == null || e.CallbackQuery.Message.MessageId != msgId) return;
+                if (voted.Contains(e.CallbackQuery.From.Id))
+                {
+                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.VotedAlready, g.GroupId));
+                    return;
+                }
+                voted.Add(e.CallbackQuery.From.Id);
+                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                switch (data.Remove(data.IndexOf("@")))
+                {
+                    case "afk":
+                        playersVotedYes++;
+                        break;
+                }
+                double perc = g.Players.Count / playersVotedYes;
+                if (perc > 0.6)
+                {
+                    isAfk = true;
+                    mre.Set();
+                }
             };
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.IsPlayerAfk, 
+                ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, msg.Chat.Id), $"afk@{p.Id}", 
+                GetString(Strings.No, msg.Chat.Id), $"notAfk@{p.Id}"), out var m, out var u);
+            msgId = m.MessageId;
+            try
+            {
+                OnCallbackQuery += cHandler;
+                Timer timer = new Timer(x => mre.Set(), null, 20 * 1000, Timeout.Infinite);
+                mre.WaitOne();
+            }
+            finally
+            {
+                OnCallbackQuery -= cHandler;
+            }
+            client.EditMessageReplyMarkupAsync(msg.Chat.Id, msgId);
+            if (isAfk)
+            {
+                OnAfk?.Invoke(null, new AfkEventArgs(g, p));
+            }
+            else
+            {
+                SendLangMessage(msg.Chat.Id, Strings.NotEnoughPlayersAgreed);
+            }
         }
         #endregion
         #region /backup
