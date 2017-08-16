@@ -841,7 +841,8 @@ namespace WhoAmIBotSpace
             {
                 var data = e.CallbackQuery.Data;
                 if (!data.Contains("@") || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long pId)
-                || pId != p.Id || e.CallbackQuery.Message == null || e.CallbackQuery.Message.MessageId != msgId) return;
+                || pId != p.Id || e.CallbackQuery.Message == null || e.CallbackQuery.Message.MessageId != msgId
+                || !g.Players.Exists(x => x.Id == e.CallbackQuery.From.Id)) return;
                 if (voted.Contains(e.CallbackQuery.From.Id))
                 {
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.VotedAlready, g.GroupId));
@@ -857,6 +858,11 @@ namespace WhoAmIBotSpace
                             (text = text + $"\n{e.CallbackQuery.From.FullName()}: {yes}"), replyMarkup: markup);
                         break;
                     case "notAfk":
+                        if (pId == e.CallbackQuery.From.Id)
+                        {
+                            mre.Set();
+                            return;
+                        }
                         client.EditMessageTextAsync(msg.Chat.Id, msgId, 
                             (text = text + $"\n{e.CallbackQuery.From.FullName()}: {no}"), replyMarkup: markup);
                         break;
@@ -867,6 +873,7 @@ namespace WhoAmIBotSpace
                     isAfk = true;
                     mre.Set();
                 }
+                if (voted.Count == g.Players.Count) mre.Set();
             };
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.IsPlayerAfk, markup, out var m, out text);
             msgId = m.MessageId;
