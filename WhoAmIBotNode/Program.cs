@@ -1612,10 +1612,6 @@ namespace WhoAmIBotSpace
         #region /stats
         private static void Stats_Command(Message msg)
         {
-            var par = new Dictionary<string, object>()
-            {
-                { "id", msg.From.Id }
-            };
             long winCount = 0;
             var cmd = new SQLiteCommand("SELECT count(*) FROM GamesFinished WHERE Winnerid=@id", sqliteConn);
             cmd.Parameters.AddWithValue("id", msg.From.Id);
