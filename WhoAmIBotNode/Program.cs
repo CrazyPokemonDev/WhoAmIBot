@@ -50,6 +50,7 @@ namespace WhoAmIBotSpace
         };
         private static readonly Regex SelectLangRegex = new Regex(@"^lang:.+@-*\d+$");
         protected static readonly Flom Flom = new Flom();
+        private const long supportId = -1001093405914;
         #endregion
         #region Fields
         private static SQLiteConnection sqliteConn;
@@ -1664,6 +1665,11 @@ namespace WhoAmIBotSpace
             if (!msg.Chat.Type.IsGroup())
             {
                 SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
+                return;
+            }
+            if (msg.Chat.Id == supportId)
+            {
+                client.SendTextMessageAsync(msg.Chat.Id, "No games in support chat!");
                 return;
             }
             if (GameExists(msg.Chat.Id))
