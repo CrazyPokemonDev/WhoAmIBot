@@ -70,6 +70,7 @@
         public const string PlayerJoinedCantStart = "PlayerJoinedCantStart";
         public const string PlayerJoinedGame = "PlayerJoinedGame";
         public const string PlayerList = "PlayerList";
+        public const string PlayerNotInGame = "PlayerNotInGame";
         public const string PlayerTurn = "PlayerTurn";
         public const string PleaseGuess = "PleaseGuess";
         public const string PmMe = "PmMe";
@@ -78,6 +79,7 @@
         public const string QuestionAsked = "QuestionAsked";
         public const string QuestionReceived = "QuestionReceived";
         public const string RateMe = "RateMe";
+        public const string ReplyToSomeone = "ReplyToSomeone";
         public const string RolesAre = "RolesAre";
         public const string RolesNotSet = "RolesNotSet";
         public const string RolesWere = "RolesWere";

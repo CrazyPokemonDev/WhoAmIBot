@@ -64,6 +64,7 @@ namespace WhoAmIBotSpace
         public static event EventHandler<GameFinishedEventArgs> GameFinished;
         public static event EventHandler<CallbackQueryEventArgs> OnCallbackQuery;
         public static event EventHandler<MessageEventArgs> OnMessage;
+        public static event EventHandler<AfkEventArgs> OnAfk;
         #endregion
 
         #region Helpers
@@ -777,6 +778,7 @@ namespace WhoAmIBotSpace
             commands.Add("/settings", new Action<Message>(Settings_Command));
             commands.Add("/nodes", new Action<Message>(Nodes_Command));
             commands.Add("/test", new Action<Message>(Test_Command));
+            commands.Add("/afk", new Action<Message>(Afk_Command));
         }
         #endregion
 
@@ -784,6 +786,43 @@ namespace WhoAmIBotSpace
         private static void Test_Command(Message msg)
         {
 
+        }
+        #endregion
+        #region /afk
+        private static void Afk_Command(Message msg)
+        {
+            SendLangMessage(msg.Chat.Id, Strings.NotImplemented);
+            return;
+            if (!msg.Chat.Type.IsGroup())
+            {
+                if (State == NodeState.Primary)
+                    SendLangMessage(msg.Chat.Id, Strings.NotInPrivate);
+                return;
+            }
+            if (!GameExists(msg.Chat.Id) && State == NodeState.Primary)
+            {
+                SendLangMessage(msg.Chat.Id, Strings.NoGameRunning);
+                return;
+            }
+            if (msg.ReplyToMessage == null)
+            {
+                SendLangMessage(msg.Chat.Id, Strings.ReplyToSomeone);
+                return;
+            }
+            var gId2 = GetGameValue<long>("Id", msg.Chat.Id, GameIdType.GroupId);
+            if (!NodeGames.Exists(x => x.Id == gId2)) return;
+            NodeGame g = NodeGames.Find(x => x.Id == gId2);
+            if (!g.Players.Exists(x => x.Id == msg.ReplyToMessage.From.Id))
+            {
+                SendLangMessage(msg.Chat.Id, Strings.PlayerNotInGame);
+                return;
+            }
+            var t = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
+            t.Wait();
+            if (t.Result.Status == ChatMemberStatus.Administrator || t.Result.Status == ChatMemberStatus.Creator)
+            {
+                OnAfk?.Invoke(null, new AfkEventArgs(g, g.Players.Find(x => x.Id == msg.ReplyToMessage.From.Id)));
+            }
         }
         #endregion
         #region /backup
@@ -1204,12 +1243,13 @@ namespace WhoAmIBotSpace
         private static void Langinfo_Command(Message msg)
         {
             ManualResetEvent mre = new ManualResetEvent(false);
-            Message sent = null;
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
                 if (!SelectLangRegex.IsMatch(e.CallbackQuery.Data)
                 || !long.TryParse(e.CallbackQuery.Data.Substring(e.CallbackQuery.Data.IndexOf("@") + 1), out long gId)
-                || gId != msg.Chat.Id) return;
+                || gId != msg.Chat.Id
+                || e.CallbackQuery.Message == null) return;
+                Message sent = e.CallbackQuery.Message;
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 var data = e.CallbackQuery.Data;
                 var atI = data.IndexOf("@");
@@ -1262,7 +1302,7 @@ namespace WhoAmIBotSpace
             };
             SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.SelectLanguage,
                 ReplyMarkupMaker.InlineChooseLanguage(new SQLiteCommand(allLangSelector, sqliteConn), msg.Chat.Id),
-                out sent, out var u1);
+                out var u0, out var u1);
             try
             {
                 OnCallbackQuery += cHandler;

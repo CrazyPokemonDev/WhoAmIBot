@@ -74,6 +74,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\AfkEventArgs.cs" />
     <Compile Include="Classes\Args.cs" />
     <Compile Include="Classes\HelperException.cs" />
     <Compile Include="Classes\NodeGame.cs" />
