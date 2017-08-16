@@ -762,7 +762,7 @@ namespace WhoAmIBotSpace
             commands.Add("/stats", new Action<Message>(Stats_Command));
             commands.Add("/getlang", new Action<Message>(Getlang_Command));
             commands.Add("/uploadlang", new Action<Message>(Uploadlang_Command));
-            //commands.Add("/maint", new Action<Message>(Maint_Command));
+            commands.Add("/maint", new Action<Message>(Maint_Command));
             commands.Add("/help", new Action<Message>(Help_Command));
             commands.Add("/getgames", new Action<Message>(Getgames_Command));
             commands.Add("/getroles", new Action<Message>(Getroles_Command));
@@ -1275,9 +1275,9 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #region /maint
-        /*private static void Maint_Command(Message msg)
+        private static void Maint_Command(Message msg)
         {
-            if (!GlobalAdmins.Contains(msg.From.Id))
+            if (!GlobalAdminExists(msg.From.Id))
             {
                 SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
             }
@@ -1285,18 +1285,22 @@ namespace WhoAmIBotSpace
             {
                 Maintenance = true;
                 SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Maintenance);
-                if (GamesRunning.Count > 0)
+                if (NodeGames.Count > 0)
                 {
                     EventHandler<GameFinishedEventArgs> handler = null;
                     handler = (sender, e) =>
                     {
-                        if (GamesRunning.Count < 1) { SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.GamesFinished); GameFinished -= handler; }
+                        if (NodeGames.Count < 1)
+                        {
+                            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.GamesFinished, null, Assembly.GetExecutingAssembly().Location);
+                            GameFinished -= handler;
+                        }
                     };
                     GameFinished += handler;
                 }
                 else
                 {
-                    SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.GamesFinished);
+                    SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.GamesFinished, null, Assembly.GetExecutingAssembly().Location);
                 }
             }
             else
@@ -1304,7 +1308,7 @@ namespace WhoAmIBotSpace
                 Maintenance = false;
                 SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.MaintenanceOff);
             }
-        }*/
+        }
         #endregion
         #region /nextgame
         private static void Nextgame_Command(Message msg)
