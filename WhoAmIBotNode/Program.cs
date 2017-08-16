@@ -853,10 +853,12 @@ namespace WhoAmIBotSpace
                 {
                     case "afk":
                         playersVotedYes++;
-                        client.EditMessageTextAsync(msg.Chat.Id, msgId, (text = text + $"\n{e.CallbackQuery.From.FullName()}: {yes}"));
+                        client.EditMessageTextAsync(msg.Chat.Id, msgId, 
+                            (text = text + $"\n{e.CallbackQuery.From.FullName()}: {yes}"), replyMarkup: markup);
                         break;
                     case "notAfk":
-                        client.EditMessageTextAsync(msg.Chat.Id, msgId, (text = text + $"\n{e.CallbackQuery.From.FullName()}: {no}"));
+                        client.EditMessageTextAsync(msg.Chat.Id, msgId, 
+                            (text = text + $"\n{e.CallbackQuery.From.FullName()}: {no}"), replyMarkup: markup);
                         break;
                 }
                 double perc = (double)playersVotedYes / g.Players.Count;
