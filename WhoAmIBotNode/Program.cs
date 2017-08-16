@@ -825,7 +825,13 @@ namespace WhoAmIBotSpace
             if (t.Result.Status == ChatMemberStatus.Administrator || t.Result.Status == ChatMemberStatus.Creator)
             {
                 OnAfk?.Invoke(null, new AfkEventArgs(g, g.Players.Find(x => x.Id == msg.ReplyToMessage.From.Id)));
+                return;
             }
+            ManualResetEvent mre = new ManualResetEvent(false);
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
+            {
+
+            };
         }
         #endregion
         #region /backup
@@ -2061,6 +2067,7 @@ namespace WhoAmIBotSpace
                     if (e.Game.Id != game.Id || e.Player.Id != atTurn.Id) return;
                     endloop = true;
                     SendLangMessage(game.GroupId, Strings.GaveUp, null, e.Player.Name, game.RoleIdDict[e.Player.Id]);
+                    turn++;
                     mre.Set();
                 };
                 #region Guess handler
