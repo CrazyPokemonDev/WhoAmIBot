@@ -1513,13 +1513,14 @@ namespace WhoAmIBotSpace
                 string key = split[1];
                 long groupId = Convert.ToInt64(split[2]);
                 if (groupId != msg.Chat.Id) return;
-                if (msg.Chat.Type.IsGroup())
+                if (msg.Chat.Type.IsGroup() && !GlobalAdminExists(e.CallbackQuery.From.Id))
                 {
-                    var task = client.GetChatMemberAsync(msg.Chat.Id, msg.From.Id);
+                    var task = client.GetChatMemberAsync(msg.Chat.Id, e.CallbackQuery.From.Id);
                     task.Wait();
                     if (task.Result.Status != ChatMemberStatus.Administrator && task.Result.Status != ChatMemberStatus.Creator)
                     {
-                        SendLangMessage(msg.Chat.Id, Strings.AdminOnly);
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.AdminOnly, msg.Chat.Id));
+                        return;
                     }
                 }
                 switch (msg.Chat.Type)
