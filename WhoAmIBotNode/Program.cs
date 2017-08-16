@@ -1270,7 +1270,7 @@ namespace WhoAmIBotSpace
                 {
                     while (reader.Read())
                     {
-                        query.Add(new JString((string)reader["Key"], (string)reader["Value"]));
+                        queryDefault.Add(new JString((string)reader["Key"], (string)reader["Value"]));
                     }
                 }
                 var missing = new List<string>();
