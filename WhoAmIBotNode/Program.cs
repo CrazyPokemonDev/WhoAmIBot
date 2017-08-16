@@ -859,7 +859,7 @@ namespace WhoAmIBotSpace
                         client.EditMessageTextAsync(msg.Chat.Id, msgId, (text = text + $"\n{e.CallbackQuery.From.FullName()}: {no}"));
                         break;
                 }
-                double perc = g.Players.Count / (double)playersVotedYes;
+                double perc = (double)playersVotedYes / g.Players.Count;
                 if (perc > 0.6)
                 {
                     isAfk = true;
