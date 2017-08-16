@@ -1616,11 +1616,12 @@ namespace WhoAmIBotSpace
             {
                 { "id", msg.From.Id }
             };
-            string winCount = "";
+            int winCount = 0;
             var cmd = new SQLiteCommand("DELETE FROM Nextgame WHERE GroupId = @id", sqliteConn);
             cmd.Parameters.AddWithValue("id", msg.From.Id);
-            winCount = ((int)cmd.ExecuteScalar()).ToString() ?? "0";
-            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Stats, null, msg.From.FullName(), winCount);
+            var res = cmd.ExecuteScalar();
+            winCount = res == null ? 0 : (int)res;
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Stats, null, msg.From.FullName(), winCount.ToString());
         }
         #endregion
         #region /sql
