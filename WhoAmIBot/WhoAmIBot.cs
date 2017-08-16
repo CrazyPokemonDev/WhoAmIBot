@@ -202,7 +202,8 @@ namespace WhoAmIBotSpace
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
-            if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.NewChatPhoto != null) return; //workaround for the bug
+            if (e.Update.Type == UpdateType.MessageUpdate && 
+                (e.Update.Message.NewChatPhoto != null || e.Update.Message.Sticker != null)) return; //workaround for the bug
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
             {
                 if (e.Update.Message.Entities.Count > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand

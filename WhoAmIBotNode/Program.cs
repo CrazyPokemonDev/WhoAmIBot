@@ -2177,7 +2177,7 @@ namespace WhoAmIBotSpace
             cmd.Parameters.AddWithValue("id", g.Id);
             cmd.ExecuteNonQuery();
             g.Thread?.Abort();
-            g.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            g.InactivityTimer?.Change(Timeout.Infinite, Timeout.Infinite);
             NodeGames.Remove(g);
             GameFinished?.Invoke(null, new GameFinishedEventArgs(g));
         }
