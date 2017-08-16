@@ -204,7 +204,14 @@ namespace WhoAmIBotSpace
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
             if (e.Update.Type == UpdateType.MessageUpdate && 
-                (e.Update.Message.NewChatPhoto != null || e.Update.Message.Sticker != null)) return; //workaround for the bug
+                (e.Update.Message.NewChatPhoto != null || e.Update.Message.Sticker != null || e.Update.Message.Type == MessageType.PhotoMessage
+                || (e.Update.Message.Type == MessageType.DocumentMessage && e.Update.Message.Document.Thumb != null) 
+                || e.Update.Message.Type == MessageType.GameMessage || e.Update.Message.Type == MessageType.VideoMessage
+                || e.Update.Message.Type == MessageType.VideoNoteMessage)) return; //workaround for the bug
+            if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.ReplyToMessage != null && (e.Update.Message.ReplyToMessage.NewChatPhoto != null || e.Update.Message.ReplyToMessage.Sticker != null || e.Update.Message.ReplyToMessage.Type == MessageType.PhotoMessage
+                || (e.Update.Message.ReplyToMessage.Type == MessageType.DocumentMessage && e.Update.Message.ReplyToMessage.Document.Thumb != null)
+                || e.Update.Message.ReplyToMessage.Type == MessageType.GameMessage || e.Update.Message.ReplyToMessage.Type == MessageType.VideoMessage
+                || e.Update.Message.ReplyToMessage.Type == MessageType.VideoNoteMessage)) e.Update.Message.ReplyToMessage = null;
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
             {
                 if (e.Update.Message.Entities.Count > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand
@@ -215,7 +222,7 @@ namespace WhoAmIBotSpace
                     cmd = cmd.Contains($"@{Username.ToLower()}") ? cmd.Remove(cmd.IndexOf($"@{Username.ToLower()}")) : cmd;
                     if (cmd == "/update")
                     {
-                        if (GlobalAdminExists(e.Update.Message.From.Id))
+                        if (e.Update.Message.From.Id == Flom)
                         {
                             var t = client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Updating...");
                             t.Wait();

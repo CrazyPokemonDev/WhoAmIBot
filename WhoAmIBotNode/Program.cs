@@ -155,7 +155,8 @@ namespace WhoAmIBotSpace
         {
             var cmd = new SQLiteCommand($"SELECT {column} FROM {table} WHERE {identifierName}=@id", sqliteConn);
             cmd.Parameters.AddWithValue("id", identifier);
-            return (T)cmd.ExecuteScalar();
+            var res = cmd.ExecuteScalar();
+            return res is DBNull ? default(T) : (T)res;
         }
 
         private static object GetGroupValue(string column, long id)
