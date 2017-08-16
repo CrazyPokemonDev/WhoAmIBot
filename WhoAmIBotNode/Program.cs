@@ -833,6 +833,10 @@ namespace WhoAmIBotSpace
             int msgId = 0;
             int playersVotedYes = 0;
             bool isAfk = false;
+            string text = "";
+            string yes = GetString(Strings.Yes, msg.Chat.Id);
+            string no = GetString(Strings.No, msg.Chat.Id);
+            var markup = ReplyMarkupMaker.InlineYesNo(yes, $"afk@{p.Id}", no, $"notAfk@{p.Id}");
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
                 var data = e.CallbackQuery.Data;
@@ -849,18 +853,20 @@ namespace WhoAmIBotSpace
                 {
                     case "afk":
                         playersVotedYes++;
+                        client.EditMessageTextAsync(msg.Chat.Id, msgId, (text = text + $"\n{e.CallbackQuery.From.FullName()}: {yes}"));
+                        break;
+                    case "notAfk":
+                        client.EditMessageTextAsync(msg.Chat.Id, msgId, (text = text + $"\n{e.CallbackQuery.From.FullName()}: {no}"));
                         break;
                 }
-                double perc = g.Players.Count / playersVotedYes;
+                double perc = g.Players.Count / (double)playersVotedYes;
                 if (perc > 0.6)
                 {
                     isAfk = true;
                     mre.Set();
                 }
             };
-            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.IsPlayerAfk, 
-                ReplyMarkupMaker.InlineYesNo(GetString(Strings.Yes, msg.Chat.Id), $"afk@{p.Id}", 
-                GetString(Strings.No, msg.Chat.Id), $"notAfk@{p.Id}"), out var m, out var u);
+            SendAndGetLangMessage(msg.Chat.Id, msg.Chat.Id, Strings.IsPlayerAfk, markup, out var m, out text);
             msgId = m.MessageId;
             try
             {
