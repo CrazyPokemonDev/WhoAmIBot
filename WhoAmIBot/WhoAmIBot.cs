@@ -145,6 +145,7 @@ namespace WhoAmIBotSpace
             if (!Directory.Exists(baseFilePath)) Directory.CreateDirectory(baseFilePath);
             if (!File.Exists(sqliteFilePath)) SQLiteConnection.CreateFile(sqliteFilePath);
             InitSqliteConn();
+            JsonConvert.DefaultSettings = () => { return new JsonSerializerSettings() { NullValueHandling = NullValueHandling.Ignore }; };
         }
 
         private void InitSqliteConn()
