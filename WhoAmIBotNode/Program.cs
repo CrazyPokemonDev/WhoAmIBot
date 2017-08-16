@@ -1280,6 +1280,12 @@ namespace WhoAmIBotSpace
                 }
                 foreach (var js in query)
                 {
+                    if (!queryDefault.Exists(x => x.Key == js.Key))
+                    {
+                        client.SendTextMessageAsync(testingGroupId, $"String {js.Key} found in {key} but not in {defaultLangCode}");
+                        continue;
+                    }
+
                     var enStr = queryDefault.Find(x => x.Key == js.Key).Value;
                     int extras = 0;
                     while (true)
