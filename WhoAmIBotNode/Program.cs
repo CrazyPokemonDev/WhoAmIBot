@@ -579,8 +579,8 @@ namespace WhoAmIBotSpace
         private static string LangCode(long id)
         {
             string key = "";
-            if (GroupExists(id)) key = GetGroupValue<string>("LangKey", id);
-            else if (UserExists(id)) key = GetUserValue<string>("LangKey", id);
+            if (GroupExists(id)) key = GetGroupValue<string>("LangKey", id) ?? defaultLangCode;
+            else if (UserExists(id)) key = GetUserValue<string>("LangKey", id) ?? defaultLangCode;
             else key = defaultLangCode;
             if (LangKeyExists(key)) return key;
             else
