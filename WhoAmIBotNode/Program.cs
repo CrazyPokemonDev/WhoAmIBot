@@ -551,6 +551,7 @@ namespace WhoAmIBotSpace
         #region Get string
         private static string GetString(string key, string langCode)
         {
+            if (string.IsNullOrEmpty(langCode)) langCode = defaultLangCode;
             var cmd = new SQLiteCommand($"SELECT value FROM '{langCode}' WHERE key=@key", sqliteConn);
             cmd.Parameters.AddWithValue("key", key);
             try
