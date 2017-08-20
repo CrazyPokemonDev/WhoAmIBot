@@ -2175,7 +2175,6 @@ namespace WhoAmIBotSpace
                     game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
                     client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
-                    client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
                     switch (answer)
                     {
                         case "guess":
@@ -2186,6 +2185,7 @@ namespace WhoAmIBotSpace
                                 mre.Set();
                                 EditLangMessage(e.CallbackQuery.From.Id, game.GroupId, sentMessage.MessageId, Strings.PleaseGuess, null, "",
                                     out Message uselessM, out string uselessSS);
+                                client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
                             }
                             else
                             {
@@ -2208,6 +2208,7 @@ namespace WhoAmIBotSpace
                                 SendLangMessage(p.Id, game.GroupId, Strings.YouGaveUp);
                                 client.EditMessageReplyMarkupAsync(sentMessage.Chat.Id, sentMessage.MessageId);
                                 game.Players.Remove(p);
+                                client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
                                 mre.Set();
                             }
                             else
