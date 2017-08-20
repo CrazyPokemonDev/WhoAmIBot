@@ -2173,7 +2173,6 @@ namespace WhoAmIBotSpace
                     if (gameId != game.Id) return;
                     if (e.CallbackQuery.Message == null) return;
                     game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                     Message cmsg = e.CallbackQuery.Message;
                     switch (answer)
                     {
@@ -2185,6 +2184,7 @@ namespace WhoAmIBotSpace
                                 mre.Set();
                                 EditLangMessage(e.CallbackQuery.From.Id, game.GroupId, sentMessage.MessageId, Strings.PleaseGuess, null, "",
                                     out Message uselessM, out string uselessSS);
+                                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                                 client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
                             }
                             else
@@ -2209,6 +2209,7 @@ namespace WhoAmIBotSpace
                                 client.EditMessageReplyMarkupAsync(sentMessage.Chat.Id, sentMessage.MessageId);
                                 game.Players.Remove(p);
                                 client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
+                                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                                 mre.Set();
                             }
                             else
