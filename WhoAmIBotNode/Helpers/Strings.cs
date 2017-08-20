@@ -18,6 +18,7 @@
         public const string CancelgameQ = "CancelgameQ";
         public const string ChooseRoleFor = "ChooseRoleFor";
         public const string Close = "Close";
+        public const string Confirm = "Confirm";
         public const string CreateLang = "CreateLang";
         public const string DatabaseUpdated = "DatabaseUpdated";
         public const string Done = "Done";

@@ -2162,6 +2162,7 @@ namespace WhoAmIBotSpace
                 };
                 #endregion
                 #region Callback Handler
+                Dictionary<long, string> clicked = new Dictionary<long, string>();
                 EventHandler<CallbackQueryEventArgs> c1Handler = (sender, e) =>
                 {
                     if (!game.Players.Exists(x => x.Id == e.CallbackQuery.From.Id)
@@ -2179,23 +2180,43 @@ namespace WhoAmIBotSpace
                     {
                         case "guess":
                             #region Guess
-                            guess = true;
-                            mre.Set();
-                            EditLangMessage(e.CallbackQuery.From.Id, game.GroupId, sentMessage.MessageId, Strings.PleaseGuess, null, "",
-                                out Message uselessM, out string uselessSS);
+                            if (clicked.ContainsKey(e.CallbackQuery.From.Id) && clicked[e.CallbackQuery.From.Id] == "guess")
+                            {
+                                guess = true;
+                                mre.Set();
+                                EditLangMessage(e.CallbackQuery.From.Id, game.GroupId, sentMessage.MessageId, Strings.PleaseGuess, null, "",
+                                    out Message uselessM, out string uselessSS);
+                            }
+                            else
+                            {
+                                if (clicked.ContainsKey(e.CallbackQuery.From.Id)) clicked[e.CallbackQuery.From.Id] = "guess";
+                                else clicked.Add(e.CallbackQuery.From.Id, "guess");
+                                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.Confirm, game.GroupId));
+                                Timer t = new Timer(x => clicked[e.CallbackQuery.From.Id] = null);
+                            }
                             #endregion
                             break;
                         case "giveup":
                             #region Give Up
-                            endloop = true;
-                            NodePlayer p = game.Players.Find(x => x.Id == e.CallbackQuery.From.Id);
-                            SendLangMessage(game.GroupId, Strings.GaveUp, null,
-                                p.Name,
-                                game.RoleIdDict[e.CallbackQuery.From.Id]);
-                            SendLangMessage(p.Id, game.GroupId, Strings.YouGaveUp);
-                            client.EditMessageReplyMarkupAsync(sentMessage.Chat.Id, sentMessage.MessageId);
-                            game.Players.Remove(p);
-                            mre.Set();
+                            if (clicked.ContainsKey(e.CallbackQuery.From.Id) && clicked[e.CallbackQuery.From.Id] == "giveup")
+                            {
+                                endloop = true;
+                                NodePlayer p = game.Players.Find(x => x.Id == e.CallbackQuery.From.Id);
+                                SendLangMessage(game.GroupId, Strings.GaveUp, null,
+                                    p.Name,
+                                    game.RoleIdDict[e.CallbackQuery.From.Id]);
+                                SendLangMessage(p.Id, game.GroupId, Strings.YouGaveUp);
+                                client.EditMessageReplyMarkupAsync(sentMessage.Chat.Id, sentMessage.MessageId);
+                                game.Players.Remove(p);
+                                mre.Set();
+                            }
+                            else
+                            {
+                                if (clicked.ContainsKey(e.CallbackQuery.From.Id)) clicked[e.CallbackQuery.From.Id] = "giveup";
+                                else clicked.Add(e.CallbackQuery.From.Id, "giveup");
+                                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.Confirm, game.GroupId));
+                                Timer t = new Timer(x => clicked[e.CallbackQuery.From.Id] = null);
+                            }
                             #endregion
                             break;
                     }
