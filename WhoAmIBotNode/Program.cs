@@ -419,7 +419,7 @@ namespace WhoAmIBotSpace
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(rows);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.AutoEndQ, markup,
-                $"{maxIdleGameTime.TotalHours}h", GetString(GetStringKey((AutoEndSetting)GetGroupValue<int>("AutoEnd", groupid)), groupid));
+                GetString(GetStringKey((AutoEndSetting)GetGroupValue<int>("AutoEnd", groupid)), groupid));
             try
             {
                 OnCallbackQuery += cHandler;
