@@ -788,7 +788,7 @@ namespace WhoAmIBotSpace
         #region /test
         private static void Test_Command(Message msg)
         {
-
+            client.SendTextMessageAsync(msg.Chat.Id, AutoEndSetting.None.ToString());
         }
         #endregion
         #region /afk
@@ -857,7 +857,7 @@ namespace WhoAmIBotSpace
                 {
                     case "afk":
                         playersVotedYes++;
-                        client.EditMessageTextAsync(msg.Chat.Id, msgId, 
+                        client.EditMessageTextAsync(msg.Chat.Id, msgId,
                             (text = text + $"\n{e.CallbackQuery.From.FullName()}: {yes}"), replyMarkup: markup);
                         break;
                     case "notAfk":
@@ -866,7 +866,7 @@ namespace WhoAmIBotSpace
                             mre.Set();
                             return;
                         }
-                        client.EditMessageTextAsync(msg.Chat.Id, msgId, 
+                        client.EditMessageTextAsync(msg.Chat.Id, msgId,
                             (text = text + $"\n{e.CallbackQuery.From.FullName()}: {no}"), replyMarkup: markup);
                         break;
                 }
@@ -2091,7 +2091,7 @@ namespace WhoAmIBotSpace
             #endregion
             int turn = 0;
             NodePlayer atTurn = null;
-            EventHandler <AfkEventArgs> afkGlobal = (sender, e) =>
+            EventHandler<AfkEventArgs> afkGlobal = (sender, e) =>
             {
                 if (e.Game.Id != game.Id || (atTurn != null && e.Player.Id == atTurn.Id)) return;
                 var p = game.Players.Find(x => x.Id == e.Player.Id);
@@ -2455,6 +2455,13 @@ namespace WhoAmIBotSpace
         }*/
         #endregion
         #endregion
+    }
+
+    public enum AutoEndSetting
+    {
+        None = -1,
+        OnePlayerGuessed = 0,
+        OnePlayerLeft = 1
     }
 
     public enum NodeState
