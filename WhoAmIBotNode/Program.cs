@@ -330,6 +330,7 @@ namespace WhoAmIBotSpace
                 SetGroupValue("JoinTimeout", val, groupid);
                 EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
                     Strings.JoinTimeoutA, null, val.ToString());
+                mre.Set();
             };
             var row = new InlineKeyboardButton[3];
             row[0] = new InlineKeyboardCallbackButton("2", $"joinTimeout:2@{groupid}");
@@ -367,6 +368,7 @@ namespace WhoAmIBotSpace
                 SetGroupValue("GameTimeout", val, groupid);
                 EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
                     Strings.GameTimeoutA, null, $"{val / 60}h");
+                mre.Set();
             };
             var row = new InlineKeyboardButton[4];
             row[0] = new InlineKeyboardCallbackButton("1h", $"gameTimeout:60@{groupid}");
@@ -405,6 +407,7 @@ namespace WhoAmIBotSpace
                 SetGroupValue("AutoEnd", val, groupid);
                 EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
                     Strings.AutoEndA, null, GetString(GetStringKey((AutoEndSetting)val), groupid));
+                mre.Set();
             };
             var rows = new InlineKeyboardButton[3][];
             var none = GetString(GetStringKey(AutoEndSetting.None), groupid);
