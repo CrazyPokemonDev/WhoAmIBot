@@ -102,7 +102,7 @@ namespace WhoAmIBotSpace.Helpers
         #endregion
         #region Settings
         public static IReplyMarkup InlineSettings(long groupId, string joinTimeout,
-            string gameTimeout, string cancelgameAdmin, string close, string autoEnd)
+            string gameTimeout, string cancelgameAdmin, string autoEnd, string close)
         {
             var row1 = new InlineKeyboardButton[2];
             row1[0] = new InlineKeyboardCallbackButton(joinTimeout, $"joinTimeout@{groupId}");

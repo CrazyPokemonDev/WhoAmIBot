@@ -1644,7 +1644,8 @@ namespace WhoAmIBotSpace
             {
                 var d = e.CallbackQuery.Data;
                 if ((!d.StartsWith("joinTimeout@") && !d.StartsWith("gameTimeout@")
-                && !d.StartsWith("cancelgameAdmin@") && !d.StartsWith("closesettings@"))
+                && !d.StartsWith("cancelgameAdmin@") && !d.StartsWith("closesettings@")
+                && !d.StartsWith("autoEnd@"))
                 || d.IndexOf("@") != d.LastIndexOf("@")
                 || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long groupid)
                 || groupid != msg.Chat.Id || e.CallbackQuery.Message == null) return;
@@ -1689,7 +1690,7 @@ namespace WhoAmIBotSpace
             var close = GetString(Strings.Close, msg.Chat.Id);
             SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.SentPM);
             SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.Settings, ReplyMarkupMaker.InlineSettings(msg.Chat.Id,
-                joinTimeout, gameTimeout, cancelgameAdmin, close, autoEnd));
+                joinTimeout, gameTimeout, cancelgameAdmin, autoEnd, close));
             OnCallbackQuery += cHandler;
         }
         #endregion
