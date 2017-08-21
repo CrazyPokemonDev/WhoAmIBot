@@ -788,7 +788,7 @@ namespace WhoAmIBotSpace
         #region /test
         private static void Test_Command(Message msg)
         {
-            client.SendTextMessageAsync(msg.Chat.Id, AutoEndSetting.None.ToString());
+            client.SendTextMessageAsync(msg.Chat.Id, ((int)AutoEndSetting.None).ToString());
         }
         #endregion
         #region /afk
