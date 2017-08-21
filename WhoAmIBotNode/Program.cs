@@ -404,7 +404,7 @@ namespace WhoAmIBotSpace
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 SetGroupValue("AutoEnd", val, groupid);
                 EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
-                    Strings.AutoEndA, null, GetStringKey((AutoEndSetting)val));
+                    Strings.AutoEndA, null, GetString(GetStringKey((AutoEndSetting)val), groupid));
             };
             var rows = new InlineKeyboardButton[3][];
             var none = GetString(GetStringKey(AutoEndSetting.None), groupid);
@@ -415,7 +415,7 @@ namespace WhoAmIBotSpace
             rows[2] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(onePlayerLeft, $"autoEnd:{(int)AutoEndSetting.OnePlayerLeft}@{groupid}") };
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(rows);
             if (!GroupExists(groupid)) return;
-            SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
+            SendLangMessage(chat, groupid, Strings.AutoEndQ, markup,
                 $"{maxIdleGameTime.TotalHours}h", GetString(GetStringKey((AutoEndSetting)GetGroupValue<int>("AutoEnd", groupid)), groupid));
             try
             {

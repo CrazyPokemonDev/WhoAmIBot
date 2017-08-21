@@ -13,6 +13,7 @@
         public const string AskQuestion = "AskQuestion";
         public const string AutoEnd = "AutoEnd";
         public const string AutoEndA = "AutoEndA";
+        public const string AutoEndQ = "AutoEndQ";
         public const string BotStopping = "BotStopping";
         public const string BotUnderMaintenance = "BotUnderMaintenance";
         public const string CancelgameAdmin = "CancelgameAdmin";
