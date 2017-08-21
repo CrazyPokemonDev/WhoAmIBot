@@ -1122,7 +1122,7 @@ namespace WhoAmIBotSpace
                 t.Wait();
                 sent.Add(t.Result);
             }
-            if (list.Count < 1 || list.All(x => string.IsNullOrEmpty(x)))
+            if ((list.Count < 1 || list.All(x => string.IsNullOrEmpty(x))) && State == NodeState.Primary)
             {
                 client.SendTextMessageAsync(msg.Chat.Id, "No games running");
             }
