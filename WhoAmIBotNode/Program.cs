@@ -1113,13 +1113,18 @@ namespace WhoAmIBotSpace
                         return;
                 }
             };
-            foreach (var s in string.Join("\n\n",
-                NodeGames.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000))
+            List<string> list = string.Join("\n\n",
+                NodeGames.Select(x => $"{x.Id} - {x.GroupName} ({x.GroupId}): {x.State} {x.GetPlayerList()}")).Split(2000);
+            foreach (var s in list)
             {
                 if (string.IsNullOrWhiteSpace(s)) continue;
                 var t = client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(NodeGames, msg.Chat.Id));
                 t.Wait();
                 sent.Add(t.Result);
+            }
+            if (list.Count < 1 || list.All(x => string.IsNullOrEmpty(x)))
+            {
+                client.SendTextMessageAsync(msg.Chat.Id, "No games running");
             }
             OnCallbackQuery += cHandler;
         }
