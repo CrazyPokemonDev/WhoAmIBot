@@ -412,7 +412,7 @@ namespace WhoAmIBotSpace
             var rows = new InlineKeyboardButton[3][];
             var none = GetString(GetStringKey(AutoEndSetting.None), groupid);
             var onePlayerGuessed = GetString(GetStringKey(AutoEndSetting.OnePlayerGuessed), groupid);
-            var onePlayerLeft = GetString(GetStringKey(AutoEndSetting.None), groupid);
+            var onePlayerLeft = GetString(GetStringKey(AutoEndSetting.OnePlayerLeft), groupid);
             rows[0] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(none, $"autoEnd:{(int)AutoEndSetting.None}@{groupid}") };
             rows[1] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(onePlayerGuessed, $"autoEnd:{(int)AutoEndSetting.OnePlayerGuessed}@{groupid}") };
             rows[2] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(onePlayerLeft, $"autoEnd:{(int)AutoEndSetting.OnePlayerLeft}@{groupid}") };
