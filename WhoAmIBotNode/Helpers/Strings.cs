@@ -11,6 +11,8 @@
         public const string AnsweredNo = "AnsweredNo";
         public const string AnsweredYes = "AnsweredYes";
         public const string AskQuestion = "AskQuestion";
+        public const string AutoEnd = "AutoEnd";
+        public const string AutoEndA = "AutoEndA";
         public const string BotStopping = "BotStopping";
         public const string BotUnderMaintenance = "BotUnderMaintenance";
         public const string CancelgameAdmin = "CancelgameAdmin";
@@ -58,6 +60,7 @@
         public const string NewGameStarting = "NewGameStarting";
         public const string No = "No";
         public const string NoAnswerSelf = "NoAnswerSelf";
+        public const string NoAutoEnd = "NoAutoEnd";
         public const string Nobody = "Nobody";
         public const string NoGameRunning = "NoGameRunning";
         public const string NoGlobalAdmin = "NoGlobalAdmin";
@@ -67,6 +70,8 @@
         public const string NotInGame = "NotInGame";
         public const string NotInPrivate = "NotInPrivate";
         public const string OneMoment = "OneMoment";
+        public const string OnePlayerGuessedAutoEnd = "OnePlayerGuessedAutoEnd";
+        public const string OnePlayerLeftAutoEnd = "OnePlayerLeftAutoEnd";
         public const string Ping = "Ping";
         public const string PlayerFinished = "PlayerFinished";
         public const string PlayerGuessed = "PlayerGuessed";

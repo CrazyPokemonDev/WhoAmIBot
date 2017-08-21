@@ -388,6 +388,61 @@ namespace WhoAmIBotSpace
             }
         }
         #endregion
+        #region Auto End
+        private static void SetAutoEnd(long groupid, long chat)
+        {
+            var mre = new ManualResetEvent(false);
+            EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
+            {
+                var d = e.CallbackQuery.Data;
+                if (!d.StartsWith("autoEnd:") || !d.Contains("@") || d.IndexOf("@") != d.LastIndexOf("@")
+                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                || grp != groupid || e.CallbackQuery.From.Id != chat
+                || e.CallbackQuery.Message == null
+                || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out int val)
+                || !GroupExists(groupid)) return;
+                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                SetGroupValue("AutoEnd", val, groupid);
+                EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId,
+                    Strings.AutoEndA, null, GetStringKey((AutoEndSetting)val));
+            };
+            var rows = new InlineKeyboardButton[3][];
+            var none = GetString(GetStringKey(AutoEndSetting.None), groupid);
+            var onePlayerGuessed = GetString(GetStringKey(AutoEndSetting.OnePlayerGuessed), groupid);
+            var onePlayerLeft = GetString(GetStringKey(AutoEndSetting.None), groupid);
+            rows[0] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(none, $"autoEnd:{(int)AutoEndSetting.None}@{groupid}") };
+            rows[1] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(onePlayerGuessed, $"autoEnd:{(int)AutoEndSetting.OnePlayerGuessed}@{groupid}") };
+            rows[2] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(onePlayerLeft, $"autoEnd:{(int)AutoEndSetting.OnePlayerLeft}@{groupid}") };
+            InlineKeyboardMarkup markup = new InlineKeyboardMarkup(rows);
+            if (!GroupExists(groupid)) return;
+            SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
+                $"{maxIdleGameTime.TotalHours}h", GetString(GetStringKey((AutoEndSetting)GetGroupValue<int>("AutoEnd", groupid)), groupid));
+            try
+            {
+                OnCallbackQuery += cHandler;
+                mre.WaitOne();
+            }
+            finally
+            {
+                OnCallbackQuery -= cHandler;
+            }
+        }
+
+        private static string GetStringKey(AutoEndSetting val)
+        {
+            switch (val)
+            {
+                case AutoEndSetting.None:
+                    return Strings.NoAutoEnd;
+                case AutoEndSetting.OnePlayerGuessed:
+                    return Strings.OnePlayerGuessedAutoEnd;
+                case AutoEndSetting.OnePlayerLeft:
+                    return Strings.OnePlayerLeftAutoEnd;
+                default:
+                    return Strings.NotImplemented;
+            }
+        }
+        #endregion
         #endregion
 
         #region Initialization stuff
@@ -1614,6 +1669,12 @@ namespace WhoAmIBotSpace
                         t3.Start();
                         currentThreads.Add(t3);
                         break;
+                    case "autoEnd":
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                        Thread t4 = new Thread(() => SetAutoEnd(groupid, msg.From.Id));
+                        t4.Start();
+                        currentThreads.Add(t4);
+                        break;
                     case "closesettings":
                         client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                         EditLangMessage(e.CallbackQuery.Message.Chat.Id, groupid, e.CallbackQuery.Message.MessageId, Strings.Done, null);
@@ -1624,10 +1685,11 @@ namespace WhoAmIBotSpace
             var joinTimeout = GetString(Strings.JoinTimeout, msg.Chat.Id);
             var gameTimeout = GetString(Strings.GameTimeout, msg.Chat.Id);
             var cancelgameAdmin = GetString(Strings.CancelgameAdmin, msg.Chat.Id);
+            var autoEnd = GetString(Strings.AutoEnd, msg.Chat.Id);
             var close = GetString(Strings.Close, msg.Chat.Id);
             SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.SentPM);
             SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.Settings, ReplyMarkupMaker.InlineSettings(msg.Chat.Id,
-                joinTimeout, gameTimeout, cancelgameAdmin, close));
+                joinTimeout, gameTimeout, cancelgameAdmin, close, autoEnd));
             OnCallbackQuery += cHandler;
         }
         #endregion
@@ -1718,7 +1780,8 @@ namespace WhoAmIBotSpace
                     LangKey = GetGroupValue<string>("LangKey", msg.Chat.Id),
                     CancelgameAdmin = GetGroupValue<bool>("CancelgameAdmin", msg.Chat.Id),
                     GameTimeout = GetGroupValue<int>("GameTimeout", msg.Chat.Id),
-                    JoinTimeout = GetGroupValue<int>("JoinTimeout", msg.Chat.Id)
+                    JoinTimeout = GetGroupValue<int>("JoinTimeout", msg.Chat.Id),
+                    AutoEnd = (AutoEndSetting)GetGroupValue<int>("AutoEnd", msg.Chat.Id)
                 });
             NodeGames.Add(g);
             if (NextgameExists(msg.Chat.Id))
@@ -2264,8 +2327,21 @@ namespace WhoAmIBotSpace
                         OnAfk -= afkHandler;
                     }
                 }
-                if (game.Players.Count < 1) break;
                 #endregion
+                bool breakMe = false;
+                switch (game.Group.AutoEnd)
+                {
+                    case AutoEndSetting.None:
+                        breakMe = game.Players.Count < 1;
+                        break;
+                    case AutoEndSetting.OnePlayerGuessed:
+                        breakMe = game.Winner != null;
+                        break;
+                    case AutoEndSetting.OnePlayerLeft:
+                        breakMe = game.Players.Count < 2;
+                        break;
+                }
+                if (breakMe) break;
                 if (endloop) continue;
                 #region Answer Question
                 EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
@@ -2330,8 +2406,20 @@ namespace WhoAmIBotSpace
                     OnAfk -= afkHandler;
                 }
                 game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-                if (game.Players.Count < 1) break;
                 #endregion
+                switch (game.Group.AutoEnd)
+                {
+                    case AutoEndSetting.None:
+                        breakMe = game.Players.Count < 1;
+                        break;
+                    case AutoEndSetting.OnePlayerGuessed:
+                        breakMe = game.Winner != null;
+                        break;
+                    case AutoEndSetting.OnePlayerLeft:
+                        breakMe = game.Players.Count < 2;
+                        break;
+                }
+                if (breakMe) break;
             }
             #endregion
             #region Finish game

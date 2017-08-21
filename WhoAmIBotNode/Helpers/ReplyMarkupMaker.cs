@@ -45,8 +45,10 @@ namespace WhoAmIBotSpace.Helpers
             {
                 while (reader.Read())
                 {
-                    var l = new List<InlineKeyboardButton>();
-                    l.Add(new InlineKeyboardCallbackButton((string)reader["name"], $"lang:{reader["key"]}@{chatId}"));
+                    var l = new List<InlineKeyboardButton>
+                    {
+                        new InlineKeyboardCallbackButton((string)reader["name"], $"lang:{reader["key"]}@{chatId}")
+                    };
                     bGrid.Add(l);
                 }
             }
@@ -100,15 +102,17 @@ namespace WhoAmIBotSpace.Helpers
         #endregion
         #region Settings
         public static IReplyMarkup InlineSettings(long groupId, string joinTimeout,
-            string gameTimeout, string cancelgameAdmin, string close)
+            string gameTimeout, string cancelgameAdmin, string close, string autoEnd)
         {
             var row1 = new InlineKeyboardButton[2];
             row1[0] = new InlineKeyboardCallbackButton(joinTimeout, $"joinTimeout@{groupId}");
             row1[1] = new InlineKeyboardCallbackButton(gameTimeout, $"gameTimeout@{groupId}");
             var row2 = new InlineKeyboardButton[2];
             row2[0] = new InlineKeyboardCallbackButton(cancelgameAdmin, $"cancelgameAdmin@{groupId}");
-            row2[1] = new InlineKeyboardCallbackButton(close, $"closesettings@{groupId}");
-            return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row1, row2 });
+            row2[1] = new InlineKeyboardCallbackButton(autoEnd, $"autoEnd@{groupId}");
+            var row3 = new InlineKeyboardButton[1];
+            row3[0] = new InlineKeyboardCallbackButton(close, $"closesettings@{groupId}");
+            return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row1, row2, row3 });
         }
         #endregion
     }
