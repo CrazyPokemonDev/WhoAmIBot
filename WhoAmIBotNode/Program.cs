@@ -1833,7 +1833,11 @@ namespace WhoAmIBotSpace
             {
                 string commandText;
                 if (msg.ReplyToMessage != null) commandText = msg.ReplyToMessage.Text;
-                else commandText = msg.Text.Substring(msg.Entities.Find(x => x.Offset == 0).Length).Trim();
+                else
+                {
+                    client.SendTextMessageAsync(msg.Chat.Id, "SQL queries only work by reply to avoid unfinished queries to be executed.");
+                    return;
+                }
                 string response = ExecuteSqlRaw(commandText);
                 if (!string.IsNullOrEmpty(response))
                 {
