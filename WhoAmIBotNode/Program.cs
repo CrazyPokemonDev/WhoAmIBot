@@ -1312,6 +1312,7 @@ namespace WhoAmIBotSpace
                 return;
             }
             NodeGame g = NodeGames.Find(x => x.GroupId == msg.Chat.Id);
+            if (g == null) return;
             if (!g.Players.Exists(x => x.Id == msg.From.Id))
             {
                 SendLangMessage(msg.Chat.Id, Strings.NotInGame);
@@ -1373,6 +1374,7 @@ namespace WhoAmIBotSpace
                 return;
             }
             NodeGame g = NodeGames.Find(x => x.GroupId == msg.Chat.Id);
+            if (g == null) return;
             AddPlayer(g, new NodePlayer(msg.From.Id, msg.From.FullName()));
             g.InactivityTimer.Change(g.Group.JoinTimeout * 60 * 1000, Timeout.Infinite);
         }
