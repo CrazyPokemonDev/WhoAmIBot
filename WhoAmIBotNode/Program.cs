@@ -1543,7 +1543,7 @@ namespace WhoAmIBotSpace
                 return;
             }
             AddNextgame(msg.From.Id, msg.Chat.Id);
-            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.PutOnNextgameList, 
+            SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.PutOnNextgameList, 
                 ReplyMarkupMaker.InlineCancelNextgame(GetString(Strings.Cancel, msg.Chat.Id), msg.Chat.Id));
         }
         #endregion
