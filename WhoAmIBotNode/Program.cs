@@ -1992,7 +1992,7 @@ namespace WhoAmIBotSpace
                         {
                             if (!queryDefault.Exists(x => x.Key == js.Key)) continue;
                             if (missing.Exists(x => x.EndsWith(js.Key))) continue;
-                            var cmd3 = new SQLiteCommand($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)");
+                            var cmd3 = new SQLiteCommand($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)", sqliteConn);
                             cmd3.Parameters.AddRange(par);
                             cmd3.ExecuteNonQuery();
                         }
