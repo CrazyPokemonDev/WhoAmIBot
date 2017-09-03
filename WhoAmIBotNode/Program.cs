@@ -985,6 +985,10 @@ namespace WhoAmIBotSpace
                 return;
             }
             if (!Directory.Exists("zip\\")) Directory.CreateDirectory("zip\\");
+            foreach (var file in Directory.EnumerateFiles("zip\\"))
+            {
+                File.Delete(file);
+            }
             const string temp = "zip\\db.sqlite";
             if (File.Exists(temp)) File.Delete(temp);
             File.Copy(sqliteFilePath, temp);
