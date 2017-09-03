@@ -16,6 +16,7 @@
         public const string AutoEndQ = "AutoEndQ";
         public const string BotStopping = "BotStopping";
         public const string BotUnderMaintenance = "BotUnderMaintenance";
+        public const string Cancel = "Cancel";
         public const string CancelgameAdmin = "CancelgameAdmin";
         public const string CancelgameA = "CancelgameA";
         public const string CancelgameQ = "CancelgameQ";

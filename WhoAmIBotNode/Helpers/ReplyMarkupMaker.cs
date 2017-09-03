@@ -115,5 +115,13 @@ namespace WhoAmIBotSpace.Helpers
             return new InlineKeyboardMarkup(new InlineKeyboardButton[][] { row1, row2, row3 });
         }
         #endregion
+        #region Cancel Nextgame
+        public static IReplyMarkup InlineCancelNextgame(string cancel, long groupid)
+        {
+            InlineKeyboardButton b = new InlineKeyboardCallbackButton(cancel, $"cancelnextgame@{groupid}");
+            InlineKeyboardButton[] row = { b };
+            return new InlineKeyboardMarkup(row);
+        }
+        #endregion
     }
 }
