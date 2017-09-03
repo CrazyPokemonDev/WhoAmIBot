@@ -458,6 +458,7 @@ namespace WhoAmIBotSpace
             var task = client.GetMeAsync();
             task.Wait();
             Username = task.Result.Username;
+            OnCallbackQuery += Cancelnextgame_Handler;
         }
 
         private static void InitSqliteConn()
@@ -602,6 +603,21 @@ namespace WhoAmIBotSpace
                     Console.WriteLine($"An error occurred in Node: {x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
             }
 #endif
+        }
+        #endregion
+        #region Cancelnextgame Handler
+        public static void Cancelnextgame_Handler(object sender, CallbackQueryEventArgs e)
+        {
+            var data = e.CallbackQuery.Data;
+            if (!data.Contains("@") || data.Remove(data.IndexOf("@")) != "cancelnextgame" 
+                || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long groupid)
+                || e.CallbackQuery.Message == null) return;
+            var cmd = new SQLiteCommand("DELETE FROM Nextgame WHERE Id=@id AND GroupId=@groupid");
+            cmd.Parameters.AddRange(new SQLiteParameter[] 
+            { new SQLiteParameter("id", e.CallbackQuery.From.Id), new SQLiteParameter("groupid", groupid) });
+            cmd.ExecuteNonQuery();
+            client.EditMessageTextAsync(e.CallbackQuery.Message.Chat.Id, e.CallbackQuery.Message.MessageId, 
+                GetString(Strings.RemovedFromNextgameList, e.CallbackQuery.From.Id));
         }
         #endregion
 

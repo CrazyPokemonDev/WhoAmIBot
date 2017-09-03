@@ -217,6 +217,7 @@ namespace WhoAmIBotSpace
                 if (e.Update.Message.Entities.Count > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand
                     && e.Update.Message.Entities[0].Offset == 0)
                 {
+                    if (e.Update.Message.EntityValues.Count < 1) return;
                     var cmd = e.Update.Message.EntityValues[0];
                     cmd = cmd.ToLower();
                     cmd = cmd.Contains($"@{Username.ToLower()}") ? cmd.Remove(cmd.IndexOf($"@{Username.ToLower()}")) : cmd;

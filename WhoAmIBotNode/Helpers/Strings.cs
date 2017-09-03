@@ -89,6 +89,7 @@
         public const string QuestionAsked = "QuestionAsked";
         public const string QuestionReceived = "QuestionReceived";
         public const string RateMe = "RateMe";
+        public const string RemovedFromNextgameList = "RemovedFromNextgameList";
         public const string ReplyToSomeone = "ReplyToSomeone";
         public const string RolesAre = "RolesAre";
         public const string RolesNotSet = "RolesNotSet";
