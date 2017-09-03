@@ -984,6 +984,7 @@ namespace WhoAmIBotSpace
                 SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
                 return;
             }
+            if (!Directory.Exists("zip\\")) Directory.CreateDirectory("zip\\");
             const string temp = "zip\\temp.sqlite";
             if (File.Exists(temp)) File.Delete(temp);
             File.Copy(sqliteFilePath, temp);
