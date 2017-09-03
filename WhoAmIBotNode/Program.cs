@@ -841,7 +841,7 @@ namespace WhoAmIBotSpace
             commands.Add("/stats", new Action<Message>(Stats_Command));
             commands.Add("/getlang", new Action<Message>(Getlang_Command));
             commands.Add("/uploadlang", new Action<Message>(Uploadlang_Command));
-            commands.Add("/maint", new Action<Message>(Maint_Command));
+            commands.Add("/maintenance", new Action<Message>(Maint_Command));
             commands.Add("/help", new Action<Message>(Help_Command));
             commands.Add("/getgames", new Action<Message>(Getgames_Command));
             commands.Add("/getroles", new Action<Message>(Getroles_Command));
@@ -1492,7 +1492,7 @@ namespace WhoAmIBotSpace
             }
         }
         #endregion
-        #region /maint
+        #region /maintenance
         private static void Maint_Command(Message msg)
         {
             if (!GlobalAdminExists(msg.From.Id))
