@@ -1001,6 +1001,7 @@ namespace WhoAmIBotSpace
                     File.WriteAllText(filename, JsonConvert.SerializeObject(GetLangFile((string)reader["key"], false)));
                 }
             }
+            if (File.Exists("backup.zip")) File.Delete("backup.zip");
             ZipFile.CreateFromDirectory("zip\\", "backup.zip");
             client.SendDocumentAsync(msg.Chat.Id, new FileToSend("backup.zip", File.OpenRead("backup.zip")), caption: "#whoamibotbackup");
         }
