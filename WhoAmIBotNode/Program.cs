@@ -18,6 +18,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.InlineKeyboardButtons;
 using System.Text;
 using System.Reflection;
+using System.IO.Compression;
 
 namespace WhoAmIBotSpace
 {
@@ -612,7 +613,7 @@ namespace WhoAmIBotSpace
             if (!data.Contains("@") || data.Remove(data.IndexOf("@")) != "cancelnextgame" 
                 || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long groupid)
                 || e.CallbackQuery.Message == null) return;
-            var cmd = new SQLiteCommand("DELETE FROM Nextgame WHERE Id=@id AND GroupId=@groupid");
+            var cmd = new SQLiteCommand("DELETE FROM Nextgame WHERE Id=@id AND GroupId=@groupid", sqliteConn);
             cmd.Parameters.AddRange(new SQLiteParameter[] 
             { new SQLiteParameter("id", e.CallbackQuery.From.Id), new SQLiteParameter("groupid", groupid) });
             cmd.ExecuteNonQuery();
@@ -978,16 +979,25 @@ namespace WhoAmIBotSpace
         #region /backup
         private static void Backup_Command(Message msg)
         {
-
             if (!GlobalAdminExists(msg.From.Id))
             {
                 SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.NoGlobalAdmin);
                 return;
             }
-            const string temp = "temp.sqlite";
+            const string temp = "zip\\temp.sqlite";
             if (File.Exists(temp)) File.Delete(temp);
             File.Copy(sqliteFilePath, temp);
-            client.SendDocumentAsync(msg.Chat.Id, new FileToSend("db.sqlite", File.OpenRead(temp)), caption: "#whoamibotbackup");
+            var cmd = new SQLiteCommand(allLangSelector, sqliteConn);
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var filename = $"zip\\{reader["key"]}.txt";
+                    File.WriteAllText(filename, JsonConvert.SerializeObject(GetLangFile((string)reader["key"], false)));
+                }
+            }
+            ZipFile.CreateFromDirectory("zip\\", "backup.zip");
+            client.SendDocumentAsync(msg.Chat.Id, new FileToSend("backup.zip", File.OpenRead("backup.zip")), caption: "#whoamibotbackup");
         }
         #endregion
         #region /cancelgame
