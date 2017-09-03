@@ -1985,7 +1985,7 @@ namespace WhoAmIBotSpace
                     {
                         var cmd2 = new SQLiteCommand("INSERT INTO ExistingLanguages(Key, Name) VALUES(@key, @name)", sqliteConn);
                         SQLiteParameter[] par = new SQLiteParameter[]
-                        { new SQLiteParameter("key", lf.LangKey), new SQLiteParameter("name", lf.Name)};
+                        { new SQLiteParameter("key", lf.LangKey), new SQLiteParameter("name", lf.Name) };
                         cmd2.Parameters.AddRange(par);
                         cmd2.ExecuteNonQuery();
                         new SQLiteCommand($"CREATE TABLE '{lf.LangKey}'(Key varchar primary key, Value varchar)", sqliteConn).ExecuteNonQuery();
@@ -1994,7 +1994,8 @@ namespace WhoAmIBotSpace
                             if (!queryDefault.Exists(x => x.Key == js.Key)) continue;
                             if (missing.Exists(x => x.EndsWith(js.Key))) continue;
                             var cmd3 = new SQLiteCommand($"INSERT INTO '{lf.LangKey}' VALUES(@key, @value)", sqliteConn);
-                            cmd3.Parameters.AddRange(par);
+                            cmd3.Parameters.AddRange(
+                                new SQLiteParameter[] { new SQLiteParameter("key", js.Key), new SQLiteParameter("value", js.Value) });
                             cmd3.ExecuteNonQuery();
                         }
                     }
