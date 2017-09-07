@@ -610,14 +610,14 @@ namespace WhoAmIBotSpace
         public static void Cancelnextgame_Handler(object sender, CallbackQueryEventArgs e)
         {
             var data = e.CallbackQuery.Data;
-            if (!data.Contains("@") || data.Remove(data.IndexOf("@")) != "cancelnextgame" 
+            if (!data.Contains("@") || data.Remove(data.IndexOf("@")) != "cancelnextgame"
                 || !long.TryParse(data.Substring(data.IndexOf("@") + 1), out long groupid)
                 || e.CallbackQuery.Message == null) return;
             var cmd = new SQLiteCommand("DELETE FROM Nextgame WHERE Id=@id AND GroupId=@groupid", sqliteConn);
-            cmd.Parameters.AddRange(new SQLiteParameter[] 
+            cmd.Parameters.AddRange(new SQLiteParameter[]
             { new SQLiteParameter("id", e.CallbackQuery.From.Id), new SQLiteParameter("groupid", groupid) });
             cmd.ExecuteNonQuery();
-            client.EditMessageTextAsync(e.CallbackQuery.Message.Chat.Id, e.CallbackQuery.Message.MessageId, 
+            client.EditMessageTextAsync(e.CallbackQuery.Message.Chat.Id, e.CallbackQuery.Message.MessageId,
                 GetString(Strings.RemovedFromNextgameList, e.CallbackQuery.From.Id));
         }
         #endregion
@@ -669,131 +669,79 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #region Send Lang Message
-        private static bool SendLangMessage(long chatid, string key, IReplyMarkup markup = null)
+        private static void SendLangMessage(long chatid, string key, IReplyMarkup markup = null)
         {
-            try
-            {
-                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(chatid)),
-                    replyMarkup: markup, parseMode: ParseMode.Html);
-                task.Wait();
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(chatid)),
+                replyMarkup: markup, parseMode: ParseMode.Html);
+            task.Wait();
         }
 
-        private static bool SendLangMessage(long chatid, string key, IReplyMarkup markup, params string[] par)
+        private static void SendLangMessage(long chatid, string key, IReplyMarkup markup, params string[] par)
         {
-            try
+            string toSend = GetString(key, LangCode(chatid));
+            for (int i = 0; i < par.Length; i++)
             {
-                string toSend = GetString(key, LangCode(chatid));
-                for (int i = 0; i < par.Length; i++)
-                {
-                    toSend = toSend.Replace("{" + i + "}", par[i]);
-                }
-                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
-                task.Wait();
-                return true;
+                toSend = toSend.Replace("{" + i + "}", par[i]);
             }
-            catch
-            {
-                return false;
-            }
+            var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+            task.Wait();
         }
 
-        private static bool SendLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup = null)
+        private static void SendLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup = null)
         {
-            try
-            {
-                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(langFrom)),
-                    replyMarkup: markup, parseMode: ParseMode.Html);
-                task.Wait();
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(langFrom)),
+                replyMarkup: markup, parseMode: ParseMode.Html);
+            task.Wait();
         }
 
-        private static bool SendLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup, params string[] par)
+        private static void SendLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup, params string[] par)
         {
-            try
+            string toSend = GetString(key, LangCode(langFrom));
+            for (int i = 0; i < par.Length; i++)
             {
-                string toSend = GetString(key, LangCode(langFrom));
-                for (int i = 0; i < par.Length; i++)
-                {
-                    toSend = toSend.Replace("{" + i + "}", par[i]);
-                }
-                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
-                task.Wait();
-                return true;
+                toSend = toSend.Replace("{" + i + "}", par[i]);
             }
-            catch
-            {
-                return false;
-            }
+            var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+            task.Wait();
         }
 
-        private static bool SendAndGetLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup,
+        private static void SendAndGetLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup,
             out Message message, out string text, params string[] par)
         {
-            try
+            string toSend = GetString(key, LangCode(langFrom));
+            for (int i = 0; i < par.Length; i++)
             {
-                string toSend = GetString(key, LangCode(langFrom));
-                for (int i = 0; i < par.Length; i++)
-                {
-                    toSend = toSend.Replace("{" + i + "}", par[i]);
-                }
-                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
-                task.Wait();
-                message = task.Result;
-                text = toSend;
-                return true;
+                toSend = toSend.Replace("{" + i + "}", par[i]);
             }
-            catch
-            {
-                message = null;
-                text = null;
-                return false;
-            }
+            var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+            task.Wait();
+            message = task.Result;
+            text = toSend;
         }
         #endregion
         #region Edit Lang Message
-        private static bool EditLangMessage(long chatid, long langFrom, int messageId, string key,
+        private static void EditLangMessage(long chatid, long langFrom, int messageId, string key,
             IReplyMarkup markup, string appendStart, out Message sent, out string text, params string[] par)
         {
-            try
+            string toSend = appendStart + GetString(key, LangCode(langFrom));
+            for (int i = 0; i < par.Length; i++)
             {
-                string toSend = appendStart + GetString(key, LangCode(langFrom));
-                for (int i = 0; i < par.Length; i++)
-                {
-                    toSend = toSend.Replace("{" + i + "}", par[i]);
-                }
-                var task = client.EditMessageTextAsync(chatid, messageId, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
-                task.Wait();
-                sent = task.Result;
-                text = toSend;
-                return true;
+                toSend = toSend.Replace("{" + i + "}", par[i]);
             }
-            catch
-            {
-                sent = null;
-                text = null;
-                return false;
-            }
+            var task = client.EditMessageTextAsync(chatid, messageId, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+            task.Wait();
+            sent = task.Result;
+            text = toSend;
         }
 
-        private static bool EditLangMessage(long chatid, long langFrom, int messageId, string key, IReplyMarkup markup = null)
+        private static void EditLangMessage(long chatid, long langFrom, int messageId, string key, IReplyMarkup markup = null)
         {
-            return EditLangMessage(chatid, langFrom, messageId, key, markup, "", out var u, out var u2);
+            EditLangMessage(chatid, langFrom, messageId, key, markup, "", out var u, out var u2);
         }
 
-        private static bool EditLangMessage(long chatid, long langFrom, int messageId, string key, IReplyMarkup markup, params string[] par)
+        private static void EditLangMessage(long chatid, long langFrom, int messageId, string key, IReplyMarkup markup, params string[] par)
         {
-            return EditLangMessage(chatid, langFrom, messageId, key, markup, "", out var u, out var u2, par);
+            EditLangMessage(chatid, langFrom, messageId, key, markup, "", out var u, out var u2, par);
         }
         #endregion
         #region Get Lang File
@@ -863,7 +811,7 @@ namespace WhoAmIBotSpace
         #region /test
         private static void Test_Command(Message msg)
         {
-            
+
         }
         #endregion
         #region /afk
@@ -1543,7 +1491,7 @@ namespace WhoAmIBotSpace
                 return;
             }
             AddNextgame(msg.From.Id, msg.Chat.Id);
-            SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.PutOnNextgameList, 
+            SendLangMessage(msg.From.Id, msg.Chat.Id, Strings.PutOnNextgameList,
                 ReplyMarkupMaker.InlineCancelNextgame(GetString(Strings.Cancel, msg.Chat.Id), msg.Chat.Id));
         }
         #endregion
@@ -2129,7 +2077,11 @@ namespace WhoAmIBotSpace
                 SendLangMessage(game.GroupId, Strings.AlreadyInGame, null, player.Name);
                 return;
             }
-            if (!SendLangMessage(player.Id, game.GroupId, Strings.JoinedGamePM, null, game.GroupName))
+            try
+            {
+                SendLangMessage(player.Id, game.GroupId, Strings.JoinedGamePM, null, game.GroupName);
+            }
+            catch
             {
                 SendLangMessage(game.GroupId, Strings.PmMe, ReplyMarkupMaker.InlineStartMe(Username), player.Name);
                 return;
