@@ -671,67 +671,141 @@ namespace WhoAmIBotSpace
         #region Send Lang Message
         private static void SendLangMessage(long chatid, string key, IReplyMarkup markup = null)
         {
-            var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(chatid)),
-                replyMarkup: markup, parseMode: ParseMode.Html);
-            task.Wait();
+            try
+            {
+                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(chatid)),
+                    replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+            }
+            catch
+            {
+                var task = client.SendTextMessageAsync(chatid, GetString(key, defaultLangCode),
+                    replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+            }
         }
 
         private static void SendLangMessage(long chatid, string key, IReplyMarkup markup, params string[] par)
         {
-            string toSend = GetString(key, LangCode(chatid));
-            for (int i = 0; i < par.Length; i++)
+            try
             {
-                toSend = toSend.Replace("{" + i + "}", par[i]);
+                string toSend = GetString(key, LangCode(chatid));
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
             }
-            var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
-            task.Wait();
+            catch
+            {
+                string toSend = GetString(key, defaultLangCode);
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+            }
         }
 
         private static void SendLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup = null)
         {
-            var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(langFrom)),
-                replyMarkup: markup, parseMode: ParseMode.Html);
-            task.Wait();
+            try
+            {
+                var task = client.SendTextMessageAsync(chatid, GetString(key, LangCode(langFrom)),
+                    replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+            }
+            catch
+            {
+                var task = client.SendTextMessageAsync(chatid, GetString(key, defaultLangCode),
+                    replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+            }
         }
 
         private static void SendLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup, params string[] par)
         {
-            string toSend = GetString(key, LangCode(langFrom));
-            for (int i = 0; i < par.Length; i++)
+            try
             {
-                toSend = toSend.Replace("{" + i + "}", par[i]);
+                string toSend = GetString(key, LangCode(langFrom));
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
             }
-            var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
-            task.Wait();
+            catch
+            {
+                string toSend = GetString(key, defaultLangCode);
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+            }
         }
 
         private static void SendAndGetLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup,
             out Message message, out string text, params string[] par)
         {
-            string toSend = GetString(key, LangCode(langFrom));
-            for (int i = 0; i < par.Length; i++)
+            try
             {
-                toSend = toSend.Replace("{" + i + "}", par[i]);
+                string toSend = GetString(key, LangCode(langFrom));
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+                message = task.Result;
+                text = toSend;
             }
-            var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
-            task.Wait();
-            message = task.Result;
-            text = toSend;
+            catch
+            {
+                string toSend = GetString(key, defaultLangCode);
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+                message = task.Result;
+                text = toSend;
+            }
         }
         #endregion
         #region Edit Lang Message
         private static void EditLangMessage(long chatid, long langFrom, int messageId, string key,
             IReplyMarkup markup, string appendStart, out Message sent, out string text, params string[] par)
         {
-            string toSend = appendStart + GetString(key, LangCode(langFrom));
-            for (int i = 0; i < par.Length; i++)
+            try
             {
-                toSend = toSend.Replace("{" + i + "}", par[i]);
+                string toSend = appendStart + GetString(key, LangCode(langFrom));
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.EditMessageTextAsync(chatid, messageId, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+                sent = task.Result;
+                text = toSend;
             }
-            var task = client.EditMessageTextAsync(chatid, messageId, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
-            task.Wait();
-            sent = task.Result;
-            text = toSend;
+            catch
+            {
+                string toSend = appendStart + GetString(key, defaultLangCode);
+                for (int i = 0; i < par.Length; i++)
+                {
+                    toSend = toSend.Replace("{" + i + "}", par[i]);
+                }
+                var task = client.EditMessageTextAsync(chatid, messageId, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                task.Wait();
+                sent = task.Result;
+                text = toSend;
+            }
         }
 
         private static void EditLangMessage(long chatid, long langFrom, int messageId, string key, IReplyMarkup markup = null)
