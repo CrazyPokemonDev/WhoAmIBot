@@ -1896,7 +1896,8 @@ namespace WhoAmIBotSpace
                 string response = ExecuteSqlRaw(commandText);
                 if (!string.IsNullOrEmpty(response))
                 {
-                    foreach (var s in response.Split(2000)) client.SendTextMessageAsync(msg.Chat.Id, s, parseMode: ParseMode.Html).Wait();
+                    foreach (var s in response.Split(2000)) client.SendTextMessageAsync(msg.Chat.Id, 
+                        s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;"), parseMode: ParseMode.Html).Wait();
                 }
             }
             catch (Exception e)
@@ -2136,7 +2137,6 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #endregion
-
         #region Game Flow
         #region Add player
         private static void AddPlayer(NodeGame game, NodePlayer player)
@@ -2268,7 +2268,7 @@ namespace WhoAmIBotSpace
                     SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.QuestionAsked,
                         ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.Id}", no, $"no@{game.Id}", idk, $"idk@{game.Id}"),
                         out sentGroupMessage, out sentMessageText,
-                        $"<b>{WebUtility.HtmlEncode(atTurn.Name)}</b>", $"<i>{WebUtility.HtmlEncode(e.Message.Text)}</i>");
+                        $"{WebUtility.HtmlEncode(atTurn.Name)}", $"{WebUtility.HtmlEncode(e.Message.Text)}");
                     mre.Set();
                 };
                 bool guess = false;
