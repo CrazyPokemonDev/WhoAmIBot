@@ -679,7 +679,8 @@ namespace WhoAmIBotSpace
             }
             catch
             {
-                var task = client.SendTextMessageAsync(chatid, GetString(key, defaultLangCode),
+                var task = client.SendTextMessageAsync(chatid, GetString(key, defaultLangCode) 
+                    + "\n<code>Original string had markdown errors</code>",
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
             }
@@ -704,7 +705,8 @@ namespace WhoAmIBotSpace
                 {
                     toSend = toSend.Replace("{" + i + "}", par[i]);
                 }
-                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                var task = client.SendTextMessageAsync(chatid, toSend 
+                    + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
             }
         }
@@ -719,7 +721,8 @@ namespace WhoAmIBotSpace
             }
             catch
             {
-                var task = client.SendTextMessageAsync(chatid, GetString(key, defaultLangCode),
+                var task = client.SendTextMessageAsync(chatid, GetString(key, defaultLangCode)
+                    + "\n<code>Original string had markdown errors</code>",
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
             }
@@ -744,7 +747,8 @@ namespace WhoAmIBotSpace
                 {
                     toSend = toSend.Replace("{" + i + "}", par[i]);
                 }
-                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                var task = client.SendTextMessageAsync(chatid, toSend
+                    + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
             }
         }
@@ -759,7 +763,8 @@ namespace WhoAmIBotSpace
                 {
                     toSend = toSend.Replace("{" + i + "}", par[i]);
                 }
-                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                var task = client.SendTextMessageAsync(chatid, toSend
+                    + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 message = task.Result;
                 text = toSend;
@@ -771,7 +776,8 @@ namespace WhoAmIBotSpace
                 {
                     toSend = toSend.Replace("{" + i + "}", par[i]);
                 }
-                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                var task = client.SendTextMessageAsync(chatid, toSend
+                    + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 message = task.Result;
                 text = toSend;
@@ -801,7 +807,8 @@ namespace WhoAmIBotSpace
                 {
                     toSend = toSend.Replace("{" + i + "}", par[i]);
                 }
-                var task = client.EditMessageTextAsync(chatid, messageId, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
+                var task = client.EditMessageTextAsync(chatid, messageId, toSend
+                    + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 sent = task.Result;
                 text = toSend;
@@ -2172,339 +2179,361 @@ namespace WhoAmIBotSpace
         {
             if (!(gameObject is NodeGame)) return;
             NodeGame game = (NodeGame)gameObject;
-            #region Preparation phase
-            SendLangMessage(game.GroupId, Strings.GameFlowStarted);
-            game.State = GameState.Running;
-            game.TotalPlayers = new List<NodePlayer>();
-            foreach (var p in game.Players)
+            try
             {
-                game.TotalPlayers.Add(p);
-            }
-            game.Players.Shuffle();
-            for (int i = 0; i < game.Players.Count; i++)
-            {
-                int next = (i == game.Players.Count - 1) ? 0 : i + 1;
-                SendLangMessage(game.Players[i].Id, game.GroupId, Strings.ChooseRoleFor, null, game.Players[next].Name);
-            }
-            ManualResetEvent mre = new ManualResetEvent(false);
-            EventHandler<MessageEventArgs> eHandler = (sender, e) =>
-            {
-                if (!game.Players.Exists(x => x.Id == e.Message.From.Id)
-                || e.Message.Type != MessageType.TextMessage || e.Message.Chat.Type != ChatType.Private) return;
-                NodePlayer p = game.Players.Find(x => x.Id == e.Message.From.Id);
-                int pIndex = game.Players.IndexOf(p);
-                int nextIndex = (pIndex == game.Players.Count - 1) ? 0 : pIndex + 1;
-                NodePlayer next = game.Players[nextIndex];
-                if (game.RoleIdDict.ContainsKey(next.Id))
+                #region Preparation phase
+                SendLangMessage(game.GroupId, Strings.GameFlowStarted);
+                game.State = GameState.Running;
+                game.TotalPlayers = new List<NodePlayer>();
+                foreach (var p in game.Players)
                 {
-                    SendLangMessage(p.Id, game.GroupId, Strings.AlreadySentRole, null, next.Name);
+                    game.TotalPlayers.Add(p);
                 }
-                else
+                game.Players.Shuffle();
+                for (int i = 0; i < game.Players.Count; i++)
                 {
-                    game.RoleIdDict.Add(next.Id, e.Message.Text);
-                    SendLangMessage(p.Id, game.GroupId, Strings.SetRole, null, next.Name, e.Message.Text);
-                    if (game.DictFull()) mre.Set();
+                    int next = (i == game.Players.Count - 1) ? 0 : i + 1;
+                    SendLangMessage(game.Players[i].Id, game.GroupId, Strings.ChooseRoleFor, null, game.Players[next].Name);
                 }
-            };
-            try    //we don't wanna have that handler there if the thread is aborted, do we?
-            {
-                OnMessage += eHandler;
-                mre.WaitOne();
-            }
-            finally
-            {
-                OnMessage -= eHandler;
-            }
-            SendLangMessage(game.GroupId, Strings.AllRolesSet);
-            game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-            foreach (NodePlayer p in game.Players)
-            {
-                string message = "\n";
-                foreach (var kvp in game.RoleIdDict)
+                ManualResetEvent mre = new ManualResetEvent(false);
+                EventHandler<MessageEventArgs> eHandler = (sender, e) =>
                 {
-                    if (kvp.Key != p.Id) message += $"{game.Players.Find(x => x.Id == kvp.Key).Name}: {kvp.Value}\n";
-                }
-                SendLangMessage(p.Id, game.GroupId, Strings.RolesAre, null, message);
-            }
-            #endregion
-            int turn = 0;
-            NodePlayer atTurn = null;
-            EventHandler<AfkEventArgs> afkGlobal = (sender, e) =>
-            {
-                if (e.Game.Id != game.Id || (atTurn != null && e.Player.Id == atTurn.Id)) return;
-                var p = game.Players.Find(x => x.Id == e.Player.Id);
-                p.GaveUp = true;
-                SendLangMessage(game.GroupId, Strings.GaveUp, null, e.Player.Name, game.RoleIdDict[e.Player.Id]);
-            };
-            OnAfk += afkGlobal;
-            #region Player turns
-            while (true)
-            {
-                // do players turns until everything is finished, then break;
-                if (turn >= game.Players.Count) turn = 0;
-                atTurn = game.Players[turn];
-                game.Turn = atTurn;
-                if (atTurn.GaveUp)
-                {
-                    game.Players.Remove(atTurn);
-                    if (game.Players.Count > 0) continue;
-                    else break;
-                }
-                SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.PlayerTurn, null, out Message sentGroupMessage, out string uselessS, atTurn.Name);
-                #region Ask Question
-                string sentMessageText = "";
-                Message sentMessage = null;
-                EventHandler<MessageEventArgs> qHandler = (sender, e) =>
-                {
-                    if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
-                    game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-                    client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId);
-                    SendAndGetLangMessage(atTurn.Id, game.GroupId, Strings.QuestionReceived, null,
-                                out sentMessage, out var u);
-                    string yes = GetString(Strings.Yes, LangCode(game.GroupId));
-                    string idk = GetString(Strings.Idk, LangCode(game.GroupId));
-                    string no = GetString(Strings.No, LangCode(game.GroupId));
-                    client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
-                    SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.QuestionAsked,
-                        ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.Id}", no, $"no@{game.Id}", idk, $"idk@{game.Id}"),
-                        out sentGroupMessage, out sentMessageText,
-                        $"{WebUtility.HtmlEncode(atTurn.Name)}", $"{WebUtility.HtmlEncode(e.Message.Text)}");
-                    mre.Set();
-                };
-                bool guess = false;
-                bool endloop = false;
-                EventHandler<AfkEventArgs> afkHandler = (sender, e) =>
-                {
-                    if (e.Game.Id != game.Id || e.Player.Id != atTurn.Id) return;
-                    endloop = true;
-                    SendLangMessage(game.GroupId, Strings.GaveUp, null, e.Player.Name, game.RoleIdDict[e.Player.Id]);
-                    turn++;
-                    game.Players.Remove(game.Players.Find(x => x.Id == e.Player.Id));
-                    mre.Set();
-                };
-                #region Guess handler
-                EventHandler<MessageEventArgs> guessHandler = (sender, e) =>
-                {
-                    if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
-                    game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-                    client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId);
-                    SendAndGetLangMessage(atTurn.Id, game.GroupId, Strings.QuestionReceived, null, out sentMessage, out var u);
-                    string yes = GetString(Strings.Yes, LangCode(game.GroupId));
-                    string no = GetString(Strings.No, LangCode(game.GroupId));
-                    client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
-                    SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.PlayerGuessed,
-                        ReplyMarkupMaker.InlineYesNo(yes, $"yes@{game.Id}", no, $"no@{game.Id}"),
-                        out sentGroupMessage, out sentMessageText,
-                        atTurn.Name, e.Message.Text);
-                    mre.Set();
-                };
-                #endregion
-                #region Callback Handler
-                Dictionary<long, string> clicked = new Dictionary<long, string>();
-                EventHandler<CallbackQueryEventArgs> c1Handler = (sender, e) =>
-                {
-                    if (!game.Players.Exists(x => x.Id == e.CallbackQuery.From.Id)
-                    || (!e.CallbackQuery.Data.StartsWith("guess@") && !e.CallbackQuery.Data.StartsWith("giveup@"))
-                    || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
-                    string answer = e.CallbackQuery.Data.Split('@')[0];
-                    long gameId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
-                    if (gameId != game.Id) return;
-                    if (e.CallbackQuery.Message == null) return;
-                    game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-                    Message cmsg = e.CallbackQuery.Message;
-                    switch (answer)
+                    if (!game.Players.Exists(x => x.Id == e.Message.From.Id)
+                    || e.Message.Type != MessageType.TextMessage || e.Message.Chat.Type != ChatType.Private) return;
+                    NodePlayer p = game.Players.Find(x => x.Id == e.Message.From.Id);
+                    int pIndex = game.Players.IndexOf(p);
+                    int nextIndex = (pIndex == game.Players.Count - 1) ? 0 : pIndex + 1;
+                    NodePlayer next = game.Players[nextIndex];
+                    if (game.RoleIdDict.ContainsKey(next.Id))
                     {
-                        case "guess":
-                            #region Guess
-                            if (clicked.ContainsKey(e.CallbackQuery.From.Id) && clicked[e.CallbackQuery.From.Id] == "guess")
-                            {
-                                guess = true;
-                                mre.Set();
-                                EditLangMessage(e.CallbackQuery.From.Id, game.GroupId, sentMessage.MessageId, Strings.PleaseGuess, null, "",
-                                    out Message uselessM, out string uselessSS);
-                                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
-                                client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
-                            }
-                            else
-                            {
-                                if (clicked.ContainsKey(e.CallbackQuery.From.Id)) clicked[e.CallbackQuery.From.Id] = "guess";
-                                else clicked.Add(e.CallbackQuery.From.Id, "guess");
-                                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.Confirm, game.GroupId));
-                                Timer t = new Timer(x => clicked[e.CallbackQuery.From.Id] = null);
-                            }
-                            #endregion
-                            break;
-                        case "giveup":
-                            #region Give Up
-                            if (clicked.ContainsKey(e.CallbackQuery.From.Id) && clicked[e.CallbackQuery.From.Id] == "giveup")
-                            {
-                                endloop = true;
-                                NodePlayer p = game.Players.Find(x => x.Id == e.CallbackQuery.From.Id);
-                                SendLangMessage(game.GroupId, Strings.GaveUp, null,
-                                    p.Name,
-                                    game.RoleIdDict[e.CallbackQuery.From.Id]);
-                                SendLangMessage(p.Id, game.GroupId, Strings.YouGaveUp);
-                                client.EditMessageReplyMarkupAsync(sentMessage.Chat.Id, sentMessage.MessageId);
-                                game.Players.Remove(p);
-                                client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
-                                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
-                                mre.Set();
-                            }
-                            else
-                            {
-                                if (clicked.ContainsKey(e.CallbackQuery.From.Id)) clicked[e.CallbackQuery.From.Id] = "giveup";
-                                else clicked.Add(e.CallbackQuery.From.Id, "giveup");
-                                client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.Confirm, game.GroupId));
-                                Timer t = new Timer(x => clicked[e.CallbackQuery.From.Id] = null);
-                            }
-                            #endregion
-                            break;
+                        SendLangMessage(p.Id, game.GroupId, Strings.AlreadySentRole, null, next.Name);
+                    }
+                    else
+                    {
+                        game.RoleIdDict.Add(next.Id, e.Message.Text);
+                        SendLangMessage(p.Id, game.GroupId, Strings.SetRole, null, next.Name, e.Message.Text);
+                        if (game.DictFull()) mre.Set();
                     }
                 };
-                #endregion
-                string guess1 = GetString(Strings.Guess, LangCode(game.GroupId));
-                string giveUp1 = GetString(Strings.GiveUp, LangCode(game.GroupId));
-                SendAndGetLangMessage(atTurn.Id, game.GroupId, Strings.AskQuestion,
-                    ReplyMarkupMaker.InlineGuessGiveUp(guess1, $"guess@{game.Id}", giveUp1, $"giveup@{game.Id}"),
-                    out sentMessage, out string useless);
-                mre.Reset();
-                try
+                try    //we don't wanna have that handler there if the thread is aborted, do we?
                 {
-                    OnMessage += qHandler;
-                    OnCallbackQuery += c1Handler;
-                    OnAfk += afkHandler;
+                    OnMessage += eHandler;
                     mre.WaitOne();
                 }
                 finally
                 {
-                    OnMessage -= qHandler;
-                    OnCallbackQuery -= c1Handler;
-                    OnAfk -= afkHandler;
+                    OnMessage -= eHandler;
                 }
-                mre.Reset();
+                SendLangMessage(game.GroupId, Strings.AllRolesSet);
                 game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-                if (guess)
+                foreach (NodePlayer p in game.Players)
                 {
+                    string message = "\n";
+                    foreach (var kvp in game.RoleIdDict)
+                    {
+                        if (kvp.Key != p.Id) message += $"{game.Players.Find(x => x.Id == kvp.Key).Name}: {kvp.Value}\n";
+                    }
+                    SendLangMessage(p.Id, game.GroupId, Strings.RolesAre, null, message);
+                }
+                #endregion
+                int turn = 0;
+                NodePlayer atTurn = null;
+                EventHandler<AfkEventArgs> afkGlobal = (sender, e) =>
+                {
+                    if (e.Game.Id != game.Id || (atTurn != null && e.Player.Id == atTurn.Id)) return;
+                    var p = game.Players.Find(x => x.Id == e.Player.Id);
+                    p.GaveUp = true;
+                    SendLangMessage(game.GroupId, Strings.GaveUp, null, e.Player.Name, game.RoleIdDict[e.Player.Id]);
+                };
+                OnAfk += afkGlobal;
+                #region Player turns
+                while (true)
+                {
+                    // do players turns until everything is finished, then break;
+                    if (turn >= game.Players.Count) turn = 0;
+                    atTurn = game.Players[turn];
+                    game.Turn = atTurn;
+                    if (atTurn.GaveUp)
+                    {
+                        game.Players.Remove(atTurn);
+                        if (game.Players.Count > 0) continue;
+                        else break;
+                    }
+                    SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.PlayerTurn, null, out Message sentGroupMessage, out string uselessS, atTurn.Name);
+                    #region Ask Question
+                    string sentMessageText = "";
+                    Message sentMessage = null;
+                    EventHandler<MessageEventArgs> qHandler = (sender, e) =>
+                    {
+                        if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
+                        game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
+                        client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId);
+                        SendAndGetLangMessage(atTurn.Id, game.GroupId, Strings.QuestionReceived, null,
+                                    out sentMessage, out var u);
+                        string yes = GetString(Strings.Yes, LangCode(game.GroupId));
+                        string idk = GetString(Strings.Idk, LangCode(game.GroupId));
+                        string no = GetString(Strings.No, LangCode(game.GroupId));
+                        client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
+                        SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.QuestionAsked,
+                            ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.Id}", no, $"no@{game.Id}", idk, $"idk@{game.Id}"),
+                            out sentGroupMessage, out sentMessageText,
+                            $"{WebUtility.HtmlEncode(atTurn.Name)}", $"{WebUtility.HtmlEncode(e.Message.Text)}");
+                        mre.Set();
+                    };
+                    bool guess = false;
+                    bool endloop = false;
+                    EventHandler<AfkEventArgs> afkHandler = (sender, e) =>
+                    {
+                        if (e.Game.Id != game.Id || e.Player.Id != atTurn.Id) return;
+                        endloop = true;
+                        SendLangMessage(game.GroupId, Strings.GaveUp, null, e.Player.Name, game.RoleIdDict[e.Player.Id]);
+                        turn++;
+                        game.Players.Remove(game.Players.Find(x => x.Id == e.Player.Id));
+                        mre.Set();
+                    };
+                    #region Guess handler
+                    EventHandler<MessageEventArgs> guessHandler = (sender, e) =>
+                    {
+                        if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
+                        game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
+                        client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId);
+                        SendAndGetLangMessage(atTurn.Id, game.GroupId, Strings.QuestionReceived, null, out sentMessage, out var u);
+                        string yes = GetString(Strings.Yes, LangCode(game.GroupId));
+                        string no = GetString(Strings.No, LangCode(game.GroupId));
+                        client.DeleteMessageAsync(sentGroupMessage.Chat.Id, sentGroupMessage.MessageId);
+                        SendAndGetLangMessage(game.GroupId, game.GroupId, Strings.PlayerGuessed,
+                            ReplyMarkupMaker.InlineYesNo(yes, $"yes@{game.Id}", no, $"no@{game.Id}"),
+                            out sentGroupMessage, out sentMessageText,
+                            atTurn.Name, e.Message.Text);
+                        mre.Set();
+                    };
+                    #endregion
+                    #region Callback Handler
+                    Dictionary<long, string> clicked = new Dictionary<long, string>();
+                    EventHandler<CallbackQueryEventArgs> c1Handler = (sender, e) =>
+                    {
+                        if (!game.Players.Exists(x => x.Id == e.CallbackQuery.From.Id)
+                        || (!e.CallbackQuery.Data.StartsWith("guess@") && !e.CallbackQuery.Data.StartsWith("giveup@"))
+                        || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
+                        string answer = e.CallbackQuery.Data.Split('@')[0];
+                        long gameId = Convert.ToInt64(e.CallbackQuery.Data.Split('@')[1]);
+                        if (gameId != game.Id) return;
+                        if (e.CallbackQuery.Message == null) return;
+                        game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
+                        Message cmsg = e.CallbackQuery.Message;
+                        switch (answer)
+                        {
+                            case "guess":
+                                #region Guess
+                                if (clicked.ContainsKey(e.CallbackQuery.From.Id) && clicked[e.CallbackQuery.From.Id] == "guess")
+                                {
+                                    guess = true;
+                                    mre.Set();
+                                    EditLangMessage(e.CallbackQuery.From.Id, game.GroupId, sentMessage.MessageId, Strings.PleaseGuess, null, "",
+                                        out Message uselessM, out string uselessSS);
+                                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                                    client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
+                                }
+                                else
+                                {
+                                    if (clicked.ContainsKey(e.CallbackQuery.From.Id)) clicked[e.CallbackQuery.From.Id] = "guess";
+                                    else clicked.Add(e.CallbackQuery.From.Id, "guess");
+                                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.Confirm, game.GroupId));
+                                    Timer t = new Timer(x => clicked[e.CallbackQuery.From.Id] = null);
+                                }
+                                #endregion
+                                break;
+                            case "giveup":
+                                #region Give Up
+                                if (clicked.ContainsKey(e.CallbackQuery.From.Id) && clicked[e.CallbackQuery.From.Id] == "giveup")
+                                {
+                                    endloop = true;
+                                    NodePlayer p = game.Players.Find(x => x.Id == e.CallbackQuery.From.Id);
+                                    SendLangMessage(game.GroupId, Strings.GaveUp, null,
+                                        p.Name,
+                                        game.RoleIdDict[e.CallbackQuery.From.Id]);
+                                    SendLangMessage(p.Id, game.GroupId, Strings.YouGaveUp);
+                                    client.EditMessageReplyMarkupAsync(sentMessage.Chat.Id, sentMessage.MessageId);
+                                    game.Players.Remove(p);
+                                    client.EditMessageReplyMarkupAsync(cmsg.Chat.Id, cmsg.MessageId);
+                                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                                    mre.Set();
+                                }
+                                else
+                                {
+                                    if (clicked.ContainsKey(e.CallbackQuery.From.Id)) clicked[e.CallbackQuery.From.Id] = "giveup";
+                                    else clicked.Add(e.CallbackQuery.From.Id, "giveup");
+                                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.Confirm, game.GroupId));
+                                    Timer t = new Timer(x => clicked[e.CallbackQuery.From.Id] = null);
+                                }
+                                #endregion
+                                break;
+                        }
+                    };
+                    #endregion
+                    string guess1 = GetString(Strings.Guess, LangCode(game.GroupId));
+                    string giveUp1 = GetString(Strings.GiveUp, LangCode(game.GroupId));
+                    SendAndGetLangMessage(atTurn.Id, game.GroupId, Strings.AskQuestion,
+                        ReplyMarkupMaker.InlineGuessGiveUp(guess1, $"guess@{game.Id}", giveUp1, $"giveup@{game.Id}"),
+                        out sentMessage, out string useless);
+                    mre.Reset();
                     try
                     {
-                        OnMessage += guessHandler;
+                        OnMessage += qHandler;
+                        OnCallbackQuery += c1Handler;
                         OnAfk += afkHandler;
                         mre.WaitOne();
                     }
                     finally
                     {
-                        OnMessage -= guessHandler;
+                        OnMessage -= qHandler;
+                        OnCallbackQuery -= c1Handler;
                         OnAfk -= afkHandler;
                     }
-                }
-                #endregion
-                bool breakMe = false;
-                switch (game.Group.AutoEnd)
-                {
-                    case AutoEndSetting.None:
-                        breakMe = game.Players.Count < 1;
-                        break;
-                    case AutoEndSetting.OnePlayerGuessed:
-                        breakMe = game.Winner != null;
-                        break;
-                    case AutoEndSetting.OnePlayerLeft:
-                        breakMe = game.Players.Count < 2;
-                        break;
-                }
-                if (breakMe) break;
-                if (endloop) continue;
-                #region Answer Question
-                EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
-                {
-                    if (!game.TotalPlayers.Exists(x => x.Id == e.CallbackQuery.From.Id)
-                    || (!e.CallbackQuery.Data.StartsWith("yes@") && !e.CallbackQuery.Data.StartsWith("no@") && !e.CallbackQuery.Data.StartsWith("idk@"))
-                    || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
-                    if (e.CallbackQuery.Message == null) return;
-                    string answer = e.CallbackQuery.Data.Split('@')[0];
-                    if (!long.TryParse(e.CallbackQuery.Data.Split('@')[1], out long gameId)) return;
-                    if (gameId != game.Id) return;
-                    if (e.CallbackQuery.From.Id == atTurn?.Id && game.GroupId != testingGroupId)
+                    mre.Reset();
+                    game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
+                    if (guess)
                     {
-                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.NoAnswerSelf, LangCode(game.GroupId)), showAlert: true);
-                        return;
+                        try
+                        {
+                            OnMessage += guessHandler;
+                            OnAfk += afkHandler;
+                            mre.WaitOne();
+                        }
+                        finally
+                        {
+                            OnMessage -= guessHandler;
+                            OnAfk -= afkHandler;
+                        }
+                    }
+                    #endregion
+                    bool breakMe = false;
+                    switch (game.Group.AutoEnd)
+                    {
+                        case AutoEndSetting.None:
+                            breakMe = game.Players.Count < 1;
+                            break;
+                        case AutoEndSetting.OnePlayerGuessed:
+                            breakMe = game.Winner != null;
+                            break;
+                        case AutoEndSetting.OnePlayerLeft:
+                            breakMe = game.Players.Count < 2;
+                            break;
+                    }
+                    if (breakMe) break;
+                    if (endloop) continue;
+                    #region Answer Question
+                    EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
+                    {
+                        if (!game.TotalPlayers.Exists(x => x.Id == e.CallbackQuery.From.Id)
+                        || (!e.CallbackQuery.Data.StartsWith("yes@") && !e.CallbackQuery.Data.StartsWith("no@") && !e.CallbackQuery.Data.StartsWith("idk@"))
+                        || e.CallbackQuery.Data.IndexOf('@') != e.CallbackQuery.Data.LastIndexOf('@')) return;
+                        if (e.CallbackQuery.Message == null) return;
+                        string answer = e.CallbackQuery.Data.Split('@')[0];
+                        if (!long.TryParse(e.CallbackQuery.Data.Split('@')[1], out long gameId)) return;
+                        if (gameId != game.Id) return;
+                        if (e.CallbackQuery.From.Id == atTurn?.Id && game.GroupId != testingGroupId)
+                        {
+                            client.AnswerCallbackQueryAsync(e.CallbackQuery.Id, GetString(Strings.NoAnswerSelf, LangCode(game.GroupId)), showAlert: true);
+                            return;
+                        }
+                        game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
+                        client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
+                        Message cmsg = e.CallbackQuery.Message;
+                        string pname = game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name;
+                        switch (answer)
+                        {
+                            case "yes":
+                                EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, Strings.AnsweredYes, null, sentMessageText + "\n",
+                                    out Message uselessM, out string uselessSS, pname);
+                                EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
+                                    Strings.AnsweredYes, null, "", out var u, out var u2, pname);
+                                if (guess)
+                                {
+                                    game.Players.Remove(atTurn);
+                                    game.TrySetWinner(atTurn);
+                                    SendLangMessage(game.GroupId, Strings.PlayerFinished, null,
+                                        atTurn.Name);
+                                }
+                                break;
+                            case "idk":
+                                EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, Strings.AnsweredIdk, null, sentMessageText + "\n",
+                                    out Message uselessM2, out string uselessS2, pname);
+                                EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
+                                     Strings.AnsweredIdk, null, "", out var u3, out var u4, pname);
+                                break;
+                            case "no":
+                                EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, Strings.AnsweredNo, null, sentMessageText + "\n",
+                                    out Message uselessM1, out string uselessS1, pname);
+                                EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
+                                     Strings.AnsweredNo, null, "", out var u5, out var u6, pname);
+                                turn++;
+                                break;
+                        }
+                        mre.Set();
+                    };
+                    mre.Reset();
+                    try
+                    {
+                        OnCallbackQuery += cHandler;
+                        OnAfk += afkHandler;
+                        mre.WaitOne();
+                    }
+                    finally
+                    {
+                        OnCallbackQuery -= cHandler;
+                        OnAfk -= afkHandler;
                     }
                     game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-                    client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
-                    Message cmsg = e.CallbackQuery.Message;
-                    string pname = game.TotalPlayers.Find(x => x.Id == e.CallbackQuery.From.Id).Name;
-                    switch (answer)
+                    #endregion
+                    switch (game.Group.AutoEnd)
                     {
-                        case "yes":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, Strings.AnsweredYes, null, sentMessageText + "\n",
-                                out Message uselessM, out string uselessSS, pname);
-                            EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
-                                Strings.AnsweredYes, null, "", out var u, out var u2, pname);
-                            if (guess)
-                            {
-                                game.Players.Remove(atTurn);
-                                game.TrySetWinner(atTurn);
-                                SendLangMessage(game.GroupId, Strings.PlayerFinished, null,
-                                    atTurn.Name);
-                            }
+                        case AutoEndSetting.None:
+                            breakMe = game.Players.Count < 1;
                             break;
-                        case "idk":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, Strings.AnsweredIdk, null, sentMessageText + "\n",
-                                out Message uselessM2, out string uselessS2, pname);
-                            EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
-                                 Strings.AnsweredIdk, null, "", out var u3, out var u4, pname);
+                        case AutoEndSetting.OnePlayerGuessed:
+                            breakMe = game.Winner != null;
                             break;
-                        case "no":
-                            EditLangMessage(game.GroupId, game.GroupId, cmsg.MessageId, Strings.AnsweredNo, null, sentMessageText + "\n",
-                                out Message uselessM1, out string uselessS1, pname);
-                            EditLangMessage(sentMessage.Chat.Id, game.GroupId, sentMessage.MessageId,
-                                 Strings.AnsweredNo, null, "", out var u5, out var u6, pname);
-                            turn++;
+                        case AutoEndSetting.OnePlayerLeft:
+                            breakMe = game.Players.Count < 2;
                             break;
                     }
-                    mre.Set();
-                };
-                mre.Reset();
+                    if (breakMe) break;
+                }
+                #endregion
+                #region Finish game
+                OnAfk -= afkGlobal;
+                game.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                var cmd = new SQLiteCommand("DELETE FROM Games WHERE Id=@id", sqliteConn);
+                cmd.Parameters.AddWithValue("id", game.Id);
+                cmd.ExecuteNonQuery();
+                long winnerId = game.Winner == null ? 0 : game.Winner.Id;
+                string winnerName = game.Winner == null ? GetString(Strings.Nobody, LangCode(game.GroupId)) : game.Winner.Name;
+                AddGameFinished(game.GroupId, winnerId, winnerName);
+                SendLangMessage(game.GroupId, Strings.GameFinished, null, winnerName);
+                SendLangMessage(game.GroupId, Strings.RolesWere, null, game.GetRolesAsString());
+                NodeGames.Remove(game);
+                GameFinished?.Invoke(null, new GameFinishedEventArgs(game));
+            }
+            catch (Exception ex)
+            {
                 try
                 {
-                    OnCallbackQuery += cHandler;
-                    OnAfk += afkHandler;
-                    mre.WaitOne();
+                    SendLangMessage(game.GroupId, Strings.ErrorOcurred, null, ex.ToString() + "\n" + GetString(Strings.GameCancelled, game.GroupId));
                 }
-                finally
+                catch
                 {
-                    OnCallbackQuery -= cHandler;
-                    OnAfk -= afkHandler;
+                    SendLangMessage(game.GroupId, Strings.ErrorOcurred, null, ex.ToString() + "\n" + GetString(Strings.GameCancelled, defaultLangCode));
                 }
-                game.InactivityTimer.Change(game.Group.GameTimeout * 60 * 1000, Timeout.Infinite);
-                #endregion
-                switch (game.Group.AutoEnd)
-                {
-                    case AutoEndSetting.None:
-                        breakMe = game.Players.Count < 1;
-                        break;
-                    case AutoEndSetting.OnePlayerGuessed:
-                        breakMe = game.Winner != null;
-                        break;
-                    case AutoEndSetting.OnePlayerLeft:
-                        breakMe = game.Players.Count < 2;
-                        break;
-                }
-                if (breakMe) break;
+                client.SendTextMessageAsync(Flom, $"{ex}: {ex.Message}\n{ex.StackTrace}");
+                if (ex.InnerException != null) client.SendTextMessageAsync(Flom,
+                    $"Inner: {ex.InnerException}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+                game.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                var cmd = new SQLiteCommand("DELETE FROM Games WHERE Id=@id", sqliteConn);
+                cmd.Parameters.AddWithValue("id", game.Id);
+                cmd.ExecuteNonQuery();
+                GameFinished?.Invoke(null, new GameFinishedEventArgs(game));
             }
-            #endregion
-            #region Finish game
-            OnAfk -= afkGlobal;
-            game.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            var cmd = new SQLiteCommand("DELETE FROM Games WHERE Id=@id", sqliteConn);
-            cmd.Parameters.AddWithValue("id", game.Id);
-            cmd.ExecuteNonQuery();
-            long winnerId = game.Winner == null ? 0 : game.Winner.Id;
-            string winnerName = game.Winner == null ? GetString(Strings.Nobody, LangCode(game.GroupId)) : game.Winner.Name;
-            AddGameFinished(game.GroupId, winnerId, winnerName);
-            SendLangMessage(game.GroupId, Strings.GameFinished, null, winnerName);
-            SendLangMessage(game.GroupId, Strings.RolesWere, null, game.GetRolesAsString());
-            NodeGames.Remove(game);
-            GameFinished?.Invoke(null, new GameFinishedEventArgs(game));
             #endregion
         }
         #endregion
