@@ -2519,11 +2519,11 @@ namespace WhoAmIBotSpace
             {
                 try
                 {
-                    SendLangMessage(game.GroupId, Strings.ErrorOcurred, null, ex.ToString() + "\n" + GetString(Strings.GameCancelled, game.GroupId));
+                    SendLangMessage(game.GroupId, Strings.ErrorOcurred, null, ex.ToString() + "\n" + GetString(Strings.GameCancelled, defaultLangCode));
                 }
                 catch
                 {
-                    SendLangMessage(game.GroupId, Strings.ErrorOcurred, null, ex.ToString() + "\n" + GetString(Strings.GameCancelled, defaultLangCode));
+                    
                 }
                 client.SendTextMessageAsync(Flom, $"{ex}: {ex.Message}\n{ex.StackTrace}");
                 if (ex.InnerException != null) client.SendTextMessageAsync(Flom,
