@@ -19,7 +19,6 @@ using Telegram.Bot.Types.InlineKeyboardButtons;
 using System.Text;
 using System.Reflection;
 using System.IO.Compression;
-using System.Threading.Tasks;
 
 namespace WhoAmIBotSpace
 {
@@ -2524,7 +2523,7 @@ namespace WhoAmIBotSpace
             }
             catch (Exception ex)
             {
-                if (!(ex is TaskCanceledException))
+                if (!(ex is ThreadAbortException))
                 {
                     try
                     {
