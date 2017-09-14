@@ -683,7 +683,7 @@ namespace WhoAmIBotSpace
                     + "\n<code>Original string had markdown errors</code>",
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}");
+                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
             }
         }
 
@@ -709,7 +709,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend 
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}");
+                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
             }
         }
 
@@ -727,7 +727,7 @@ namespace WhoAmIBotSpace
                     + "\n<code>Original string had markdown errors</code>",
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}");
+                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
             }
         }
 
@@ -753,7 +753,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}");
+                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
             }
         }
 
@@ -783,7 +783,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}");
+                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
                 message = task.Result;
                 text = toSend;
             }
@@ -815,7 +815,7 @@ namespace WhoAmIBotSpace
                 var task = client.EditMessageTextAsync(chatid, messageId, toSend
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}");
+                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
                 sent = task.Result;
                 text = toSend;
             }
