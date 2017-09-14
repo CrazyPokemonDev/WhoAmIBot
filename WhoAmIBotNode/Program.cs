@@ -19,6 +19,7 @@ using Telegram.Bot.Types.InlineKeyboardButtons;
 using System.Text;
 using System.Reflection;
 using System.IO.Compression;
+using System.Threading.Tasks;
 
 namespace WhoAmIBotSpace
 {
@@ -2517,22 +2518,25 @@ namespace WhoAmIBotSpace
             }
             catch (Exception ex)
             {
-                try
+                if (!(ex is TaskCanceledException))
                 {
-                    SendLangMessage(game.GroupId, Strings.ErrorOcurred, null, ex.ToString() + "\n" + GetString(Strings.GameCancelled, defaultLangCode));
+                    try
+                    {
+                        SendLangMessage(game.GroupId, Strings.ErrorOcurred, null, ex.ToString() + "\n" + GetString(Strings.GameCancelled, defaultLangCode));
+                    }
+                    catch
+                    {
+
+                    }
+                    client.SendTextMessageAsync(Flom, $"{ex}: {ex.Message}\n{ex.StackTrace}");
+                    if (ex.InnerException != null) client.SendTextMessageAsync(Flom,
+                        $"Inner: {ex.InnerException}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+                    game.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                    var cmd = new SQLiteCommand("DELETE FROM Games WHERE Id=@id", sqliteConn);
+                    cmd.Parameters.AddWithValue("id", game.Id);
+                    cmd.ExecuteNonQuery();
+                    GameFinished?.Invoke(null, new GameFinishedEventArgs(game));
                 }
-                catch
-                {
-                    
-                }
-                client.SendTextMessageAsync(Flom, $"{ex}: {ex.Message}\n{ex.StackTrace}");
-                if (ex.InnerException != null) client.SendTextMessageAsync(Flom,
-                    $"Inner: {ex.InnerException}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
-                game.InactivityTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                var cmd = new SQLiteCommand("DELETE FROM Games WHERE Id=@id", sqliteConn);
-                cmd.Parameters.AddWithValue("id", game.Id);
-                cmd.ExecuteNonQuery();
-                GameFinished?.Invoke(null, new GameFinishedEventArgs(game));
             }
             #endregion
         }
