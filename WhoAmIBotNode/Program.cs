@@ -19,6 +19,7 @@ using Telegram.Bot.Types.InlineKeyboardButtons;
 using System.Text;
 using System.Reflection;
 using System.IO.Compression;
+using System.Threading.Tasks;
 
 namespace WhoAmIBotSpace
 {
@@ -677,13 +678,13 @@ namespace WhoAmIBotSpace
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
             }
-            catch (Exception ex)
+            catch
             {
                 var task = client.SendTextMessageAsync(chatid, GetString(key, defaultLangCode) 
                     + "\n<code>Original string had markdown errors</code>",
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
             }
         }
 
@@ -699,7 +700,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
             }
-            catch (Exception ex)
+            catch
             {
                 string toSend = GetString(key, defaultLangCode);
                 for (int i = 0; i < par.Length; i++)
@@ -709,7 +710,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend 
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
             }
         }
 
@@ -721,13 +722,13 @@ namespace WhoAmIBotSpace
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
             }
-            catch (Exception ex)
+            catch
             {
                 var task = client.SendTextMessageAsync(chatid, GetString(key, defaultLangCode)
                     + "\n<code>Original string had markdown errors</code>",
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
             }
         }
 
@@ -743,7 +744,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
             }
-            catch (Exception ex)
+            catch
             {
                 string toSend = GetString(key, defaultLangCode);
                 for (int i = 0; i < par.Length; i++)
@@ -753,7 +754,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
             }
         }
 
@@ -767,13 +768,12 @@ namespace WhoAmIBotSpace
                 {
                     toSend = toSend.Replace("{" + i + "}", par[i]);
                 }
-                var task = client.SendTextMessageAsync(chatid, toSend
-                    + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
+                var task = client.SendTextMessageAsync(chatid, toSend, replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
                 message = task.Result;
                 text = toSend;
             }
-            catch (Exception ex)
+            catch
             {
                 string toSend = GetString(key, defaultLangCode);
                 for (int i = 0; i < par.Length; i++)
@@ -783,7 +783,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
                 message = task.Result;
                 text = toSend;
             }
@@ -805,7 +805,7 @@ namespace WhoAmIBotSpace
                 sent = task.Result;
                 text = toSend;
             }
-            catch (Exception ex)
+            catch
             {
                 string toSend = appendStart + GetString(key, defaultLangCode);
                 for (int i = 0; i < par.Length; i++)
@@ -815,7 +815,7 @@ namespace WhoAmIBotSpace
                 var task = client.EditMessageTextAsync(chatid, messageId, toSend
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
-                client.SendTextMessageAsync(Flom, $"Language: {ex}: {ex.Message}\n{ex.InnerException?.Message}").Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
                 sent = task.Result;
                 text = toSend;
             }
