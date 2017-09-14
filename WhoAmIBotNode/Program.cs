@@ -684,6 +684,7 @@ namespace WhoAmIBotSpace
                     + "\n<code>Original string had markdown errors</code>",
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
             }
         }
 
@@ -709,6 +710,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend 
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
             }
         }
 
@@ -726,6 +728,7 @@ namespace WhoAmIBotSpace
                     + "\n<code>Original string had markdown errors</code>",
                     replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
             }
         }
 
@@ -751,6 +754,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
             }
         }
 
@@ -780,6 +784,7 @@ namespace WhoAmIBotSpace
                 var task = client.SendTextMessageAsync(chatid, toSend
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
                 message = task.Result;
                 text = toSend;
             }
@@ -811,6 +816,7 @@ namespace WhoAmIBotSpace
                 var task = client.EditMessageTextAsync(chatid, messageId, toSend
                     + "\n<code>Original string had markdown errors</code>", replyMarkup: markup, parseMode: ParseMode.Html);
                 task.Wait();
+                client.SendTextMessageAsync(Flom, $"Failed to send {GetString(key, LangCode(chatid))}");
                 sent = task.Result;
                 text = toSend;
             }
