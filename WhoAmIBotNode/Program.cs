@@ -662,7 +662,7 @@ namespace WhoAmIBotSpace
             else
             {
                 var cmd = new SQLiteCommand("SELECT key FROM existinglanguages WHERE key LIKE" +
-                    " (SUBSTR((SELECT langkey FROM users where id=@p0), 0, 3)||'-%')", sqliteConn);
+                    " (SUBSTR((SELECT langkey FROM users where id=@id), 0, 3)||'-%')", sqliteConn);
                 cmd.Parameters.AddWithValue("id", id);
                 var res = cmd.ExecuteScalar();
                 return res != null ? (string)res : defaultLangCode;
