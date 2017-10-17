@@ -2355,6 +2355,7 @@ namespace WhoAmIBotSpace
                                 {
                                     endloop = true;
                                     NodePlayer p = game.Players.Find(x => x.Id == e.CallbackQuery.From.Id);
+                                    p.GaveUp = true;
                                     SendLangMessage(game.GroupId, Strings.GaveUp, null,
                                         p.Name,
                                         game.RoleIdDict[e.CallbackQuery.From.Id]);

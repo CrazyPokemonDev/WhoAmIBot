@@ -59,7 +59,9 @@ namespace WhoAmIBotSpace.Classes
             return s;
         }
 
-        public string GetPlayerList() => "\n" + string.Join("\n", Help.Longer(Players, TotalPlayers).Select(x => x.Name));
+        public string GetPlayerList() => 
+            "\n" + string.Join("\n", Help.Longer(Players, TotalPlayers).Select(x => x.Name + " " + 
+            (Players.Any(y => y.Id == x.Id) ? "Ingame" : (x.GaveUp ? "Gave up" : "Finished"))));
     }
 
     public enum GameState
