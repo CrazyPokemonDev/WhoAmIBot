@@ -2574,7 +2574,7 @@ namespace WhoAmIBotSpace
                     {
                         using (var reader = comm.ExecuteReader())
                         {
-                            if (reader.RecordsAffected >= 0) r += $"<i>{reader.RecordsAffected} records affected</i>\n";
+                            if (reader.RecordsAffected >= 0) r += $"{reader.RecordsAffected} records affected\n";
                             for (int i = 0; i < reader.FieldCount; i++)
                             {
                                 r += $"{reader.GetName(i)} ({reader.GetFieldType(i).Name})";
