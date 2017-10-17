@@ -61,7 +61,7 @@ namespace WhoAmIBotSpace.Classes
 
         public string GetPlayerList() => 
             "\n" + string.Join("\n", Help.Longer(Players, TotalPlayers).Select(x => x.Name + " " + 
-            (Players.Any(y => y.Id == x.Id) ? "Ingame" : (x.GaveUp ? "Gave up" : "Finished"))));
+            (Players.Any(y => y.Id == x.Id) ? "<code>Ingame</code>" : (x.GaveUp ? "<code>Gave up</code>" : "<code>Finished</code>"))));
     }
 
     public enum GameState
