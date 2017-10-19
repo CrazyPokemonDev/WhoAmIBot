@@ -24,14 +24,17 @@ namespace WhoAmIBotSpace.Classes
             Path = path;
             Process = new Process();
             Process.StartInfo.FileName = path;
-            Pipe = new NamedPipeServerStream(path, PipeDirection.Out);
-            Process.StartInfo.Arguments = "\"" + path.Trim('"') + "\"";
+            string pipename = DateTime.Now.ToString("MMddhhmmss");
+            Pipe = new NamedPipeServerStream(pipename, PipeDirection.Out);
+            Process.StartInfo.Arguments = pipename;
             Process.StartInfo.UseShellExecute = false;
         }
 
         public void Start(string token)
         {
+            Console.WriteLine("Starting node at {0}", Path);
             Process.Start();
+            Pipe.WaitForConnection();
             var sw = new StreamWriter(Pipe);
             sw.WriteLine("TOKEN:" + token);
             sw.Flush();
@@ -66,6 +69,7 @@ namespace WhoAmIBotSpace.Classes
             {
                 using (var sw = new StreamWriter(Pipe))
                 {
+                    Console.WriteLine("Queue thread at {0} started", Path);
                     while (true)
                     {
                         try { Pipe.WaitForConnection(); } catch (InvalidOperationException) { }

@@ -482,7 +482,12 @@ namespace WhoAmIBotSpace
         #region Main method
         static void Main(string[] args)
         {
-            if (args.Length < 1) return;
+            if (args.Length < 1)
+            {
+                Console.WriteLine("Missing args");
+                return;
+            }
+            Console.WriteLine("Node starting...");
             using (NamedPipeClientStream pipeClient = new NamedPipeClientStream(".", args[0].Trim('"'), PipeDirection.In))
             {
                 pipeClient.Connect();

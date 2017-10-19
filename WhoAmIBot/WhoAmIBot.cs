@@ -43,7 +43,7 @@ namespace WhoAmIBotSpace
             "WhoAmIBot\\");
         private const string dateTimeFileFormat = "yyyy-MM-dd-HH-mm-ss";
         private static readonly string defaultNodeDirectory = Path.Combine(appDataBaseDir, "default\\");
-        private static readonly string controlUpdaterPath = Path.Combine(appDataBaseDir, 
+        private static readonly string controlUpdaterPath = Path.Combine(appDataBaseDir,
             "git\\ControlUpdater\\bin\\Release\\ControlUpdater.exe");
         private static readonly string gitNodeDirectory = Path.Combine(appDataBaseDir, "git\\");
         #endregion
@@ -162,28 +162,21 @@ namespace WhoAmIBotSpace
 
         public override bool StartBot()
         {
-            try
-            {
-                var task = client.GetMeAsync();
-                task.Wait();
-                Username = task.Result.Username;
-                client.OnReceiveError += Client_OnReceiveError;
-                client.OnReceiveGeneralError += Client_OnReceiveError;
-                client.OnCallbackQuery += Client_OnCallbackQuery;
-                client.OnCallbackQuery += Client_OnCallbackQueryUpdateChecker;
-                var dir = defaultNodeDirectory;
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                var path = Path.Combine(dir, "WhoAmIBotNode.exe");
-                /*if (!File.Exists(path)) Process.Start(dir);*/
-                Node n = new Node(path);
-                n.NodeStopped += (sender, node) => Nodes.Remove(n);
-                n.Start(Token);
-                Nodes.Add(n);
-            }
-            catch
-            {
-                return false;
-            }
+            var task = client.GetMeAsync();
+            task.Wait();
+            Username = task.Result.Username;
+            client.OnReceiveError += Client_OnReceiveError;
+            client.OnReceiveGeneralError += Client_OnReceiveError;
+            client.OnCallbackQuery += Client_OnCallbackQuery;
+            client.OnCallbackQuery += Client_OnCallbackQueryUpdateChecker;
+            var dir = defaultNodeDirectory;
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "WhoAmIBotNode.exe");
+            /*if (!File.Exists(path)) Process.Start(dir);*/
+            Node n = new Node(path);
+            n.NodeStopped += (sender, node) => Nodes.Remove(n);
+            n.Start(Token);
+            Nodes.Add(n);
             return base.StartBot();
         }
 
@@ -208,9 +201,9 @@ namespace WhoAmIBotSpace
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
-            if (e.Update.Type == UpdateType.MessageUpdate && 
+            if (e.Update.Type == UpdateType.MessageUpdate &&
                 (e.Update.Message.NewChatPhoto != null || e.Update.Message.Sticker != null || e.Update.Message.Type == MessageType.PhotoMessage
-                || (e.Update.Message.Type == MessageType.DocumentMessage && e.Update.Message.Document.Thumb != null) 
+                || (e.Update.Message.Type == MessageType.DocumentMessage && e.Update.Message.Document.Thumb != null)
                 || e.Update.Message.Type == MessageType.GameMessage || e.Update.Message.Type == MessageType.VideoMessage
                 || e.Update.Message.Type == MessageType.VideoNoteMessage)) return; //workaround for the bug
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.ReplyToMessage != null && (e.Update.Message.ReplyToMessage.NewChatPhoto != null || e.Update.Message.ReplyToMessage.Sticker != null || e.Update.Message.ReplyToMessage.Type == MessageType.PhotoMessage
