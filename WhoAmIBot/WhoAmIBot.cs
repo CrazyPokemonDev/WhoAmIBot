@@ -14,7 +14,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using System.Linq;
 using Newtonsoft.Json;
 using System.Diagnostics;
-using System.Security.Permissions;
+using System.Reflection;
 
 namespace WhoAmIBotSpace
 {
@@ -43,11 +43,16 @@ namespace WhoAmIBotSpace
             "WhoAmIBot\\");
         private const string dateTimeFileFormat = "yyyy-MM-dd-HH-mm-ss";
         private static readonly string defaultNodeDirectory = Path.Combine(appDataBaseDir, "default\\");
+        private static readonly string controlUpdaterPath = Path.Combine(appDataBaseDir, 
+            "git\\ControlUpdater\\bin\\Release\\ControlUpdater.exe");
         private static readonly string gitNodeDirectory = Path.Combine(appDataBaseDir, "git\\");
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
         private List<Node> Nodes = new List<Node>();
+        #endregion
+        #region Events
+        public event EventHandler<RestartEventArgs> Restart;
         #endregion
 
         #region Helpers
@@ -191,7 +196,7 @@ namespace WhoAmIBotSpace
                     Nodes.Remove(Nodes[0]);
                     continue;
                 }
-                Nodes[0].Stop();
+                if (Nodes[0].State != NodeState.Stopping) Nodes[0].SoftStop();
             }
             client.OnReceiveError -= Client_OnReceiveError;
             client.OnReceiveGeneralError -= Client_OnReceiveError;
@@ -228,6 +233,16 @@ namespace WhoAmIBotSpace
                             var t = client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Updating...");
                             t.Wait();
                             Update(t.Result);
+                            return;
+                        }
+                    }
+                    else if (cmd == "/updatecontrol")
+                    {
+                        if (e.Update.Message.From.Id == Flom)
+                        {
+                            client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Updating Control. You should try /ping in " +
+                                "about ten seconds, given that all games have already finished.");
+                            UpdateControl();
                             return;
                         }
                     }
@@ -290,6 +305,11 @@ namespace WhoAmIBotSpace
             {
                 case "update":
                     Update(cmsg);
+                    break;
+                case "updatecontrol":
+                    client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Updating Control. You should try /ping in " +
+                        "about ten seconds, given that all games have already finished.");
+                    UpdateControl();
                     break;
                 case "dontUpdate":
                     client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Okay, no work for me :)");
@@ -356,6 +376,42 @@ namespace WhoAmIBotSpace
             foreach (FileInfo file in source.GetFiles())
                 file.CopyTo(Path.Combine(target.FullName, file.Name));
 
+        }
+
+        public void UpdateControl()
+        {
+            StopBot();
+
+            string path = Assembly.GetExecutingAssembly().CodeBase;
+            if (path.StartsWith("file:///")) path = path.Substring(8).Replace("/", "\\");
+            #region Update git
+            if (!Directory.Exists(appDataBaseDir)) Directory.CreateDirectory(appDataBaseDir);
+            if (!Directory.Exists(gitNodeDirectory)) Directory.CreateDirectory(gitNodeDirectory);
+            string firstDir = Path.Combine(gitNodeDirectory, "first.bat");
+            if (!File.Exists(firstDir)) File.Copy("Updater\\first.bat", firstDir);
+            string runDir = Path.Combine(gitNodeDirectory, "run.bat");
+            if (!File.Exists(runDir)) File.Copy("Updater\\run.bat", runDir);
+            Process first = new Process();
+            first.StartInfo.FileName = firstDir;
+            first.StartInfo.UseShellExecute = false;
+            first.StartInfo.WorkingDirectory = Path.GetDirectoryName(firstDir);
+            first.Start();
+            first.WaitForExit();
+            Process run = new Process();
+            run.StartInfo.FileName = runDir;
+            run.StartInfo.UseShellExecute = false;
+            run.StartInfo.WorkingDirectory = Path.GetDirectoryName(runDir);
+            run.Start();
+            run.WaitForExit();
+            string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotNode_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
+            if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
+            string gitDirToCopy = Path.Combine(gitNodeDirectory, "WhoAmIBot\\WhoAmIBotNode\\bin\\Release");
+            DeepCopy(new DirectoryInfo(gitDirToCopy), new DirectoryInfo(newDir));
+            #endregion
+            newDir = Path.Combine(newDir, "WhoAmIBot.dll");
+            Restart?.Invoke(this, new RestartEventArgs(path, newDir));
+            ProcessStartInfo psi = new ProcessStartInfo(controlUpdaterPath, "\"" + path.Trim('"') + "\" \"" + newDir.Trim('"') + "\"");
+            Process.Start(psi);
         }
         #endregion
 

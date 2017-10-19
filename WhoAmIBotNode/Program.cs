@@ -483,8 +483,9 @@ namespace WhoAmIBotSpace
         static void Main(string[] args)
         {
             if (args.Length < 1) return;
-            using (PipeStream pipeClient = new AnonymousPipeClientStream(PipeDirection.In, args[0]))
+            using (NamedPipeClientStream pipeClient = new NamedPipeClientStream(".", args[0].Trim('"'), PipeDirection.In))
             {
+                pipeClient.Connect();
                 using (var sr = new StreamReader(pipeClient))
                 {
                     string data;
@@ -533,9 +534,8 @@ namespace WhoAmIBotSpace
                                 State = NodeState.Stopped;
                                 running = false;
                             }
-                            continue;
                         }
-                        if (!string.IsNullOrEmpty(data))
+                        else if (!string.IsNullOrEmpty(data))
                         {
                             HandleData(data);
                         }
@@ -1243,7 +1243,8 @@ namespace WhoAmIBotSpace
             foreach (var s in list)
             {
                 if (string.IsNullOrWhiteSpace(s)) continue;
-                var t = client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(NodeGames, msg.Chat.Id));
+                var t = client.SendTextMessageAsync(msg.Chat.Id, s, replyMarkup: ReplyMarkupMaker.InlineGetGames(NodeGames, msg.Chat.Id), 
+                    parseMode: ParseMode.Html);
                 t.Wait();
                 sent.Add(t.Result);
             }

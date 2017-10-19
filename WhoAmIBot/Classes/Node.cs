@@ -10,13 +10,13 @@ namespace WhoAmIBotSpace.Classes
     public class Node
     {
         public Process Process { get; }
-        private AnonymousPipeServerStream Pipe { get; }
+        private NamedPipeServerStream Pipe { get; }
         public NodeState State { get; set; } = NodeState.Primary;
         public string Path { get; set; }
         private List<string> queue = new List<string>();
         private Thread QThread;
         public event EventHandler<Node> NodeStopped;
-        
+
         public Node(string path)
         {
             Console.WriteLine("Initializing Node at {0}", path);
@@ -24,8 +24,8 @@ namespace WhoAmIBotSpace.Classes
             Path = path;
             Process = new Process();
             Process.StartInfo.FileName = path;
-            Pipe = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
-            Process.StartInfo.Arguments = Pipe.GetClientHandleAsString();
+            Pipe = new NamedPipeServerStream(path, PipeDirection.Out);
+            Process.StartInfo.Arguments = "\"" + path.Trim('"') + "\"";
             Process.StartInfo.UseShellExecute = false;
         }
 
@@ -38,7 +38,7 @@ namespace WhoAmIBotSpace.Classes
             Pipe.WaitForPipeDrain();
             QThread.Start();
         }
-        
+
         public void Stop()
         {
             QThread.Abort();
@@ -68,6 +68,7 @@ namespace WhoAmIBotSpace.Classes
                 {
                     while (true)
                     {
+                        try { Pipe.WaitForConnection(); } catch (InvalidOperationException) { }
                         while (queue.Count < 1) ;
                         var data = queue[0];
                         sw.WriteLine(data);
@@ -90,7 +91,7 @@ namespace WhoAmIBotSpace.Classes
             queue.Add(data);
         }
     }
-    
+
     public enum NodeState
     {
         Primary,
