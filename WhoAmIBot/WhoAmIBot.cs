@@ -392,6 +392,12 @@ namespace WhoAmIBotSpace
 
         private void UpdateControlThread()
         {
+            string newestNodePath = null;
+            if (Nodes.Any(x => x.State == NodeState.Primary))
+            {
+                Node node = Nodes.Find(x => x.State == NodeState.Primary);
+                if (node.Path != Path.Combine(defaultNodeDirectory, "WhoAmIBotNode.exe")) newestNodePath = node.Path;
+            }
             StopBot();
 
             string path = Assembly.GetExecutingAssembly().CodeBase;
@@ -415,11 +421,15 @@ namespace WhoAmIBotSpace
             run.StartInfo.WorkingDirectory = Path.GetDirectoryName(runDir);
             run.Start();
             run.WaitForExit();
-            string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotNode_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
+            string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotControl_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
             if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
-            string gitDirToCopy = Path.Combine(gitNodeDirectory, "WhoAmIBot\\WhoAmIBotNode\\bin\\Release");
+            string gitDirToCopy = Path.Combine(gitNodeDirectory, "WhoAmIBot\\WhoAmIBot\\bin\\Release");
             DeepCopy(new DirectoryInfo(gitDirToCopy), new DirectoryInfo(newDir));
             #endregion
+            if (newestNodePath != null)
+            {
+                DeepCopy(new DirectoryInfo(Path.GetDirectoryName(newestNodePath)), new DirectoryInfo(defaultNodeDirectory));
+            }
             newDir = Path.Combine(newDir, "WhoAmIBot.dll");
             Restart?.Invoke(this, new RestartEventArgs(path, newDir));
             ProcessStartInfo psi = new ProcessStartInfo(controlUpdaterPath, "\"" + path.Trim('"') + "\" \"" + newDir.Trim('"') + "\"");
