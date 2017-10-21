@@ -15,6 +15,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading;
 
 namespace WhoAmIBotSpace
 {
@@ -314,6 +315,18 @@ namespace WhoAmIBotSpace
         #region Updater
         private void Update(Message toEdit)
         {
+            ParameterizedThreadStart pts = new ParameterizedThreadStart(UpdateThread);
+            Thread t = new Thread(pts);
+            t.Start(toEdit);
+        }
+
+        private void UpdateThread(object obj)
+        {
+            if (!(obj is Message))
+            {
+                return;
+            }
+            Message toEdit = (Message)obj;
             var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nPulling git...");
             t.Wait();
             toEdit = t.Result;
@@ -372,6 +385,12 @@ namespace WhoAmIBotSpace
         }
 
         public void UpdateControl()
+        {
+            Thread t = new Thread(UpdateControlThread);
+            t.Start();
+        }
+
+        private void UpdateControlThread()
         {
             StopBot();
 
