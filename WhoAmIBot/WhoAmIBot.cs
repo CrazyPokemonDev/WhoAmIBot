@@ -394,7 +394,7 @@ namespace WhoAmIBotSpace
 
             // Go ahead and copy each file in "source" to the "target" directory
             foreach (FileInfo file in source.GetFiles())
-                file.CopyTo(Path.Combine(target.FullName, file.Name));
+                file.CopyTo(Path.Combine(target.FullName, file.Name), true);
 
         }
 
