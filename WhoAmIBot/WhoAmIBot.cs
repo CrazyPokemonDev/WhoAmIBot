@@ -234,16 +234,17 @@ namespace WhoAmIBotSpace
                     {
                         if (e.Update.Message.From.Id == Flom)
                         {
-                            client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Updating Control. You should try /ping in " +
+                            var t = client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Updating Control. You should try /ping in " +
                                 "about ten seconds, given that all games have already finished.");
-                            UpdateControl();
+                            t.Wait();
+                            UpdateControl(t.Result);
                             return;
                         }
                     }
-                    else if (cmd == "/test" && e.Update.Message.From.Id == Flom)
+                    /*else if (cmd == "/test" && e.Update.Message.From.Id == Flom)
                     {
                         client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Test command received at control.");
-                    }
+                    }*/
                     if (StandaloneCommandExists(cmd))
                     {
                         var node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
@@ -307,7 +308,7 @@ namespace WhoAmIBotSpace
                 case "updatecontrol":
                     client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Updating Control. You should try /ping in " +
                         "about ten seconds, given that all games have already finished.");
-                    UpdateControl();
+                    UpdateControl(cmsg);
                     break;
                 case "dontUpdate":
                     client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Okay, no work for me :)");
@@ -388,14 +389,19 @@ namespace WhoAmIBotSpace
 
         }
 
-        public void UpdateControl()
+        public void UpdateControl(Message toEdit)
         {
-            Thread t = new Thread(UpdateControlThread);
-            t.Start();
+            ParameterizedThreadStart pts = new ParameterizedThreadStart(UpdateControlThread);
+            Thread t = new Thread(pts);
+            t.Start(toEdit);
         }
 
-        private void UpdateControlThread()
+        private void UpdateControlThread(object obj)
         {
+            if (!(obj is Message toEdit)) return;
+            var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nWaiting for games to stop...");
+            t.Wait();
+            toEdit = t.Result;
             string newestNodePath = null;
             if (Nodes.Any(x => x.State == NodeState.Primary))
             {
@@ -406,6 +412,9 @@ namespace WhoAmIBotSpace
 
             string path = Assembly.GetExecutingAssembly().CodeBase;
             if (path.StartsWith("file:///")) path = path.Substring(8).Replace("/", "\\");
+            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nUpdating git...");
+            t.Wait();
+            toEdit = t.Result;
             #region Update git
             if (!Directory.Exists(appDataBaseDir)) Directory.CreateDirectory(appDataBaseDir);
             if (!Directory.Exists(gitNodeDirectory)) Directory.CreateDirectory(gitNodeDirectory);
@@ -435,6 +444,9 @@ namespace WhoAmIBotSpace
                 DeepCopy(new DirectoryInfo(Path.GetDirectoryName(newestNodePath)), new DirectoryInfo(defaultNodeDirectory));
             }
             newDir = Path.Combine(newDir, "WhoAmIBot.dll");
+            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nInvoking restart event...");
+            t.Wait();
+            toEdit = t.Result;
             Restart?.Invoke(this, new RestartEventArgs(path, newDir));
             ProcessStartInfo psi = new ProcessStartInfo(controlUpdaterPath, "\"" + path.Trim('"') + "\" \"" + newDir.Trim('"') + "\"");
             Process.Start(psi);
