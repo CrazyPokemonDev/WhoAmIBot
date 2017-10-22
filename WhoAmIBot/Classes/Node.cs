@@ -82,7 +82,7 @@ namespace WhoAmIBotSpace.Classes
                     }
                 }
             }
-            finally
+            catch
             {
                 Console.WriteLine("Queue thread of node at {0} stopped.", Path);
                 State = NodeState.Stopped;
