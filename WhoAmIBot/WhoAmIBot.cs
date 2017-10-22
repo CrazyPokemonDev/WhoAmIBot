@@ -45,7 +45,7 @@ namespace WhoAmIBotSpace
         private const string dateTimeFileFormat = "yyyy-MM-dd-HH-mm-ss";
         private static readonly string defaultNodeDirectory = Path.Combine(appDataBaseDir, "default\\");
         private static readonly string controlUpdaterPath = Path.Combine(appDataBaseDir,
-            "git\\ControlUpdater\\bin\\Release\\ControlUpdater.exe");
+            "git\\WhoAmIBot\\ControlUpdater\\bin\\Release\\ControlUpdater.exe");
         private static readonly string gitNodeDirectory = Path.Combine(appDataBaseDir, "git\\");
         #endregion
         #region Fields
@@ -241,10 +241,10 @@ namespace WhoAmIBotSpace
                             return;
                         }
                     }
-                    else if (cmd == "/test" && e.Update.Message.From.Id == Flom)
+                    /*else if (cmd == "/test" && e.Update.Message.From.Id == Flom)
                     {
                         client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Test command received at control.");
-                    }
+                    }*/
                     if (StandaloneCommandExists(cmd))
                     {
                         var node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
