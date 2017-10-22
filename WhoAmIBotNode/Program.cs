@@ -53,6 +53,7 @@ namespace WhoAmIBotSpace
         private static readonly Regex SelectLangRegex = new Regex(@"^lang:.+@-*\d+$");
         protected static readonly Flom Flom = new Flom();
         private const long supportId = -1001093405914;
+        private const string Version = "3.0.0";
         #endregion
         #region Fields
         private static SQLiteConnection sqliteConn;
@@ -1588,7 +1589,7 @@ namespace WhoAmIBotSpace
         private static void Nodes_Command(Message msg)
         {
             if (!GlobalAdminExists(msg.From.Id)) return;
-            client.SendTextMessageAsync(msg.Chat.Id, Assembly.GetExecutingAssembly().Location).Wait();
+            client.SendTextMessageAsync(msg.Chat.Id, Assembly.GetExecutingAssembly().Location + "\n" + Version).Wait();
         }
         #endregion
         #region /ping
