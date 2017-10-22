@@ -189,7 +189,7 @@ namespace WhoAmIBotSpace
                 {
                     Nodes.Remove(Nodes[0]);
                 }
-                else if (Nodes[0].State != NodeState.Stopping) Nodes[0].SoftStop();
+                else if (Nodes.Count > 0 && Nodes[0].State != NodeState.Stopping) Nodes[0].SoftStop();
             }
             client.OnReceiveError -= Client_OnReceiveError;
             client.OnReceiveGeneralError -= Client_OnReceiveError;
