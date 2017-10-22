@@ -403,7 +403,10 @@ namespace WhoAmIBotSpace
             try
             {
                 if (!(obj is Message toEdit)) return;
-                var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nWaiting for games to stop...");
+                var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, "Updating control");
+                t.Wait();
+                toEdit = t.Result;
+                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nWaiting for games to stop...");
                 t.Wait();
                 toEdit = t.Result;
                 string newestNodePath = null;
