@@ -187,7 +187,7 @@ namespace WhoAmIBotSpace
             {
                 if (Nodes[0].State == NodeState.Stopped)
                 {
-                    Nodes.Remove(Nodes[0]);
+                    Nodes.RemoveAt(0);
                 }
                 else if (Nodes.Count > 0 && Nodes[0].State != NodeState.Stopping) Nodes[0].SoftStop();
             }
@@ -296,7 +296,7 @@ namespace WhoAmIBotSpace
 
         private void Client_OnCallbackQueryUpdateChecker(object sender, CallbackQueryEventArgs e)
         {
-            if ((e.CallbackQuery.Data != "update" && e.CallbackQuery.Data != "dontUpdate")
+            if ((e.CallbackQuery.Data != "update" && e.CallbackQuery.Data != "dontUpdate" && e.CallbackQuery.Data != "updatecontrol")
                 || e.CallbackQuery.From.Id != Flom || e.CallbackQuery.Message == null) return;
             Message cmsg = e.CallbackQuery.Message;
             switch (e.CallbackQuery.Data)
@@ -455,9 +455,9 @@ namespace WhoAmIBotSpace
                 t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nInvoking restart event...");
                 t.Wait();
                 toEdit = t.Result;
-                Restart?.Invoke(this, new RestartEventArgs(path, newDir));
                 ProcessStartInfo psi = new ProcessStartInfo(controlUpdaterPath, "\"" + path.Trim('"') + "\" \"" + newDir.Trim('"') + "\"");
                 Process.Start(psi);
+                Restart?.Invoke(this, new RestartEventArgs(path, newDir));
             }
             catch (Exception ex)
             {
