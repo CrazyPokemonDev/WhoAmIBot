@@ -240,10 +240,10 @@ namespace WhoAmIBotSpace
                             return;
                         }
                     }
-                    /*else if (cmd == "/test" && e.Update.Message.From.Id == Flom)
+                    else if (cmd == "/test" && e.Update.Message.From.Id == Flom)
                     {
                         client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Test command received at control.");
-                    }*/
+                    }
                     if (StandaloneCommandExists(cmd))
                     {
                         var node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
@@ -457,6 +457,7 @@ namespace WhoAmIBotSpace
                 toEdit = t.Result;
                 ProcessStartInfo psi = new ProcessStartInfo(controlUpdaterPath, "\"" + path.Trim('"') + "\" \"" + newDir.Trim('"') + "\"");
                 Process.Start(psi);
+                Thread.Sleep(500);
                 Restart?.Invoke(this, new RestartEventArgs(path, newDir));
             }
             catch (Exception ex)
