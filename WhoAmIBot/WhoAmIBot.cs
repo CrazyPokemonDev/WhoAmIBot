@@ -327,52 +327,59 @@ namespace WhoAmIBotSpace
 
         private void UpdateThread(object obj)
         {
-            if (!(obj is Message))
+            try
             {
-                return;
+                if (!(obj is Message))
+                {
+                    return;
+                }
+                Message toEdit = (Message)obj;
+                var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nPulling git...");
+                t.Wait();
+                toEdit = t.Result;
+                if (!Directory.Exists(appDataBaseDir)) Directory.CreateDirectory(appDataBaseDir);
+                if (!Directory.Exists(gitNodeDirectory)) Directory.CreateDirectory(gitNodeDirectory);
+                string firstDir = Path.Combine(gitNodeDirectory, "first.bat");
+                if (!File.Exists(firstDir)) File.Copy("Updater\\first.bat", firstDir);
+                string runDir = Path.Combine(gitNodeDirectory, "run.bat");
+                if (!File.Exists(runDir)) File.Copy("Updater\\run.bat", runDir);
+                Process first = new Process();
+                first.StartInfo.FileName = firstDir;
+                first.StartInfo.UseShellExecute = false;
+                first.StartInfo.WorkingDirectory = Path.GetDirectoryName(firstDir);
+                first.Start();
+                first.WaitForExit();
+                Process run = new Process();
+                run.StartInfo.FileName = runDir;
+                run.StartInfo.UseShellExecute = false;
+                run.StartInfo.WorkingDirectory = Path.GetDirectoryName(runDir);
+                run.Start();
+                run.WaitForExit();
+                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nCopying files to node directory...");
+                t.Wait();
+                toEdit = t.Result;
+                string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotNode_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
+                if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
+                string gitDirToCopy = Path.Combine(gitNodeDirectory, "WhoAmIBot\\WhoAmIBotNode\\bin\\Release");
+                DeepCopy(new DirectoryInfo(gitDirToCopy), new DirectoryInfo(newDir));
+                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + $"\nStarting node at {newDir}...");
+                t.Wait();
+                toEdit = t.Result;
+                Node n = new Node(Path.Combine(newDir, "WhoAmIBotNode.exe"));
+                foreach (var sNode in Nodes.FindAll(x => x.State == NodeState.Primary))
+                {
+                    sNode.SoftStop();
+                }
+                n.Start(Token);
+                Nodes.Add(n);
+                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nFinished.");
+                t.Wait();
+                toEdit = t.Result;
             }
-            Message toEdit = (Message)obj;
-            var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nPulling git...");
-            t.Wait();
-            toEdit = t.Result;
-            if (!Directory.Exists(appDataBaseDir)) Directory.CreateDirectory(appDataBaseDir);
-            if (!Directory.Exists(gitNodeDirectory)) Directory.CreateDirectory(gitNodeDirectory);
-            string firstDir = Path.Combine(gitNodeDirectory, "first.bat");
-            if (!File.Exists(firstDir)) File.Copy("Updater\\first.bat", firstDir);
-            string runDir = Path.Combine(gitNodeDirectory, "run.bat");
-            if (!File.Exists(runDir)) File.Copy("Updater\\run.bat", runDir);
-            Process first = new Process();
-            first.StartInfo.FileName = firstDir;
-            first.StartInfo.UseShellExecute = false;
-            first.StartInfo.WorkingDirectory = Path.GetDirectoryName(firstDir);
-            first.Start();
-            first.WaitForExit();
-            Process run = new Process();
-            run.StartInfo.FileName = runDir;
-            run.StartInfo.UseShellExecute = false;
-            run.StartInfo.WorkingDirectory = Path.GetDirectoryName(runDir);
-            run.Start();
-            run.WaitForExit();
-            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nCopying files to node directory...");
-            t.Wait();
-            toEdit = t.Result;
-            string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotNode_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
-            if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
-            string gitDirToCopy = Path.Combine(gitNodeDirectory, "WhoAmIBot\\WhoAmIBotNode\\bin\\Release");
-            DeepCopy(new DirectoryInfo(gitDirToCopy), new DirectoryInfo(newDir));
-            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + $"\nStarting node at {newDir}...");
-            t.Wait();
-            toEdit = t.Result;
-            Node n = new Node(Path.Combine(newDir, "WhoAmIBotNode.exe"));
-            foreach (var sNode in Nodes.FindAll(x => x.State == NodeState.Primary))
+            catch (Exception ex)
             {
-                sNode.SoftStop();
+                client.SendTextMessageAsync(Flom, ex.ToString());
             }
-            n.Start(Token);
-            Nodes.Add(n);
-            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nFinished.");
-            t.Wait();
-            toEdit = t.Result;
         }
 
         public static void DeepCopy(DirectoryInfo source, DirectoryInfo target)
@@ -398,58 +405,65 @@ namespace WhoAmIBotSpace
 
         private void UpdateControlThread(object obj)
         {
-            if (!(obj is Message toEdit)) return;
-            var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nWaiting for games to stop...");
-            t.Wait();
-            toEdit = t.Result;
-            string newestNodePath = null;
-            if (Nodes.Any(x => x.State == NodeState.Primary))
+            try
             {
-                Node node = Nodes.Find(x => x.State == NodeState.Primary);
-                if (node.Path != Path.Combine(defaultNodeDirectory, "WhoAmIBotNode.exe")) newestNodePath = node.Path;
-            }
-            StopBot();
+                if (!(obj is Message toEdit)) return;
+                var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nWaiting for games to stop...");
+                t.Wait();
+                toEdit = t.Result;
+                string newestNodePath = null;
+                if (Nodes.Any(x => x.State == NodeState.Primary))
+                {
+                    Node node = Nodes.Find(x => x.State == NodeState.Primary);
+                    if (node.Path != Path.Combine(defaultNodeDirectory, "WhoAmIBotNode.exe")) newestNodePath = node.Path;
+                }
+                StopBot();
 
-            string path = Assembly.GetExecutingAssembly().CodeBase;
-            if (path.StartsWith("file:///")) path = path.Substring(8).Replace("/", "\\");
-            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nUpdating git...");
-            t.Wait();
-            toEdit = t.Result;
-            #region Update git
-            if (!Directory.Exists(appDataBaseDir)) Directory.CreateDirectory(appDataBaseDir);
-            if (!Directory.Exists(gitNodeDirectory)) Directory.CreateDirectory(gitNodeDirectory);
-            string firstDir = Path.Combine(gitNodeDirectory, "first.bat");
-            if (!File.Exists(firstDir)) File.Copy("Updater\\first.bat", firstDir);
-            string runDir = Path.Combine(gitNodeDirectory, "run.bat");
-            if (!File.Exists(runDir)) File.Copy("Updater\\run.bat", runDir);
-            Process first = new Process();
-            first.StartInfo.FileName = firstDir;
-            first.StartInfo.UseShellExecute = false;
-            first.StartInfo.WorkingDirectory = Path.GetDirectoryName(firstDir);
-            first.Start();
-            first.WaitForExit();
-            Process run = new Process();
-            run.StartInfo.FileName = runDir;
-            run.StartInfo.UseShellExecute = false;
-            run.StartInfo.WorkingDirectory = Path.GetDirectoryName(runDir);
-            run.Start();
-            run.WaitForExit();
-            string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotControl_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
-            if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
-            string gitDirToCopy = Path.Combine(gitNodeDirectory, "WhoAmIBot\\WhoAmIBot\\bin\\Release");
-            DeepCopy(new DirectoryInfo(gitDirToCopy), new DirectoryInfo(newDir));
-            #endregion
-            if (newestNodePath != null)
-            {
-                DeepCopy(new DirectoryInfo(Path.GetDirectoryName(newestNodePath)), new DirectoryInfo(defaultNodeDirectory));
+                string path = Assembly.GetExecutingAssembly().CodeBase;
+                if (path.StartsWith("file:///")) path = path.Substring(8).Replace("/", "\\");
+                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nUpdating git...");
+                t.Wait();
+                toEdit = t.Result;
+                #region Update git
+                if (!Directory.Exists(appDataBaseDir)) Directory.CreateDirectory(appDataBaseDir);
+                if (!Directory.Exists(gitNodeDirectory)) Directory.CreateDirectory(gitNodeDirectory);
+                string firstDir = Path.Combine(gitNodeDirectory, "first.bat");
+                if (!File.Exists(firstDir)) File.Copy("Updater\\first.bat", firstDir);
+                string runDir = Path.Combine(gitNodeDirectory, "run.bat");
+                if (!File.Exists(runDir)) File.Copy("Updater\\run.bat", runDir);
+                Process first = new Process();
+                first.StartInfo.FileName = firstDir;
+                first.StartInfo.UseShellExecute = false;
+                first.StartInfo.WorkingDirectory = Path.GetDirectoryName(firstDir);
+                first.Start();
+                first.WaitForExit();
+                Process run = new Process();
+                run.StartInfo.FileName = runDir;
+                run.StartInfo.UseShellExecute = false;
+                run.StartInfo.WorkingDirectory = Path.GetDirectoryName(runDir);
+                run.Start();
+                run.WaitForExit();
+                string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotControl_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
+                if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
+                string gitDirToCopy = Path.Combine(gitNodeDirectory, "WhoAmIBot\\WhoAmIBot\\bin\\Release");
+                DeepCopy(new DirectoryInfo(gitDirToCopy), new DirectoryInfo(newDir));
+                #endregion
+                if (newestNodePath != null)
+                {
+                    DeepCopy(new DirectoryInfo(Path.GetDirectoryName(newestNodePath)), new DirectoryInfo(defaultNodeDirectory));
+                }
+                newDir = Path.Combine(newDir, "WhoAmIBot.dll");
+                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nInvoking restart event...");
+                t.Wait();
+                toEdit = t.Result;
+                Restart?.Invoke(this, new RestartEventArgs(path, newDir));
+                ProcessStartInfo psi = new ProcessStartInfo(controlUpdaterPath, "\"" + path.Trim('"') + "\" \"" + newDir.Trim('"') + "\"");
+                Process.Start(psi);
             }
-            newDir = Path.Combine(newDir, "WhoAmIBot.dll");
-            t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nInvoking restart event...");
-            t.Wait();
-            toEdit = t.Result;
-            Restart?.Invoke(this, new RestartEventArgs(path, newDir));
-            ProcessStartInfo psi = new ProcessStartInfo(controlUpdaterPath, "\"" + path.Trim('"') + "\" \"" + newDir.Trim('"') + "\"");
-            Process.Start(psi);
+            catch (Exception ex)
+            {
+                client.SendTextMessageAsync(Flom, ex.ToString());
+            }
         }
         #endregion
 
