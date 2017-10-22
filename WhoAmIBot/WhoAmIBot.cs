@@ -185,11 +185,18 @@ namespace WhoAmIBotSpace
         {
             while (Nodes.Count > 0)
             {
-                if (Nodes[0].State == NodeState.Stopped)
+                switch (Nodes[0].State)
                 {
-                    Nodes.RemoveAt(0);
+                    case NodeState.Primary:
+                        Nodes[0].SoftStop();
+                        break;
+                    case NodeState.Stopped:
+                        Nodes.RemoveAt(0);
+                        break;
+                    case NodeState.Stopping:
+                        Nodes[0].Queue("PING");
+                        break;
                 }
-                else if (Nodes.Count > 0 && Nodes[0].State != NodeState.Stopping) Nodes[0].SoftStop();
             }
             client.OnReceiveError -= Client_OnReceiveError;
             client.OnReceiveGeneralError -= Client_OnReceiveError;
