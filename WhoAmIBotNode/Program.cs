@@ -508,14 +508,6 @@ namespace WhoAmIBotSpace
                             Console.WriteLine($"Node: Username: {Username}");
                             continue;
                         }
-                        /*if (data.StartsWith("PING:"))
-                        {
-                            data = data.Substring(5);
-                            var s = data.Split(':');
-                            var now = DateTime.Now;
-                            Console.WriteLine($"{now.Hour - Convert.ToInt64(s[0])}:{now.Minute - Convert.ToInt64(s[1])}:{now.Second - Convert.ToInt64(s[2])}:{now.Millisecond - Convert.ToInt64(s[3])}");
-                            continue;
-                        }*/
                         if (data.StartsWith("STOP"))
                         {
                             Console.WriteLine("Stopping node at " + Assembly.GetExecutingAssembly().Location);
@@ -539,6 +531,10 @@ namespace WhoAmIBotSpace
                                 State = NodeState.Stopped;
                                 running = false;
                             }
+                        }
+                        else if (data.StartsWith("PING"))
+                        {
+                            continue;
                         }
                         else if (!string.IsNullOrEmpty(data))
                         {
