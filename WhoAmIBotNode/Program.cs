@@ -53,7 +53,8 @@ namespace WhoAmIBotSpace
         private static readonly Regex SelectLangRegex = new Regex(@"^lang:.+@-*\d+$");
         protected static readonly Flom Flom = new Flom();
         private const long supportId = -1001093405914;
-        private const string Version = "3.0.0";
+        private const string Version = "3.0.1";
+        private const long tracingChannelId = -1001383830638;
         #endregion
         #region Fields
         private static SQLiteConnection sqliteConn;
@@ -575,6 +576,8 @@ namespace WhoAmIBotSpace
                                     try
                                     {
                                         commands[cmd].Invoke(update.Message);
+                                        client.SendTextMessageAsync(tracingChannelId, 
+                                            $"Command <code>{cmd}</code> was sent to <code>{update.Message.Chat.Id}</code>", ParseMode.Html);
                                     }
                                     catch (Exception ex)
                                     {
