@@ -1880,7 +1880,14 @@ namespace WhoAmIBotSpace
             Timer t = new Timer(x =>
             {
                 CancelGame(g);
-                SendLangMessage(g.GroupId, Strings.GameTimedOut);
+                try
+                {
+                    SendLangMessage(g.GroupId, Strings.GameTimedOut);
+                }
+                catch (Exception ex)
+                {
+                    client.SendTextMessageAsync(Flom, ex.ToString());
+                }
             }, null, g.Group.JoinTimeout * 60 * 1000, Timeout.Infinite);
             g.InactivityTimer = t;
         }
