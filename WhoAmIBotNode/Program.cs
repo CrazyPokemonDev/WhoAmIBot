@@ -2551,6 +2551,7 @@ namespace WhoAmIBotSpace
                     var cmd = new SQLiteCommand("DELETE FROM Games WHERE Id=@id", sqliteConn);
                     cmd.Parameters.AddWithValue("id", game.Id);
                     cmd.ExecuteNonQuery();
+                    NodeGames.Remove(game);
                     GameFinished?.Invoke(null, new GameFinishedEventArgs(game));
                 }
             }
