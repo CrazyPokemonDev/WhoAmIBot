@@ -302,8 +302,7 @@ namespace WhoAmIBotSpace
                     Update(cmsg);
                     break;
                 case "updatecontrol":
-                    client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Updating Control. You should try /ping in " +
-                        "about ten seconds, given that all games have already finished.");
+                    client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Updating Control.");
                     UpdateControl(cmsg);
                     break;
                 case "dontUpdate":
