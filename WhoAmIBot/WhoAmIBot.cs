@@ -163,13 +163,6 @@ namespace WhoAmIBotSpace
 
         public override bool StartBot()
         {
-            int version = int.Parse(File.ReadAllText("version.conf"));
-            int newVersion = int.Parse(File.ReadAllText(Path.Combine(gitDirectory, "WhoAmIBot\\WhoAmIBot\\version.conf")));
-            if (newVersion > version)
-            {
-                UpdateControl(client.SendTextMessageAsync(testingGroupId, "Updating Control...").Result);
-                return false;
-            }
             var task = client.GetMeAsync();
             task.Wait();
             Username = task.Result.Username;
