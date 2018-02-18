@@ -191,7 +191,7 @@ namespace WhoAmIBotSpace
                         Nodes[0].SoftStop();
                         break;
                     case NodeState.Stopped:
-                        Nodes.RemoveAt(0);
+                        //Nodes.RemoveAt(0);
                         break;
                     case NodeState.Stopping:
                         Nodes[0].Queue("PING");
