@@ -51,6 +51,7 @@ namespace WhoAmIBotSpace
         #region Fields
         private SQLiteConnection sqliteConn;
         private List<Node> Nodes = new List<Node>();
+        private bool updating = false;
         #endregion
         #region Events
         public event EventHandler<RestartEventArgs> Restart;
@@ -244,6 +245,11 @@ namespace WhoAmIBotSpace
                     if (StandaloneCommandExists(cmd))
                     {
                         var node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
+                        if (node == null && !updating)
+                        {
+                            Update(client.SendTextMessageAsync(testingGroupId, "No node found. Starting a new one...").Result, true);
+                            node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
+                        }
                         node?.Queue(JsonConvert.SerializeObject(e.Update));
                         return;
                     }
@@ -313,11 +319,14 @@ namespace WhoAmIBotSpace
         #endregion
 
         #region Updater
-        private void Update(Message toEdit)
+        private void Update(Message toEdit, bool wait=false)
         {
+            updating = true;
             ParameterizedThreadStart pts = new ParameterizedThreadStart(UpdateThread);
             Thread t = new Thread(pts);
             t.Start(toEdit);
+            if (wait)
+                t.Join();
         }
 
         private void UpdateThread(object obj)
@@ -354,10 +363,12 @@ namespace WhoAmIBotSpace
                 t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nFinished.");
                 t.Wait();
                 toEdit = t.Result;
+                updating = false;
             }
             catch (Exception ex)
             {
                 client.SendTextMessageAsync(Flom, ex.ToString());
+                updating = false;
             }
         }
 
