@@ -47,6 +47,7 @@ namespace WhoAmIBotSpace
         private static readonly string controlUpdaterPath = Path.Combine(appDataBaseDir,
             "git\\WhoAmIBot\\ControlUpdater\\bin\\Release\\ControlUpdater.exe");
         private static readonly string gitDirectory = Path.Combine(appDataBaseDir, "git\\");
+        private const long tracingChannelId = -1001383830638;
         #endregion
         #region Fields
         private SQLiteConnection sqliteConn;
@@ -255,6 +256,7 @@ namespace WhoAmIBotSpace
                     }
                 }
             }
+            client.SendTextMessageAsync(tracingChannelId, $"Update incoming: `Type: {e.Update.Type}`", ParseMode.Markdown);
             foreach (var node in Nodes)
             {
                 node.Queue(JsonConvert.SerializeObject(e.Update));
