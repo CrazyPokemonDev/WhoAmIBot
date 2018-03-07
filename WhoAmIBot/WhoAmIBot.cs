@@ -168,6 +168,13 @@ namespace WhoAmIBotSpace
             var task = client.GetMeAsync();
             task.Wait();
             Username = task.Result.Username;
+            int offset = 0;
+            Update[] updates;
+            do
+            {
+                updates = client.GetUpdatesAsync(offset).Result;
+                offset = updates.OrderBy(x => x.Id).Last().Id;
+            } while (updates.Length > 0);
             client.OnReceiveError += Client_OnReceiveError;
             client.OnReceiveGeneralError += Client_OnReceiveError;
             client.OnCallbackQuery += Client_OnCallbackQuery;
