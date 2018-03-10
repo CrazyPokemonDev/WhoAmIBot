@@ -173,6 +173,7 @@ namespace WhoAmIBotSpace
             for (int i = 0; i < 10; i++)
             {
                 updates = client.GetUpdatesAsync(offset).Result;
+                if (updates.Length < 1) break;
                 offset = updates?.OrderBy(x => x.Id)?.Last()?.Id ?? 0;
             }
             client.OnReceiveError += Client_OnReceiveError;
