@@ -221,7 +221,9 @@ namespace WhoAmIBotSpace
             if (e.Update.Type == UpdateType.MessageUpdate &&
                 (e.Update.Message.Type != MessageType.TextMessage)) return; //workaround for the bug
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.ReplyToMessage != null 
-                && e.Update.Message.ReplyToMessage.Type != MessageType.TextMessage) e.Update.Message.ReplyToMessage = null;
+                && e.Update.Message.ReplyToMessage.Type != MessageType.TextMessage && 
+                !(e.Update.Message.ReplyToMessage.Type == MessageType.DocumentMessage && e.Update.Message.ReplyToMessage.Document.FileName.ToLower().EndsWith(".txt"))) 
+                e.Update.Message.ReplyToMessage = null;
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
             {
                 if (e.Update.Message.Entities.Count > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand
