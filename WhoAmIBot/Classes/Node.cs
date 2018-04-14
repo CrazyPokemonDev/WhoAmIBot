@@ -16,6 +16,7 @@ namespace WhoAmIBotSpace.Classes
         private List<string> queue = new List<string>();
         private Thread QThread;
         public event EventHandler<Node> NodeStopped;
+        private ManualResetEvent queueReset = new ManualResetEvent(false);
 
         public Node(string path)
         {
@@ -73,7 +74,8 @@ namespace WhoAmIBotSpace.Classes
                     while (true)
                     {
                         try { Pipe.WaitForConnection(); } catch (InvalidOperationException) { }
-                        while (queue.Count < 1) ;
+                        if (queue.Count < 1) queueReset.Reset();
+                        queueReset.WaitOne();
                         var data = queue[0];
                         sw.WriteLine(data);
                         sw.Flush();
@@ -93,6 +95,7 @@ namespace WhoAmIBotSpace.Classes
         public void Queue(string data)
         {
             queue.Add(data);
+            queueReset.Set();
         }
     }
 
