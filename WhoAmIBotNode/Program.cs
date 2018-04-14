@@ -1602,8 +1602,8 @@ namespace WhoAmIBotSpace
             bool isDaylight = TimeZoneInfo.Local.IsDaylightSavingTime(thisTime);
             var now = thisTime.ToUniversalTime();
             var span = now.Subtract(msg.Date.ToUniversalTime());
-            //SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, Math.Abs(span.TotalSeconds).ToString());
-            client.SendTextMessageAsync(msg.Chat.Id, $"now: {now} sent: {msg.Date.ToUniversalTime()}");
+            span = span.Subtract(TimeSpan.FromHours(now.IsDaylightSavingTime() ? 7 : 6));
+            SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, Math.Abs(span.TotalSeconds).ToString());
         }
         #endregion
         #region /rate
