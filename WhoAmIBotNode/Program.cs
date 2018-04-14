@@ -1603,7 +1603,7 @@ namespace WhoAmIBotSpace
             var now = thisTime.ToUniversalTime();
             var span = now.Subtract(msg.Date.ToUniversalTime());
             //SendLangMessage(msg.Chat.Id, msg.From.Id, Strings.Ping, null, Math.Abs(span.TotalSeconds).ToString());
-            client.SendTextMessageAsync(msg.Chat.Id, $"now: {now} sent: {msg.Date}");
+            client.SendTextMessageAsync(msg.Chat.Id, $"now: {now} sent: {msg.Date.ToUniversalTime()}");
         }
         #endregion
         #region /rate
