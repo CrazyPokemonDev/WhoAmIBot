@@ -218,7 +218,7 @@ namespace WhoAmIBotSpace
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
-            if (e.Update.Type == UpdateType.MessageUpdate &&
+            if ((e.Update.Type == UpdateType.MessageUpdate || e.Update.Type == UpdateType.EditedMessage) &&
                 (e.Update.Message.Type != MessageType.TextMessage)) return; //workaround for the bug
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.ReplyToMessage != null 
                 && e.Update.Message.ReplyToMessage.Type != MessageType.TextMessage && 
