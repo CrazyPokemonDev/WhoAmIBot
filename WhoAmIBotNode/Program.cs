@@ -32,6 +32,7 @@ namespace WhoAmIBotSpace
         #region Constants
         private const string baseFilePath = "C:\\Olfi01\\WhoAmIBot\\";
         private const string sqliteFilePath = baseFilePath + "db.sqlite";
+        private const string questionsFilePath = baseFilePath + "questionData.txt";
         private const string connectionString = "Data Source=\"" + sqliteFilePath + "\";";
         private const string defaultLangCode = "en-US";
         /*private const string yesEmoji = "✅";
@@ -2283,6 +2284,7 @@ namespace WhoAmIBotSpace
                     #region Ask Question
                     string sentMessageText = "";
                     Message sentMessage = null;
+                    string askedQuestion = null;
                     EventHandler<MessageEventArgs> qHandler = (sender, e) =>
                     {
                         if (e.Message.From.Id != atTurn.Id || e.Message.Chat.Type != ChatType.Private) return;
@@ -2298,6 +2300,7 @@ namespace WhoAmIBotSpace
                             ReplyMarkupMaker.InlineYesNoIdk(yes, $"yes@{game.Id}", no, $"no@{game.Id}", idk, $"idk@{game.Id}"),
                             out sentGroupMessage, out sentMessageText,
                             $"{WebUtility.HtmlEncode(atTurn.Name)}", $"{WebUtility.HtmlEncode(e.Message.Text)}");
+                        askedQuestion = e.Message.Text;
                         mre.Set();
                     };
                     bool guess = false;
@@ -2490,6 +2493,14 @@ namespace WhoAmIBotSpace
                                      Strings.AnsweredNo, null, "", out var u5, out var u6, pname);
                                 turn++;
                                 break;
+                        }
+                        try
+                        {
+                            File.AppendAllLines(questionsFilePath, new List<string> { askedQuestion + "\t" + answer });
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex);
                         }
                         mre.Set();
                     };
