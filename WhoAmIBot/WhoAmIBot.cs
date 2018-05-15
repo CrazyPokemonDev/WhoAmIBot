@@ -218,6 +218,9 @@ namespace WhoAmIBotSpace
         #region On Update
         protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
+            try
+            {
+            if (e.Update.Type != UpdateType.MessageUpdate && e.Update.Type != UpdateType.CallbackQueryUpdate) return;
             if (e.Update.Type == UpdateType.MessageUpdate &&
                 (e.Update.Message.Type != MessageType.TextMessage)) return; //workaround for the bug
             if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.ReplyToMessage != null 
@@ -279,6 +282,10 @@ namespace WhoAmIBotSpace
                 var par = new Dictionary<string, object>() { { "id", msg.ReplyToMessage.From.Id } };
                 ExecuteSql("INSERT INTO GlobalAdmins(Id) VALUES(@id)", par);
                 SendLangMessage(msg.Chat.Id, Strings.PowerGranted);
+            }
+            } catch (Exception ex)
+            {
+            client.GetUpdatesAsync(offset: e.Update.Id).Wait();
             }
         }
         #endregion
