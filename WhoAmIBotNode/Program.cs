@@ -2497,7 +2497,7 @@ namespace WhoAmIBotSpace
                         }
                         try
                         {
-                            File.AppendAllLines(questionsFilePath, new List<string> { askedQuestion + "\t" + answer });
+                            if (askedQuestion != null) File.AppendAllLines(questionsFilePath, new List<string> { askedQuestion + "\t" + answer });
                         }
                         catch (Exception ex)
                         {
