@@ -179,7 +179,7 @@ namespace WhoAmIBotSpace
             client.OnReceiveError += Client_OnReceiveError;
             client.OnReceiveGeneralError += Client_OnReceiveError;
             client.OnCallbackQuery += Client_OnCallbackQuery;
-            client.OnCallbackQuery += Client_OnCallbackQueryUpdateChecker;
+            client.OnCallbackQuery += Client_OnCallbackQueryChecker;
             /*var dir = defaultNodeDirectory;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, "WhoAmIBotNode.exe");
@@ -211,7 +211,7 @@ namespace WhoAmIBotSpace
             client.OnReceiveError -= Client_OnReceiveError;
             client.OnReceiveGeneralError -= Client_OnReceiveError;
             client.OnCallbackQuery -= Client_OnCallbackQuery;
-            client.OnCallbackQuery -= Client_OnCallbackQueryUpdateChecker;
+            client.OnCallbackQuery -= Client_OnCallbackQueryChecker;
             return base.StopBot();
         }
         #endregion
@@ -220,20 +220,20 @@ namespace WhoAmIBotSpace
         {
             try
             {
-            if (e.Update.Type != UpdateType.MessageUpdate && e.Update.Type != UpdateType.CallbackQueryUpdate) return;
-            if (e.Update.Type == UpdateType.MessageUpdate &&
-                (e.Update.Message.Type != MessageType.TextMessage)) return; //workaround for the bug
-            if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.ReplyToMessage != null 
-                && e.Update.Message.ReplyToMessage.Type != MessageType.TextMessage && 
-                !(e.Update.Message.ReplyToMessage.Type == MessageType.DocumentMessage && e.Update.Message.ReplyToMessage.Document.FileName.ToLower().EndsWith(".txt"))) 
+            if (e.Update.Type != UpdateType.Message && e.Update.Type != UpdateType.CallbackQuery) return;
+            if (e.Update.Type == UpdateType.Message &&
+                (e.Update.Message.Type != MessageType.Text)) return; //workaround for the bug
+            if (e.Update.Type == UpdateType.Message && e.Update.Message.ReplyToMessage != null 
+                && e.Update.Message.ReplyToMessage.Type != MessageType.Text && 
+                !(e.Update.Message.ReplyToMessage.Type == MessageType.Document && e.Update.Message.ReplyToMessage.Document.FileName.ToLower().EndsWith(".txt"))) 
                 e.Update.Message.ReplyToMessage = null;
-            if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage)
+            if (e.Update.Type == UpdateType.Message && e.Update.Message.Type == MessageType.Text)
             {
-                if (e.Update.Message.Entities.Count > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand
+                if (e.Update.Message.Entities.Length > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand
                     && e.Update.Message.Entities[0].Offset == 0)
                 {
-                    if (e.Update.Message.EntityValues.Count < 1) return;
-                    var cmd = e.Update.Message.EntityValues[0];
+                    if (e.Update.Message.EntityValues.Count() < 1) return;
+                    var cmd = e.Update.Message.EntityValues.First();
                     cmd = cmd.ToLower();
                     cmd = cmd.Contains($"@{Username.ToLower()}") ? cmd.Remove(cmd.IndexOf($"@{Username.ToLower()}")) : cmd;
                     if (cmd == "/update")
@@ -274,7 +274,7 @@ namespace WhoAmIBotSpace
             {
                 node.Queue(JsonConvert.SerializeObject(e.Update));
             }
-            if (e.Update.Type == UpdateType.MessageUpdate && e.Update.Message.Type == MessageType.TextMessage
+            if (e.Update.Type == UpdateType.Message && e.Update.Message.Type == MessageType.Text
             && e.Update.Message.Text == "I hereby grant you permission." && e.Update.Message.From.Id == Flom)
             {
                 var msg = e.Update.Message;
@@ -283,9 +283,9 @@ namespace WhoAmIBotSpace
                 ExecuteSql("INSERT INTO GlobalAdmins(Id) VALUES(@id)", par);
                 SendLangMessage(msg.Chat.Id, Strings.PowerGranted);
             }
-            } catch (Exception ex)
+            } catch 
             {
-            client.GetUpdatesAsync(offset: e.Update.Id).Wait();
+                client.GetUpdatesAsync(offset: e.Update.Id).Wait();
             }
         }
         #endregion
@@ -316,7 +316,7 @@ namespace WhoAmIBotSpace
             }
         }
 
-        private void Client_OnCallbackQueryUpdateChecker(object sender, CallbackQueryEventArgs e)
+        private void Client_OnCallbackQueryChecker(object sender, CallbackQueryEventArgs e)
         {
             if ((e.CallbackQuery.Data != "update" && e.CallbackQuery.Data != "dontUpdate" && e.CallbackQuery.Data != "updatecontrol")
                 || e.CallbackQuery.From.Id != Flom || e.CallbackQuery.Message == null) return;
@@ -534,7 +534,7 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #region Send Lang Message
-        private bool SendLangMessage(long chatid, string key, IReplyMarkup markup = null)
+        private bool SendLangMessage(long chatid, string key, InlineKeyboardMarkup markup = null)
         {
             try
             {

@@ -15,11 +15,11 @@ using File = System.IO.File;
 using Telegram.Bot;
 using System.Net;
 using Telegram.Bot.Types.ReplyMarkups;
-using Telegram.Bot.Types.InlineKeyboardButtons;
 using System.Text;
 using System.Reflection;
 using System.IO.Compression;
 using System.Threading.Tasks;
+using Telegram.Bot.Types.InputFiles;
 
 namespace WhoAmIBotSpace
 {
@@ -338,9 +338,9 @@ namespace WhoAmIBotSpace
                 mre.Set();
             };
             var row = new InlineKeyboardButton[3];
-            row[0] = new InlineKeyboardCallbackButton("2", $"joinTimeout:2@{groupid}");
-            row[1] = new InlineKeyboardCallbackButton("5", $"joinTimeout:5@{groupid}");
-            row[2] = new InlineKeyboardCallbackButton("10", $"joinTimeout:10@{groupid}");
+            row[0] = InlineKeyboardButton.WithCallbackData("2", $"joinTimeout:2@{groupid}");
+            row[1] = InlineKeyboardButton.WithCallbackData("5", $"joinTimeout:5@{groupid}");
+            row[2] = InlineKeyboardButton.WithCallbackData("10", $"joinTimeout:10@{groupid}");
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.JoinTimeoutQ, markup,
@@ -376,10 +376,10 @@ namespace WhoAmIBotSpace
                 mre.Set();
             };
             var row = new InlineKeyboardButton[4];
-            row[0] = new InlineKeyboardCallbackButton("1h", $"gameTimeout:60@{groupid}");
-            row[1] = new InlineKeyboardCallbackButton("6h", $"gameTimeout:360@{groupid}");
-            row[2] = new InlineKeyboardCallbackButton("12h", $"gameTimeout:720@{groupid}");
-            row[3] = new InlineKeyboardCallbackButton("24h", $"gameTimeout:1440@{groupid}");
+            row[0] = InlineKeyboardButton.WithCallbackData("1h", $"gameTimeout:60@{groupid}");
+            row[1] = InlineKeyboardButton.WithCallbackData("6h", $"gameTimeout:360@{groupid}");
+            row[2] = InlineKeyboardButton.WithCallbackData("12h", $"gameTimeout:720@{groupid}");
+            row[3] = InlineKeyboardButton.WithCallbackData("24h", $"gameTimeout:1440@{groupid}");
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
@@ -418,9 +418,9 @@ namespace WhoAmIBotSpace
             var none = GetString(GetStringKey(AutoEndSetting.None), groupid);
             var onePlayerGuessed = GetString(GetStringKey(AutoEndSetting.OnePlayerGuessed), groupid);
             var onePlayerLeft = GetString(GetStringKey(AutoEndSetting.OnePlayerLeft), groupid);
-            rows[0] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(none, $"autoEnd:{(int)AutoEndSetting.None}@{groupid}") };
-            rows[1] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(onePlayerGuessed, $"autoEnd:{(int)AutoEndSetting.OnePlayerGuessed}@{groupid}") };
-            rows[2] = new InlineKeyboardButton[] { new InlineKeyboardCallbackButton(onePlayerLeft, $"autoEnd:{(int)AutoEndSetting.OnePlayerLeft}@{groupid}") };
+            rows[0] = new InlineKeyboardButton[] { InlineKeyboardButton.WithCallbackData(none, $"autoEnd:{(int)AutoEndSetting.None}@{groupid}") };
+            rows[1] = new InlineKeyboardButton[] { InlineKeyboardButton.WithCallbackData(onePlayerGuessed, $"autoEnd:{(int)AutoEndSetting.OnePlayerGuessed}@{groupid}") };
+            rows[2] = new InlineKeyboardButton[] { InlineKeyboardButton.WithCallbackData(onePlayerLeft, $"autoEnd:{(int)AutoEndSetting.OnePlayerLeft}@{groupid}") };
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(rows);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.AutoEndQ, markup,
@@ -560,14 +560,14 @@ namespace WhoAmIBotSpace
             {
 #endif
                 var update = JsonConvert.DeserializeObject<Update>(data);
-                if (update.Type == UpdateType.MessageUpdate && update.Message.Type == MessageType.TextMessage)
+                if (update.Type == UpdateType.Message && update.Message.Type == MessageType.Text)
                 {
                     foreach (var entity in update.Message.Entities)
                     {
                         if (entity.Offset != 0) continue;
                         if (entity.Type == MessageEntityType.BotCommand)
                         {
-                            string cmd = update.Message.EntityValues[update.Message.Entities.IndexOf(entity)];
+                            string cmd = update.Message.EntityValues.ElementAt(update.Message.Entities.ToList().IndexOf(entity));
                             cmd = cmd.ToLower();
                             cmd = cmd.Contains("@" + Username.ToLower()) ? cmd.Remove(cmd.IndexOf("@" + Username.ToLower())) : cmd;
                             if (commands.ContainsKey(cmd))
@@ -591,11 +591,11 @@ namespace WhoAmIBotSpace
                         }
                     }
                 }
-                if (update.Type == UpdateType.MessageUpdate)
+                if (update.Type == UpdateType.Message)
                 {
                     OnMessage?.Invoke(null, new MessageEventArgs(update.Message));
                 }
-                if (update.Type == UpdateType.CallbackQueryUpdate)
+                if (update.Type == UpdateType.CallbackQuery)
                 {
                     OnCallbackQuery?.Invoke(null, new CallbackQueryEventArgs(update.CallbackQuery));
                 }
@@ -676,7 +676,7 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #region Send Lang Message
-        private static void SendLangMessage(long chatid, string key, IReplyMarkup markup = null)
+        private static void SendLangMessage(long chatid, string key, InlineKeyboardMarkup markup = null)
         {
             try
             {
@@ -694,7 +694,7 @@ namespace WhoAmIBotSpace
             }
         }
 
-        private static void SendLangMessage(long chatid, string key, IReplyMarkup markup, params string[] par)
+        private static void SendLangMessage(long chatid, string key, InlineKeyboardMarkup markup, params string[] par)
         {
             try
             {
@@ -720,7 +720,7 @@ namespace WhoAmIBotSpace
             }
         }
 
-        private static void SendLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup = null)
+        private static void SendLangMessage(long chatid, long langFrom, string key, InlineKeyboardMarkup markup = null)
         {
             try
             {
@@ -738,7 +738,7 @@ namespace WhoAmIBotSpace
             }
         }
 
-        private static void SendLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup, params string[] par)
+        private static void SendLangMessage(long chatid, long langFrom, string key, InlineKeyboardMarkup markup, params string[] par)
         {
             try
             {
@@ -764,7 +764,7 @@ namespace WhoAmIBotSpace
             }
         }
 
-        private static void SendAndGetLangMessage(long chatid, long langFrom, string key, IReplyMarkup markup,
+        private static void SendAndGetLangMessage(long chatid, long langFrom, string key, InlineKeyboardMarkup markup,
             out Message message, out string text, params string[] par)
         {
             try
@@ -797,7 +797,7 @@ namespace WhoAmIBotSpace
         #endregion
         #region Edit Lang Message
         private static void EditLangMessage(long chatid, long langFrom, int messageId, string key,
-            IReplyMarkup markup, string appendStart, out Message sent, out string text, params string[] par)
+            InlineKeyboardMarkup markup, string appendStart, out Message sent, out string text, params string[] par)
         {
             try
             {
@@ -827,12 +827,12 @@ namespace WhoAmIBotSpace
             }
         }
 
-        private static void EditLangMessage(long chatid, long langFrom, int messageId, string key, IReplyMarkup markup = null)
+        private static void EditLangMessage(long chatid, long langFrom, int messageId, string key, InlineKeyboardMarkup markup = null)
         {
             EditLangMessage(chatid, langFrom, messageId, key, markup, "", out var u, out var u2);
         }
 
-        private static void EditLangMessage(long chatid, long langFrom, int messageId, string key, IReplyMarkup markup, params string[] par)
+        private static void EditLangMessage(long chatid, long langFrom, int messageId, string key, InlineKeyboardMarkup markup, params string[] par)
         {
             EditLangMessage(chatid, langFrom, messageId, key, markup, "", out var u, out var u2, par);
         }
@@ -1044,7 +1044,7 @@ namespace WhoAmIBotSpace
             }
             if (File.Exists("backup.zip")) File.Delete("backup.zip");
             ZipFile.CreateFromDirectory("zip\\", "backup.zip");
-            client.SendDocumentAsync(msg.Chat.Id, new FileToSend("backup.zip", File.OpenRead("backup.zip")), caption: "#whoamibotbackup");
+            client.SendDocumentAsync(msg.Chat.Id, new InputOnlineFile(File.OpenRead("backup.zip"), "backup.zip"), caption: "#whoamibotbackup");
         }
         #endregion
         #region /cancelgame
@@ -1152,7 +1152,7 @@ namespace WhoAmIBotSpace
                     else if (msg2.Chat.Id == linked) client.ForwardMessageAsync(priv, linked, msg2.MessageId);
                     else if (msg2.Chat.Id == priv)
                     {
-                        if (msg2.Type == MessageType.TextMessage &&
+                        if (msg2.Type == MessageType.Text &&
                         (msg2.Text == "/communicate" || msg2.Text == $"/communicate@{Username}"))
                         {
                             mre.Set();
@@ -1277,7 +1277,7 @@ namespace WhoAmIBotSpace
                 File.WriteAllText(path, JsonConvert.SerializeObject(lf, Formatting.Indented), Encoding.UTF8);
                 using (var str = File.OpenRead(path))
                 {
-                    client.SendDocumentAsync(msg.Chat.Id, new FileToSend(path, str), caption: null).Wait();
+                    client.SendDocumentAsync(msg.Chat.Id, new InputOnlineFile(str, path), caption: null).Wait();
                 }
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 mre.Set();
@@ -1616,7 +1616,7 @@ namespace WhoAmIBotSpace
         #region /setdb
         /*private static void Setdb_Command(Message msg)
         {
-            if (msg.From.Id != Flom || msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.DocumentMessage)
+            if (msg.From.Id != Flom || msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.Document)
             {
                 Console.WriteLine("Someone tried to set db");
                 return;
@@ -1942,7 +1942,7 @@ namespace WhoAmIBotSpace
         #region /uploadlang
         private static void Uploadlang_Command(Message msg)
         {
-            if (msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.DocumentMessage) return;
+            if (msg.ReplyToMessage == null || msg.ReplyToMessage.Type != MessageType.Document) return;
             if (!GlobalAdminExists(msg.From.Id))
             {
                 SendLangMessage(msg.Chat.Id, Strings.NoGlobalAdmin);
@@ -1952,7 +1952,8 @@ namespace WhoAmIBotSpace
             var path = $"{now.Hour}-{now.Minute}-{now.Second}-{now.Millisecond}.temp";
             using (var str = File.OpenWrite(path))
             {
-                client.GetFileAsync(msg.ReplyToMessage.Document.FileId, str).Wait();
+                client.DownloadFileAsync(client.GetFileAsync(msg.ReplyToMessage.Document.FileId).Result.FilePath, str).Wait();
+                str.Flush();
             }
             string text = File.ReadAllText(path);
             LangFile lf = null;
@@ -2220,7 +2221,7 @@ namespace WhoAmIBotSpace
                 EventHandler<MessageEventArgs> eHandler = (sender, e) =>
                 {
                     if (!game.Players.Exists(x => x.Id == e.Message.From.Id)
-                    || e.Message.Type != MessageType.TextMessage || e.Message.Chat.Type != ChatType.Private) return;
+                    || e.Message.Type != MessageType.Text || e.Message.Chat.Type != ChatType.Private) return;
                     NodePlayer p = game.Players.Find(x => x.Id == e.Message.From.Id);
                     int pIndex = game.Players.IndexOf(p);
                     int nextIndex = (pIndex == game.Players.Count - 1) ? 0 : pIndex + 1;
