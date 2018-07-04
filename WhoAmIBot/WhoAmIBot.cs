@@ -3,19 +3,19 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
-using Telegram.Bot.Types;
-using UpdateEventArgs = Telegram.Bot.Args.UpdateEventArgs;
+using UpdateEventArgs = TelegramBotApi.Types.Events.UpdateEventArgs;
 using File = System.IO.File;
-using Telegram.Bot.Types.Enums;
 using WhoAmIBotSpace.Classes;
 using WhoAmIBotSpace.Helpers;
-using Telegram.Bot.Args;
-using Telegram.Bot.Types.ReplyMarkups;
 using System.Linq;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
+using TelegramBotApi.Enums;
+using TelegramBotApi.Types.Events;
+using TelegramBotApi.Types;
+using TelegramBotApi.Types.Markup;
 
 namespace WhoAmIBotSpace
 {
@@ -172,12 +172,12 @@ namespace WhoAmIBotSpace
             Update[] updates;
             for (int i = 0; i < 10; i++)
             {
-                updates = client.GetUpdatesAsync(offset).Result;
+                updates = client.GetUpdatesAsync(offset: offset).Result;
                 if (updates.Length < 1) break;
                 offset = updates?.OrderBy(x => x.Id)?.Last()?.Id ?? 0;
             }
-            client.OnReceiveError += Client_OnReceiveError;
-            client.OnReceiveGeneralError += Client_OnReceiveError;
+            //client.OnReceiveError += Client_OnReceiveError;
+            //client.OnReceiveGeneralError += Client_OnReceiveError;
             client.OnCallbackQuery += Client_OnCallbackQuery;
             client.OnCallbackQuery += Client_OnCallbackQueryChecker;
             /*var dir = defaultNodeDirectory;
@@ -208,8 +208,8 @@ namespace WhoAmIBotSpace
                         break;
                 }
             }
-            client.OnReceiveError -= Client_OnReceiveError;
-            client.OnReceiveGeneralError -= Client_OnReceiveError;
+            //client.OnReceiveError -= Client_OnReceiveError;
+            //client.OnReceiveGeneralError -= Client_OnReceiveError;
             client.OnCallbackQuery -= Client_OnCallbackQuery;
             client.OnCallbackQuery -= Client_OnCallbackQueryChecker;
             return base.StopBot();
@@ -232,8 +232,7 @@ namespace WhoAmIBotSpace
                 if (e.Update.Message.Entities.Length > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand
                     && e.Update.Message.Entities[0].Offset == 0)
                 {
-                    if (e.Update.Message.EntityValues.Count() < 1) return;
-                    var cmd = e.Update.Message.EntityValues.First();
+                    var cmd = e.Update.Message.Entities[0].Value;
                     cmd = cmd.ToLower();
                     cmd = cmd.Contains($"@{Username.ToLower()}") ? cmd.Remove(cmd.IndexOf($"@{Username.ToLower()}")) : cmd;
                     if (cmd == "/update")
@@ -552,7 +551,7 @@ namespace WhoAmIBotSpace
         #endregion
 
         #region Error handling
-        private void Client_OnReceiveError(object sender, EventArgs ea)
+        /*private void Client_OnReceiveError(object sender, EventArgs ea)
         {
             if (ea is ReceiveErrorEventArgs e)
             {
@@ -571,7 +570,7 @@ namespace WhoAmIBotSpace
                     client.SendTextMessageAsync(Flom, $"WhoAmIBot (inner exception): {ex.Message}\n{ex.StackTrace}");
                 }
             }
-        }
+        }*/
         #endregion
 
         #region SQLite

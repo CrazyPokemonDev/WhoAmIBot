@@ -1,4 +1,4 @@
-﻿using Telegram.Bot.Types;
+﻿using TelegramBotApi.Types;
 
 namespace WhoAmIBotSpace.Classes
 {

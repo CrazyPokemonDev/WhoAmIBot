@@ -1,4 +1,4 @@
-﻿using Telegram.Bot.Types;
+﻿using TelegramBotApi.Types;
 
 namespace WhoAmIBotSpace.Helpers
 {
@@ -6,7 +6,7 @@ namespace WhoAmIBotSpace.Helpers
     {
         public static implicit operator ChatId(Flom flom)
         {
-            return new ChatId(267376056);
+            return 267376056;
         }
 
         public static bool operator ==(Flom f, int i)

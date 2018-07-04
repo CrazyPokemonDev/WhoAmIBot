@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using Telegram.Bot.Types;
+using TelegramBotApi.Types;
 using WhoAmIBotSpace.Helpers;
 
 namespace WhoAmIBotSpace.Classes
