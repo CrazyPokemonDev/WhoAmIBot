@@ -14,11 +14,11 @@ using System.Net;
 using System.Text;
 using System.Reflection;
 using System.IO.Compression;
-using TelegramBotApi.Types;
-using TelegramBotApi.Types.Markup;
-using TelegramBotApi;
-using TelegramBotApi.Enums;
-using TelegramBotApi.Types.Upload;
+using Telegram.Bot;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.InputFiles;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace WhoAmIBotSpace
 {
@@ -60,7 +60,7 @@ namespace WhoAmIBotSpace
         private static SQLiteConnection sqliteConn;
         private static Dictionary<string, Action<Message>> commands = new Dictionary<string, Action<Message>>();
         private static bool Maintenance = false;
-        private static TelegramBot client;
+        private static TelegramBotClient client;
         private static bool running = true;
         private static List<Thread> currentThreads = new List<Thread>();
         private static List<NodeGame> NodeGames = new List<NodeGame>();
@@ -279,10 +279,12 @@ namespace WhoAmIBotSpace
             var mre = new ManualResetEvent(false);
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
+                long grp = 0;
+
                 var d = e.CallbackQuery.Data;
                 if ((!d.StartsWith("cancelgameYes@") && !d.StartsWith("cancelgameNo@"))
                 || d.IndexOf("@") != d.LastIndexOf("@")
-                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out grp)
                 || grp != groupid
                 || e.CallbackQuery.Message == null
                 || e.CallbackQuery.From.Id != chat) return;
@@ -342,7 +344,7 @@ namespace WhoAmIBotSpace
             row[0] = new InlineKeyboardButton() { Text = "2", CallbackData = $"joinTimeout:2@{groupid}" };
             row[1] = new InlineKeyboardButton() { Text = "5", CallbackData = $"joinTimeout:5@{groupid}" };
             row[2] = new InlineKeyboardButton() { Text = "10", CallbackData = $"joinTimeout:10@{groupid}" };
-            InlineKeyboardMarkup markup = new InlineKeyboardMarkup() { InlineKeyboard = new[] { row } };
+            InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.JoinTimeoutQ, markup,
                 maxIdleJoinTime.TotalMinutes.ToString(), GetGroupValue<int>("JoinTimeout", groupid).ToString());
@@ -379,10 +381,10 @@ namespace WhoAmIBotSpace
                 mre.Set();
             };
             var row = new InlineKeyboardButton[4];
-            row[0] = new InlineKeyboardButton("1h") { CallbackData = $"gameTimeout:60@{groupid}" };
-            row[1] = new InlineKeyboardButton("6h") { CallbackData = $"gameTimeout:360@{groupid}" };
-            row[2] = new InlineKeyboardButton("12h") { CallbackData = $"gameTimeout:720@{groupid}" };
-            row[3] = new InlineKeyboardButton("24h") { CallbackData = $"gameTimeout:1440@{groupid}" };
+            row[0] = new InlineKeyboardButton() { Text = "1h", CallbackData = $"gameTimeout:60@{groupid}" };
+            row[1] = new InlineKeyboardButton() { Text = "6h", CallbackData = $"gameTimeout:360@{groupid}" };
+            row[2] = new InlineKeyboardButton() { Text = "12h", CallbackData = $"gameTimeout:720@{groupid}" };
+            row[3] = new InlineKeyboardButton() { Text = "24h", CallbackData = $"gameTimeout:1440@{groupid}" };
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(row);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.GameTimeoutQ, markup,
@@ -404,12 +406,15 @@ namespace WhoAmIBotSpace
             var mre = new ManualResetEvent(false);
             EventHandler<CallbackQueryEventArgs> cHandler = (sender, e) =>
             {
+                long grp = 0;
+                int val = 0;
+
                 var d = e.CallbackQuery.Data;
                 if (!d.StartsWith("autoEnd:") || !d.Contains("@") || d.IndexOf("@") != d.LastIndexOf("@")
-                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out long grp)
+                || !long.TryParse(d.Substring(d.IndexOf("@") + 1), out grp)
                 || grp != groupid || e.CallbackQuery.From.Id != chat
                 || e.CallbackQuery.Message == null
-                || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out int val)
+                || !int.TryParse(d.Remove(d.IndexOf("@")).Substring(d.IndexOf(":") + 1), out val)
                 || !GroupExists(groupid)) return;
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 SetGroupValue("AutoEnd", val, groupid);
@@ -421,9 +426,9 @@ namespace WhoAmIBotSpace
             var none = GetString(GetStringKey(AutoEndSetting.None), groupid);
             var onePlayerGuessed = GetString(GetStringKey(AutoEndSetting.OnePlayerGuessed), groupid);
             var onePlayerLeft = GetString(GetStringKey(AutoEndSetting.OnePlayerLeft), groupid);
-            rows[0] = new InlineKeyboardButton[] { new InlineKeyboardButton(none) { CallbackData = $"autoEnd:{(int)AutoEndSetting.None}@{groupid}" } };
-            rows[1] = new InlineKeyboardButton[] { new InlineKeyboardButton(onePlayerGuessed) { CallbackData = $"autoEnd:{(int)AutoEndSetting.OnePlayerGuessed}@{groupid}" } };
-            rows[2] = new InlineKeyboardButton[] { new InlineKeyboardButton(onePlayerLeft) { CallbackData = $"autoEnd:{(int)AutoEndSetting.OnePlayerLeft}@{groupid}" } };
+            rows[0] = new InlineKeyboardButton[] { new InlineKeyboardButton() { Text = none, CallbackData = $"autoEnd:{(int)AutoEndSetting.None}@{groupid}" } };
+            rows[1] = new InlineKeyboardButton[] { new InlineKeyboardButton() { Text = onePlayerGuessed, CallbackData = $"autoEnd:{(int)AutoEndSetting.OnePlayerGuessed}@{groupid}" } };
+            rows[2] = new InlineKeyboardButton[] { new InlineKeyboardButton() { Text = onePlayerLeft, CallbackData = $"autoEnd:{(int)AutoEndSetting.OnePlayerLeft}@{groupid}" } };
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup(rows);
             if (!GroupExists(groupid)) return;
             SendLangMessage(chat, groupid, Strings.AutoEndQ, markup,
@@ -509,7 +514,7 @@ namespace WhoAmIBotSpace
                         if (string.IsNullOrEmpty(data)) continue;
                         if (data.StartsWith("TOKEN:"))
                         {
-                            client = new TelegramBot(data.Substring(data.IndexOf(":") + 1));
+                            client = new TelegramBotClient(data.Substring(data.IndexOf(":") + 1));
                             Init();
                             Console.WriteLine($"Node: Username: {Username}");
                             continue;
@@ -570,7 +575,7 @@ namespace WhoAmIBotSpace
                         if (entity.Offset != 0) continue;
                         if (entity.Type == MessageEntityType.BotCommand)
                         {
-                            string cmd = entity.Value;
+                            string cmd = update.Message.Text.Substring(entity.Offset, entity.Length);
                             cmd = cmd.ToLower();
                             cmd = cmd.Contains("@" + Username.ToLower()) ? cmd.Remove(cmd.IndexOf("@" + Username.ToLower())) : cmd;
                             if (commands.ContainsKey(cmd))
@@ -1047,7 +1052,7 @@ namespace WhoAmIBotSpace
             }
             if (File.Exists("backup.zip")) File.Delete("backup.zip");
             ZipFile.CreateFromDirectory("zip\\", "backup.zip");
-            client.SendDocumentAsync(msg.Chat.Id, new SendFileMultipart(File.OpenRead("backup.zip")), caption: "#whoamibotbackup");
+            client.SendDocumentAsync(msg.Chat.Id, new InputOnlineFile(File.OpenRead("backup.zip")), caption: "#whoamibotbackup");
         }
         #endregion
         #region /cancelgame
@@ -1280,7 +1285,7 @@ namespace WhoAmIBotSpace
                 File.WriteAllText(path, JsonConvert.SerializeObject(lf, Formatting.Indented), Encoding.UTF8);
                 using (var str = File.OpenRead(path))
                 {
-                    client.SendDocumentAsync(msg.Chat.Id, new SendFileMultipart(str), caption: null).Wait();
+                    client.SendDocumentAsync(msg.Chat.Id, new InputOnlineFile(str), caption: null).Wait();
                 }
                 client.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
                 mre.Set();
@@ -1422,7 +1427,7 @@ namespace WhoAmIBotSpace
         private static void Identify_Command(Message msg)
         {
             ChatId i = Flom;
-            if (i.ChatIdentifier != msg.From.Id) return;
+            if (i.Identifier != msg.From.Id) return;
             client.SendTextMessageAsync(msg.Chat.Id, "Yep, you are my developer", replyToMessageId: msg.MessageId);
         }
         #endregion
@@ -1953,7 +1958,10 @@ namespace WhoAmIBotSpace
             }
             var now = DateTime.Now;
             var path = $"{now.Hour}-{now.Minute}-{now.Second}-{now.Millisecond}.temp";
-            client.DownloadFileAsync(client.GetFileAsync(msg.ReplyToMessage.Document.FileId).Result.FilePath, path).Wait();
+            using (var str = File.OpenWrite(path))
+            {
+                client.DownloadFileAsync(client.GetFileAsync(msg.ReplyToMessage.Document.FileId).Result.FilePath, str).Wait();
+            }
             string text = File.ReadAllText(path);
             LangFile lf = null;
             try

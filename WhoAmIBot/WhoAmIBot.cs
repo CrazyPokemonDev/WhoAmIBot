@@ -1,10 +1,9 @@
-﻿using FlomBotFactory;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
-using UpdateEventArgs = TelegramBotApi.Types.Events.UpdateEventArgs;
 using File = System.IO.File;
+using UpdateEventArgs = Telegram.Bot.Args.UpdateEventArgs;
 using WhoAmIBotSpace.Classes;
 using WhoAmIBotSpace.Helpers;
 using System.Linq;
@@ -12,17 +11,21 @@ using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
-using TelegramBotApi.Enums;
-using TelegramBotApi.Types.Events;
-using TelegramBotApi.Types;
-using TelegramBotApi.Types.Markup;
+using Telegram.Bot;
+using Telegram.Bot.Args;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace WhoAmIBotSpace
 {
-    public class WhoAmIBot : FlomBot
+    public class WhoAmIBot
     {
+        // Telegram.Bot is deprecating long polling but idc for now
+#pragma warning disable CS0618 // Type or member is obsolete
+
         #region Properties
-        public override string Name => "Who am I bot";
+        public string Name => "Who am I bot";
         public string Username { get; set; }
         #endregion
         #region Constants
@@ -39,7 +42,7 @@ namespace WhoAmIBotSpace
             "guess@",
             "giveup@"
         };
-        protected new static readonly Flom Flom = new Flom();
+        protected static readonly Flom Flom = new Flom();
         private static readonly string appDataBaseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "WhoAmIBot\\");
         private const string dateTimeFileFormat = "yyyy-MM-dd-HH-mm-ss";
@@ -50,6 +53,8 @@ namespace WhoAmIBotSpace
         private const long tracingChannelId = -1001383830638;
         #endregion
         #region Fields
+        private TelegramBotClient client;
+        private string Token { get; }
         private SQLiteConnection sqliteConn;
         private List<Node> Nodes = new List<Node>();
         private bool updating = false;
@@ -148,8 +153,10 @@ namespace WhoAmIBotSpace
         }
         #endregion
         #region Constructors and FlomBot stuff
-        public WhoAmIBot(string token) : base(token)
+        public WhoAmIBot(string token)
         {
+            Token = token;
+            client = new TelegramBotClient(Token);
             if (!Directory.Exists(baseFilePath)) Directory.CreateDirectory(baseFilePath);
             if (!File.Exists(sqliteFilePath)) SQLiteConnection.CreateFile(sqliteFilePath);
             InitSqliteConn();
@@ -163,7 +170,7 @@ namespace WhoAmIBotSpace
             ExecuteSql("DELETE FROM Games");
         }
 
-        public override bool StartBot()
+        public void StartBot()
         {
             var task = client.GetMeAsync();
             task.Wait();
@@ -178,6 +185,7 @@ namespace WhoAmIBotSpace
             }
             //client.OnReceiveError += Client_OnReceiveError;
             //client.OnReceiveGeneralError += Client_OnReceiveError;
+            client.OnUpdate += Client_OnUpdate;
             client.OnCallbackQuery += Client_OnCallbackQuery;
             client.OnCallbackQuery += Client_OnCallbackQueryChecker;
             /*var dir = defaultNodeDirectory;
@@ -188,10 +196,10 @@ namespace WhoAmIBotSpace
             n.Start(Token);
             Nodes.Add(n);*/
             Update(client.SendTextMessageAsync(testingGroupId, "Updating node and starting...").Result);
-            return base.StartBot();
+            client.StartReceiving();
         }
 
-        public override bool StopBot()
+        public void StopBot()
         {
             while (Nodes.Count > 0)
             {
@@ -210,13 +218,14 @@ namespace WhoAmIBotSpace
             }
             //client.OnReceiveError -= Client_OnReceiveError;
             //client.OnReceiveGeneralError -= Client_OnReceiveError;
+            client.OnUpdate -= Client_OnUpdate;
             client.OnCallbackQuery -= Client_OnCallbackQuery;
             client.OnCallbackQuery -= Client_OnCallbackQueryChecker;
-            return base.StopBot();
+            client.StopReceiving();
         }
         #endregion
         #region On Update
-        protected override void Client_OnUpdate(object sender, UpdateEventArgs e)
+        protected void Client_OnUpdate(object sender, UpdateEventArgs e)
         {
             try
             {
@@ -227,12 +236,13 @@ namespace WhoAmIBotSpace
                 && e.Update.Message.ReplyToMessage.Type != MessageType.Text && 
                 !(e.Update.Message.ReplyToMessage.Type == MessageType.Document && e.Update.Message.ReplyToMessage.Document.FileName.ToLower().EndsWith(".txt"))) 
                 e.Update.Message.ReplyToMessage = null;
-            if (e.Update.Type == UpdateType.Message && e.Update.Message.Type == MessageType.Text)
+            if (e.Update.Type == UpdateType.Message && e.Update.Message.Type == MessageType.Text && e.Update.Message.Entities != null)
             {
                 if (e.Update.Message.Entities.Length > 0 && e.Update.Message.Entities[0].Type == MessageEntityType.BotCommand
                     && e.Update.Message.Entities[0].Offset == 0)
                 {
-                    var cmd = e.Update.Message.Entities[0].Value;
+                    var cmdEntity = e.Update.Message.Entities[0];
+                    var cmd = e.Update.Message.Text.Substring(cmdEntity.Offset, cmdEntity.Length);
                     cmd = cmd.ToLower();
                     cmd = cmd.Contains($"@{Username.ToLower()}") ? cmd.Remove(cmd.IndexOf($"@{Username.ToLower()}")) : cmd;
                     if (cmd == "/update")

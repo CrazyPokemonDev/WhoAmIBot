@@ -1,23 +1,50 @@
 ﻿using System.Collections.Generic;
 using System.Data.SQLite;
-using TelegramBotApi.Types.Markup;
+using Telegram.Bot.Types.ReplyMarkups;
 using WhoAmIBotSpace.Classes;
 
 namespace WhoAmIBotSpace.Helpers
 {
+
+    public class ReplyMarkupMaker
+    {
+        public List<List<InlineKeyboardButton>> Rows { get; } = new List<List<InlineKeyboardButton>>();
+
+        public ReplyMarkupMaker AddRow()
+        {
+            var newRow = new List<InlineKeyboardButton>();
+            Rows.Add(newRow);
+            return this;
+        }
+
+        public ReplyMarkupMaker AddCallbackButton(string text, string callback)
+        {
+            var last = Rows[Rows.Count - 1];
+            last.Add(new InlineKeyboardButton { Text = text, CallbackData = callback });
+            return this;
+        }
+
+        public InlineKeyboardMarkup Finish()
+        {
+            return new InlineKeyboardMarkup(Rows);
+        }
+    }
+
+
+
     public static class MyReplyMarkupMaker
     {
         #region Yes No (Idk)
         public static InlineKeyboardMarkup InlineYesNo(string yes, string yesCallback, string no, string noCallback)
         {
-            return (InlineKeyboardMarkup)new ReplyMarkupMaker(ReplyMarkupMaker.ReplyMarkupType.Inline)
+            return new ReplyMarkupMaker()
                 .AddRow().AddCallbackButton(yes, yesCallback).AddCallbackButton(no, noCallback).Finish();
         }
 
         public static InlineKeyboardMarkup InlineYesNoIdk(string yes, string yesCallback, string no, string noCallback, 
             string idk, string idkCallback)
         {
-            return (InlineKeyboardMarkup)new ReplyMarkupMaker(ReplyMarkupMaker.ReplyMarkupType.Inline)
+            return new ReplyMarkupMaker()
                 .AddRow().AddCallbackButton(yes, yesCallback).AddCallbackButton(no, noCallback)
                 .AddRow().AddCallbackButton(idk, idkCallback).Finish();
         }
@@ -25,7 +52,7 @@ namespace WhoAmIBotSpace.Helpers
         #region Guess, give up
         public static InlineKeyboardMarkup InlineGuessGiveUp(string guess, string guessCallback, string giveUp, string giveUpCallback)
         {
-            return (InlineKeyboardMarkup)new ReplyMarkupMaker(ReplyMarkupMaker.ReplyMarkupType.Inline)
+            return new ReplyMarkupMaker()
                 .AddRow().AddCallbackButton(guess, guessCallback).AddCallbackButton(giveUp, giveUpCallback).Finish();
         }
         #endregion
@@ -39,7 +66,7 @@ namespace WhoAmIBotSpace.Helpers
                 {
                     var l = new List<InlineKeyboardButton>
                     {
-                        new InlineKeyboardButton((string)reader["name"]) { CallbackData = $"lang:{reader["key"]}@{chatId}" }
+                        new InlineKeyboardButton() { Text = (string)reader["name"], CallbackData = $"lang:{reader["key"]}@{chatId}" }
                     };
                     bGrid.Add(l);
                 }
@@ -71,14 +98,14 @@ namespace WhoAmIBotSpace.Helpers
         #region Start me
         public static InlineKeyboardMarkup InlineStartMe(string username)
         {
-            InlineKeyboardButton b = new InlineKeyboardButton("Start") { Url = $"http://t.me/{username}" };
+            InlineKeyboardButton b = new InlineKeyboardButton() { Text = "Start", Url = $"http://t.me/{username}" };
             return new InlineKeyboardMarkup(new InlineKeyboardButton[] { b });
         }
         #endregion
         #region Get Games
         public static InlineKeyboardMarkup InlineGetGames(List<NodeGame> games, long chatid)
         {
-            ReplyMarkupMaker maker = new ReplyMarkupMaker(ReplyMarkupMaker.ReplyMarkupType.Inline);
+            ReplyMarkupMaker maker = new ReplyMarkupMaker();
             foreach (var g in games)
             {
                 maker.AddRow().AddCallbackButton(g.GroupId.ToString(), "null").AddCallbackButton("Cancel", $"cancel:{g.GroupId}@{chatid}")
@@ -91,7 +118,7 @@ namespace WhoAmIBotSpace.Helpers
         public static InlineKeyboardMarkup InlineSettings(long groupId, string joinTimeout,
             string gameTimeout, string cancelgameAdmin, string autoEnd, string close)
         {
-            return (InlineKeyboardMarkup)new ReplyMarkupMaker(ReplyMarkupMaker.ReplyMarkupType.Inline)
+            return new ReplyMarkupMaker()
                 .AddRow().AddCallbackButton(joinTimeout, $"joinTimeout@{groupId}").AddCallbackButton(gameTimeout, $"gameTimeout@{groupId}")
                 .AddRow().AddCallbackButton(cancelgameAdmin, $"cancelgameAdmin@{groupId}").AddCallbackButton(autoEnd, $"autoEnd@{groupId}")
                 .AddRow().AddCallbackButton(close, $"closesettings@{groupId}").Finish();
@@ -100,7 +127,7 @@ namespace WhoAmIBotSpace.Helpers
         #region Cancel Nextgame
         public static InlineKeyboardMarkup InlineCancelNextgame(string cancel, long groupid)
         {
-            InlineKeyboardButton b = new InlineKeyboardButton(cancel) { CallbackData = $"cancelnextgame@{groupid}" };
+            InlineKeyboardButton b = new InlineKeyboardButton() { Text = cancel, CallbackData = $"cancelnextgame@{groupid}" };
             InlineKeyboardButton[] row = { b };
             return new InlineKeyboardMarkup(row);
         }

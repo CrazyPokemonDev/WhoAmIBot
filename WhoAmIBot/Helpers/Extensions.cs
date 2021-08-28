@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using TelegramBotApi.Enums;
-using TelegramBotApi.Types;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace WhoAmIBotSpace.Helpers
 {
@@ -73,7 +73,7 @@ namespace WhoAmIBotSpace.Helpers
 
     public class CommDummyMsg : Message
     {
-        public CommDummyMsg(int from, long groupid)
+        public CommDummyMsg(long from, long groupid)
         {
             From = new User() { Id = from };
             Text = $"/communicate {groupid}";

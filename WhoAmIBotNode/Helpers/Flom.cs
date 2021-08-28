@@ -1,30 +1,30 @@
-﻿using TelegramBotApi.Types;
+﻿using Telegram.Bot.Types;
 
 namespace WhoAmIBotSpace.Helpers
 {
     public class Flom
     {
-        public static implicit operator ChatId(Flom flom)
+        public static implicit operator ChatId(Flom _)
         {
             return 267376056;
         }
 
-        public static bool operator ==(Flom f, int i)
+        public static bool operator ==(Flom _, long i)
         {
             return i == 267376056 || i == 295152997;
         }
 
-        public static bool operator !=(Flom f, int i)
+        public static bool operator !=(Flom _, long i)
         {
             return i != 267376056 && i != 295152997;
         }
 
-        public static bool operator ==(int i, Flom f)
+        public static bool operator ==(long i, Flom _)
         {
             return i == 267376056 || i == 295152997;
         }
 
-        public static bool operator !=(int i, Flom f)
+        public static bool operator !=(long i, Flom _)
         {
             return i != 267376056 && i != 295152997;
         }

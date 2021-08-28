@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Net;
 using System.Threading;
-using TelegramBotApi.Types;
+using Telegram.Bot.Types;
 using WhoAmIBotSpace.Helpers;
 
 namespace WhoAmIBotSpace.Classes
