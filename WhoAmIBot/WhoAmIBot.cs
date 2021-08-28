@@ -59,9 +59,6 @@ namespace WhoAmIBotSpace
         private List<Node> Nodes = new List<Node>();
         private bool updating = false;
         #endregion
-        #region Events
-        public event EventHandler<RestartEventArgs> Restart;
-        #endregion
 
         #region Helpers
         private bool GlobalAdminExists(long id)
@@ -187,7 +184,6 @@ namespace WhoAmIBotSpace
             //client.OnReceiveGeneralError += Client_OnReceiveError;
             client.OnUpdate += Client_OnUpdate;
             client.OnCallbackQuery += Client_OnCallbackQuery;
-            client.OnCallbackQuery += Client_OnCallbackQueryChecker;
             /*var dir = defaultNodeDirectory;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, "WhoAmIBotNode.exe");
@@ -195,7 +191,7 @@ namespace WhoAmIBotSpace
             n.NodeStopped += (sender, node) => Nodes.Remove(n);
             n.Start(Token);
             Nodes.Add(n);*/
-            Update(client.SendTextMessageAsync(testingGroupId, "Updating node and starting...").Result);
+            StartNode();
             client.StartReceiving();
         }
 
@@ -220,7 +216,6 @@ namespace WhoAmIBotSpace
             //client.OnReceiveGeneralError -= Client_OnReceiveError;
             client.OnUpdate -= Client_OnUpdate;
             client.OnCallbackQuery -= Client_OnCallbackQuery;
-            client.OnCallbackQuery -= Client_OnCallbackQueryChecker;
             client.StopReceiving();
         }
         #endregion
@@ -245,32 +240,14 @@ namespace WhoAmIBotSpace
                     var cmd = e.Update.Message.Text.Substring(cmdEntity.Offset, cmdEntity.Length);
                     cmd = cmd.ToLower();
                     cmd = cmd.Contains($"@{Username.ToLower()}") ? cmd.Remove(cmd.IndexOf($"@{Username.ToLower()}")) : cmd;
-                    if (cmd == "/update")
-                    {
-                        if (e.Update.Message.From.Id == Flom)
-                        {
-                            var t = client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Updating...");
-                            t.Wait();
-                            Update(t.Result);
-                            return;
-                        }
-                    }
-                    else if (cmd == "/updatecontrol")
-                    {
-                        if (e.Update.Message.From.Id == Flom)
-                        {
-                            var t = client.SendTextMessageAsync(e.Update.Message.Chat.Id, "Updating Control.");
-                            t.Wait();
-                            UpdateControl(t.Result);
-                            return;
-                        }
-                    }
+                    
+
                     if (StandaloneCommandExists(cmd))
                     {
                         var node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
                         if (node == null && !updating)
                         {
-                            Update(client.SendTextMessageAsync(testingGroupId, "No node found. Starting a new one...").Result, true);
+                            StartNode();
                             node = Nodes.FirstOrDefault(x => x.State == NodeState.Primary);
                         }
                         node?.Queue(JsonConvert.SerializeObject(e.Update));
@@ -324,172 +301,16 @@ namespace WhoAmIBotSpace
                 }
             }
         }
-
-        private void Client_OnCallbackQueryChecker(object sender, CallbackQueryEventArgs e)
-        {
-            if ((e.CallbackQuery.Data != "update" && e.CallbackQuery.Data != "dontUpdate" && e.CallbackQuery.Data != "updatecontrol")
-                || e.CallbackQuery.From.Id != Flom || e.CallbackQuery.Message == null) return;
-            Message cmsg = e.CallbackQuery.Message;
-            switch (e.CallbackQuery.Data)
-            {
-                case "update":
-                    Update(cmsg);
-                    break;
-                case "updatecontrol":
-                    client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Updating Control.");
-                    UpdateControl(cmsg);
-                    break;
-                case "dontUpdate":
-                    client.EditMessageTextAsync(cmsg.Chat.Id, cmsg.MessageId, "Okay, no work for me :)");
-                    break;
-            }
-        }
         #endregion
 
-        #region Updater
-        private void Update(Message toEdit, bool wait=false)
+        #region Start Node
+        private void StartNode()
         {
-            updating = true;
-            ParameterizedThreadStart pts = new ParameterizedThreadStart(UpdateThread);
-            Thread t = new Thread(pts);
-            t.Start(toEdit);
-            if (wait)
-                t.Join();
-        }
-
-        private void UpdateThread(object obj)
-        {
-            try
-            {
-                if (!(obj is Message))
-                {
-                    return;
-                }
-                Message toEdit = (Message)obj;
-                var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nPulling git...");
-                t.Wait();
-                toEdit = t.Result;
-                UpdateGit();
-                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nCopying files to node directory...");
-                t.Wait();
-                toEdit = t.Result;
-                string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotNode_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
-                if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
-                string gitDirToCopy = Path.Combine(gitDirectory, "WhoAmIBot\\WhoAmIBotNode\\bin\\Release");
-                DeepCopy(new DirectoryInfo(gitDirToCopy), new DirectoryInfo(newDir));
-                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + $"\nStarting node at {newDir}...");
-                t.Wait();
-                toEdit = t.Result;
-                Node n = new Node(Path.Combine(newDir, "WhoAmIBotNode.exe"));
-                foreach (var sNode in Nodes.FindAll(x => x.State == NodeState.Primary))
-                {
-                    sNode.SoftStop();
-                }
-                n.Start(Token);
-                n.NodeStopped += (sender, node) => Nodes.Remove(n);
-                Nodes.Add(n);
-                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nFinished.");
-                t.Wait();
-                toEdit = t.Result;
-                updating = false;
-            }
-            catch (Exception ex)
-            {
-                client.SendTextMessageAsync(Flom, ex.ToString());
-                updating = false;
-            }
-        }
-
-        private static void UpdateGit()
-        {
-            if (!Directory.Exists(appDataBaseDir)) Directory.CreateDirectory(appDataBaseDir);
-            if (!Directory.Exists(gitDirectory)) Directory.CreateDirectory(gitDirectory);
-            string firstDir = Path.Combine(gitDirectory, "first.bat");
-            if (!File.Exists(firstDir)) File.Copy("Updater\\first.bat", firstDir);
-            string runDir = Path.Combine(gitDirectory, "run.bat");
-            if (!File.Exists(runDir)) File.Copy("Updater\\run.bat", runDir);
-            Process first = new Process();
-            first.StartInfo.FileName = firstDir;
-            first.StartInfo.UseShellExecute = false;
-            first.StartInfo.WorkingDirectory = Path.GetDirectoryName(firstDir);
-            first.Start();
-            first.WaitForExit();
-            Process run = new Process();
-            run.StartInfo.FileName = runDir;
-            run.StartInfo.UseShellExecute = false;
-            run.StartInfo.WorkingDirectory = Path.GetDirectoryName(runDir);
-            run.Start();
-            run.WaitForExit();
-        }
-
-        public static void DeepCopy(DirectoryInfo source, DirectoryInfo target)
-        {
-            if (target.FullName.Contains(source.FullName))
-                throw new Exception("Cannot perform DeepCopy: Ancestry conflict detected");
-            // Recursively call the DeepCopy Method for each Directory
-            foreach (DirectoryInfo dir in source.GetDirectories())
-                DeepCopy(dir, target.CreateSubdirectory(dir.Name));
-
-            // Go ahead and copy each file in "source" to the "target" directory
-            foreach (FileInfo file in source.GetFiles())
-                file.CopyTo(Path.Combine(target.FullName, file.Name), true);
-        }
-
-        public void UpdateControl(Message toEdit)
-        {
-            ParameterizedThreadStart pts = new ParameterizedThreadStart(UpdateControlThread);
-            Thread t = new Thread(pts);
-            t.Start(toEdit);
-        }
-
-        private void UpdateControlThread(object obj)
-        {
-            try
-            {
-                if (!(obj is Message toEdit)) return;
-                var t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, "Updating control");
-                t.Wait();
-                toEdit = t.Result;
-                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nWaiting for games to stop...");
-                t.Wait();
-                toEdit = t.Result;
-                string newestNodePath = null;
-                if (Nodes.Any(x => x.State == NodeState.Primary))
-                {
-                    Node node = Nodes.Find(x => x.State == NodeState.Primary);
-                    if (node.Path != Path.Combine(defaultNodeDirectory, "WhoAmIBotNode.exe")) newestNodePath = node.Path;
-                }
-                StopBot();
-
-                string path = Assembly.GetExecutingAssembly().CodeBase;
-                if (path.StartsWith("file:///")) path = path.Substring(8).Replace("/", "\\");
-                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nUpdating git...");
-                t.Wait();
-                toEdit = t.Result;
-                #region Update git
-                UpdateGit();
-                string newDir = Path.Combine(appDataBaseDir, $"WhoAmIBotControl_{DateTime.Now.ToString(dateTimeFileFormat)}\\");
-                if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
-                string gitDirToCopy = Path.Combine(gitDirectory, "WhoAmIBot\\WhoAmIBot\\bin\\Release");
-                DeepCopy(new DirectoryInfo(gitDirToCopy), new DirectoryInfo(newDir));
-                #endregion
-                if (newestNodePath != null)
-                {
-                    DeepCopy(new DirectoryInfo(Path.GetDirectoryName(newestNodePath)), new DirectoryInfo(defaultNodeDirectory));
-                }
-                newDir = Path.Combine(newDir, "WhoAmIBot.dll");
-                t = client.EditMessageTextAsync(toEdit.Chat.Id, toEdit.MessageId, toEdit.Text + "\nInvoking restart event...");
-                t.Wait();
-                toEdit = t.Result;
-                ProcessStartInfo psi = new ProcessStartInfo(controlUpdaterPath, "\"" + path.Trim('"') + "\" \"" + newDir.Trim('"') + "\"");
-                Process.Start(psi);
-                Thread.Sleep(500);
-                Restart?.Invoke(this, new RestartEventArgs(path, newDir));
-            }
-            catch (Exception ex)
-            {
-                client.SendTextMessageAsync(Flom, ex.ToString());
-            }
+            var dir = Directory.EnumerateDirectories(appDataBaseDir, "WhoAmIBotNode_*").OrderBy(x => x).Last();
+            Node n = new Node(Path.Combine(dir, "WhoAmIBotNode.exe"));
+            n.Start(Token);
+            n.NodeStopped += (sender, node) => Nodes.Remove(n);
+            Nodes.Add(n);
         }
         #endregion
 

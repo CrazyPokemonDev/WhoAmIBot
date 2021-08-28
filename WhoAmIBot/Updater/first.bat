@@ -1,1 +1,0 @@
-git clone "http://github.com/Olfi01/WhoAmIBot"

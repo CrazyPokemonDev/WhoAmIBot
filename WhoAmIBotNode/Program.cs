@@ -568,7 +568,7 @@ namespace WhoAmIBotSpace
             {
 #endif
                 var update = JsonConvert.DeserializeObject<Update>(data);
-                if (update.Type == UpdateType.Message && update.Message.Type == MessageType.Text)
+                if (update.Type == UpdateType.Message && update.Message.Type == MessageType.Text && update.Message.Entities != null)
                 {
                     foreach (var entity in update.Message.Entities)
                     {

@@ -106,7 +106,6 @@
     <Compile Include="Helpers\Extensions.cs" />
     <Compile Include="Helpers\Flom.cs" />
     <Compile Include="Helpers\Strings.cs" />
-    <Compile Include="Classes\RestartEventArgs.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="WhoAmIBot.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -114,12 +113,6 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
-    <None Include="Updater\first.bat">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="Updater\run.bat">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
