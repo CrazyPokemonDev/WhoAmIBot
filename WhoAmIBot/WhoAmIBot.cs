@@ -43,13 +43,8 @@ namespace WhoAmIBotSpace
             "giveup@"
         };
         protected static readonly Flom Flom = new Flom();
-        private static readonly string appDataBaseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "WhoAmIBot\\");
-        private const string dateTimeFileFormat = "yyyy-MM-dd-HH-mm-ss";
-        private static readonly string defaultNodeDirectory = Path.Combine(appDataBaseDir, "default\\");
-        private static readonly string controlUpdaterPath = Path.Combine(appDataBaseDir,
-            "git\\WhoAmIBot\\ControlUpdater\\bin\\Release\\ControlUpdater.exe");
-        private static readonly string gitDirectory = Path.Combine(appDataBaseDir, "git\\");
+        private static readonly string releaseDirectory = Path.Combine(baseFilePath, "Release\\");
+        private static readonly string nodeReleaseDirectory = Path.Combine(releaseDirectory, "Node\\");
         private const long tracingChannelId = -1001383830638;
         #endregion
         #region Fields
@@ -306,7 +301,7 @@ namespace WhoAmIBotSpace
         #region Start Node
         private void StartNode()
         {
-            var dir = Directory.EnumerateDirectories(appDataBaseDir, "WhoAmIBotNode_*").OrderBy(x => x).Last();
+            var dir = Directory.EnumerateDirectories(nodeReleaseDirectory, "WhoAmIBotNode_*").OrderBy(x => x).Last();
             Node n = new Node(Path.Combine(dir, "WhoAmIBotNode.exe"));
             n.Start(Token);
             n.NodeStopped += (sender, node) => Nodes.Remove(n);
