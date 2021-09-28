@@ -590,7 +590,17 @@ namespace WhoAmIBotSpace
                                     }
                                     catch (Exception ex)
                                     {
-                                        client.SendTextMessageAsync(Flom, $"Who am I bot\n{ex.Message}\n{ex.StackTrace}");
+                                        string trace = ex.StackTrace;
+                                        string msg = "";
+
+                                        do
+                                        {
+                                            msg += ex.Message + "\n\n";
+                                            ex = ex.InnerException;
+                                        }
+                                        while (ex != null);
+
+                                        client.SendTextMessageAsync(Flom, $"Who am I bot\n{msg}{trace}");
                                     }
                                 });
                                 t.Start();
@@ -613,8 +623,18 @@ namespace WhoAmIBotSpace
             }
             catch (Exception x)
             {
+                string trace = x.StackTrace;
+                string msg = "";
+
+                do
+                {
+                    msg += x.Message + "\n\n";
+                    x = x.InnerException;
+                }
+                while (x != null);
+
                 client?.SendTextMessageAsync(Flom,
-                    $"Error ocurred in Who Am I Bot:\n{x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
+                    $"Error occurred in Who Am I Bot:\n{msg}{trace}\n{JsonConvert.SerializeObject(x.Data)}");
                 if (client == null)
                     Console.WriteLine($"An error occurred in Node: {x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
             }
@@ -1244,7 +1264,17 @@ namespace WhoAmIBotSpace
                             }
                             catch (Exception ex)
                             {
-                                client.SendTextMessageAsync(Flom, $"Who am I bot\n{ex.Message}\n{ex.StackTrace}");
+                                string trace = ex.StackTrace;
+                                string errorMsg = "";
+
+                                do
+                                {
+                                    errorMsg += ex.Message + "\n\n";
+                                    ex = ex.InnerException;
+                                }
+                                while (ex != null);
+
+                                client.SendTextMessageAsync(Flom, $"Who am I bot\n{errorMsg}{trace}");
                             }
                         });
                         t.Start();
