@@ -624,6 +624,7 @@ namespace WhoAmIBotSpace
             catch (Exception x)
             {
                 string trace = x.StackTrace;
+                var exceptionData = x.Data;
                 string msg = "";
 
                 do
@@ -634,9 +635,9 @@ namespace WhoAmIBotSpace
                 while (x != null);
 
                 client?.SendTextMessageAsync(Flom,
-                    $"Error occurred in Who Am I Bot:\n{msg}{trace}\n{JsonConvert.SerializeObject(x.Data)}");
+                    $"Error occurred in Who Am I Bot:\n{msg}{trace}\n{JsonConvert.SerializeObject(exceptionData)}");
                 if (client == null)
-                    Console.WriteLine($"An error occurred in Node: {x.Message}\n{x.StackTrace}\n{JsonConvert.SerializeObject(x.Data)}");
+                    Console.WriteLine($"An error occurred in Node: {msg}\n{trace}\n{JsonConvert.SerializeObject(exceptionData)}");
             }
 #endif
         }
